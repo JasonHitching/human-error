@@ -59,10 +59,14 @@ func test_crew_busy_rejects_second() -> void:
 	f.step()
 	f.get_machine("proc_a").state = Machine.State.JAMMED
 	f.get_machine("proc_b").state = Machine.State.JAMMED
+	f.get_machine("assembler").state = Machine.State.JAMMED
 	assert_eq(f.request_action("proc_a"), Factory.ActionResult.STARTED_REPAIR)
 	assert_true(f.crew_busy)
-	assert_eq(f.request_action("proc_b"), Factory.ActionResult.CREW_BUSY)
+	assert_eq(f.request_action("proc_b"), Factory.ActionResult.QUEUED, "second tap queues (max 1)")
+	assert_eq(f.request_action("assembler"), Factory.ActionResult.CREW_BUSY)
+	assert_eq(f.request_action("proc_a"), Factory.ActionResult.CREW_BUSY, "current job")
 	assert_eq(f.crew_target, "proc_a")
+	assert_eq(f.crew_queued, "proc_b")
 
 
 func test_repair_clears_fault() -> void:

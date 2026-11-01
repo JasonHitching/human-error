@@ -39,8 +39,9 @@ func test_wrong_recipe_clogs_next_and_clear_restores() -> void:
 	var asm := f.get_machine("assembler")
 	assert_eq(asm.state, Machine.State.CLOGGED)
 	assert_true(asm.junk_count > 0)
+	var walk := f.worker.walk_ticks_to(asm.pos)  # the job starts once the worker arrives
 	assert_eq(f.request_action("assembler"), Factory.ActionResult.STARTED_CLEAR)
-	_run(f, 20)
+	_run(f, walk + 20)
 	assert_eq(asm.junk_count, 0)
 	# fix the sources, then flow resumes
 	f.get_machine("proc_a").wrong_recipe = false
@@ -66,8 +67,9 @@ func test_fix_stops_junk() -> void:
 	a.wrong_recipe = true
 	a.overclocked = true
 	a.misrouted = true
+	var walk := f.worker.walk_ticks_to(a.pos)  # the job starts once the worker arrives
 	assert_eq(f.request_action("proc_a"), Factory.ActionResult.STARTED_FIX)
-	_run(f, 15)
+	_run(f, walk + 15)
 	assert_true(not a.wrong_recipe and not a.misrouted and not a.overclocked, "one fix clears all")
 
 

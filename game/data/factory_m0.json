@@ -1,4 +1,5 @@
 {
+  "stairs": [0.08, 0.06],
   "machines": [
     {"id": "generator", "type": "generator", "pos": [0.5, 0.08], "output": "raw", "input_cap": 0, "output_cap": 2, "process_time": 1.0, "heat_per_sec": 1.0, "cool_per_sec": 3.0},
     {"id": "proc_a", "type": "processor", "pos": [0.22, 0.33], "input": "raw", "output": "component", "input_cap": 2, "output_cap": 2, "process_time": 2.5, "heat_per_sec": 2.8, "cool_per_sec": 4.0},

@@ -11,6 +11,8 @@ func _init() -> void:
 		quit(1)
 		return
 	var shift := cfg.shift_seconds
+	if OS.has_environment("WS"): cfg.walk_speed = float(OS.get_environment("WS"))  # TMPX
+	if OS.has_environment("QC"): cfg.qa_capacity = int(OS.get_environment("QC"))  # TMPX
 	var bot := "none"
 	var career := false
 	var args := OS.get_cmdline_user_args()
@@ -42,9 +44,10 @@ func _init() -> void:
 	for r in runs:
 		var f := Factory.new(cfg, seed_start + r)
 		var prng := Autoplayers.make_rng(seed_start + r)
+		var mem := {}
 		var multi := false
 		for _t in ticks:
-			Autoplayers.act(bot, f, prng)
+			Autoplayers.act(bot, f, prng, mem)
 			f.step()
 			var n_faulted := 0
 			for m in f.machines:
@@ -105,8 +108,9 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 		while not c.fired and c.day <= DAY_CAP:
 			var f := c.start_day()
 			var prng := Autoplayers.make_rng(c.seed * 1000 + c.day)
+			var mem := {}
 			for _t in int(cfg.shift_seconds * cfg.tick_rate):
-				Autoplayers.act(player, f, prng)
+				Autoplayers.act(player, f, prng, mem)
 				f.step()
 			qa.add(f)
 			var res := c.end_day(f)
@@ -161,12 +165,17 @@ class QaStats:
 	var full_shifts := 0
 	var loc_ticks := [0, 0, 0]  # office, floor, transit
 	var trips := 0
+	var walk := 0
+
+	var tick_rate := 10
 
 	func add(f: Factory) -> void:
 		shifts += 1
+		tick_rate = f._config.tick_rate
 		for l in 3:
 			loc_ticks[l] += int(f.worker.ticks_in[l])
 		trips += f.worker.trips
+		walk += f.worker.walk_ticks
 		ticks += f.qa_ticks
 		idle += f.idle_ticks
 		complaints += f.complaints
@@ -186,5 +195,6 @@ class QaStats:
 
 	func worker_report() -> String:
 		var t := maxf(1.0, loc_ticks[0] + loc_ticks[1] + loc_ticks[2])
-		return "worker: office %.1f%%, floor %.1f%%, transit %.1f%%, trips/shift %.1f" % [
-			100.0 * loc_ticks[0] / t, 100.0 * loc_ticks[1] / t, 100.0 * loc_ticks[2] / t, float(trips) / maxf(1.0, shifts)]
+		return "worker: office %.1f%%, floor %.1f%%, transit %.1f%%, trips/shift %.1f, walk: seconds/shift %.1f" % [
+			100.0 * loc_ticks[0] / t, 100.0 * loc_ticks[1] / t, 100.0 * loc_ticks[2] / t, float(trips) / maxf(1.0, shifts),
+			float(walk) / tick_rate / maxf(1.0, shifts)]

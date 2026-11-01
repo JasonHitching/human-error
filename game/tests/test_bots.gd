@@ -56,8 +56,9 @@ func test_overclock_heats_faster_and_fix_clears() -> void:
 	var plain := g.get_machine("generator").heat
 	assert_true(a.heat > plain * 2.0, "oc=%f plain=%f" % [a.heat, plain])
 	a.heat = 80.0
+	var walk := f.worker.walk_ticks_to(a.pos)  # the job starts once the worker arrives
 	assert_eq(f.request_action("generator"), Factory.ActionResult.STARTED_FIX)
-	for i in 12:
+	for i in walk + 12:
 		f.step()
 	assert_true(not a.overclocked)
 	assert_true(a.heat < 40.0, "heat %f" % a.heat)

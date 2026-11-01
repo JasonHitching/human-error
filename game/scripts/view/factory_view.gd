@@ -18,8 +18,6 @@ var _time: float = 0.0
 var _scrap_runs: Dictionary = {}  # machine id -> seconds into the scrap-bin roll
 var _pulse: Dictionary = {}  # machine id -> seconds left of the fix pulse
 var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
-var _worker_pos := Vector2.ZERO
-var _worker_start := Vector2.ZERO
 var _was_crew: String = ""
 var _qa_seen: int = 0
 var _bounce: float = 0.0
@@ -40,7 +38,6 @@ func setup(f: Factory, config: SimConfig) -> void:
 	_was_crew = ""
 	_qa_seen = 0
 	_bounce = 0.0
-	_worker_pos = stairs_pos()
 	for l in config.links:
 		_link_ticks["%s>%s" % [l["from"], l["to"]]] = maxf(1.0, float(l["transit_time"]) * config.tick_rate)
 	queue_redraw()
@@ -109,13 +106,10 @@ func _update_juice(d: float) -> void:
 		if m != null and not m.is_faulted():
 			_pulse[m.id] = PULSE_TIME
 			_spawn_sparks(machine_rect(m).get_center())
-	if factory.crew_busy and _was_crew == "":
-		_worker_start = _worker_pos
 	_was_crew = factory.crew_target if factory.crew_busy else ""
 	for s in _sparks:
 		s["life"] -= d
 		s["p"] += s["v"] * d
-	_move_worker(d)
 
 
 func _spawn_sparks(c: Vector2) -> void:
@@ -125,40 +119,27 @@ func _spawn_sparks(c: Vector2) -> void:
 		_sparks.append({"p": c, "v": Vector2(cos(a), sin(a)) * (70.0 + 30.0 * float(i % 3)), "life": 0.5})
 
 
-## Where the stairs/lift are: top-left of the floor area.
+## Floor layout units (sim) -> screen position in the floor area.
+func layout_to_px(p: Vector2) -> Vector2:
+	return area.position + Vector2(p.x * area.size.x, p.y * area.size.y)
+
+
+## Where the stairs/lift are (the sim's stairs position).
 func stairs_pos() -> Vector2:
-	return area.position + Vector2(34, 40)
+	return layout_to_px(factory.worker.stairs) if factory != null else area.position
 
 
 func worker_visible() -> bool:
 	return factory != null and factory.worker_location() != Worker.Location.OFFICE
 
 
-## Cosmetic worker position, always inside the floor area.
+## The worker at the sim's floor position (smoothed by alpha), kept inside the floor area.
 func worker_pos() -> Vector2:
-	return _clamp_in(_worker_pos, WorkerView.HALF)
-
-
-func _move_worker(d: float) -> void:
-	var loc := factory.worker_location()
-	if loc == Worker.Location.OFFICE or (loc == Worker.Location.TRANSIT and factory.transit_target() == Worker.Location.FLOOR):
-		_worker_pos = stairs_pos()  # appears at the stairs
-		return
-	if factory.crew_busy:
-		var m := factory.get_machine(factory.crew_target)
-		if m != null:
-			var goal := machine_rect(m).get_center() + Vector2(-machine_rect(m).size.x * 0.5 - 20.0, 0)
-			var t := clampf(factory.crew_progress / 0.4, 0.0, 1.0)
-			t = t * t * (3.0 - 2.0 * t)
-			_worker_pos = _worker_start.lerp(goal, t)
-			return
-	_worker_pos = _worker_pos.move_toward(stairs_pos(), 320.0 * d)  # head back to the stairs
+	return _clamp_in(layout_to_px(factory.worker.floor_pos_at(alpha)), WorkerView.HALF)
 
 
 func _worker_walking() -> bool:
-	if factory.crew_busy:
-		return factory.crew_progress < 0.4
-	return _worker_pos.distance_to(stairs_pos()) > 1.0
+	return factory.worker.is_walking()
 
 
 func _clamp_in(p: Vector2, margin: float) -> Vector2:
