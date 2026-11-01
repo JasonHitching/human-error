@@ -1,6 +1,6 @@
 class_name WorkerView
 extends RefCounted
-## Code-drawn QA worker: the only character with legs. Cosmetic only.
+## Code-drawn QA worker: the only character with legs. Drawn where the sim puts the worker.
 
 const HALF := 22.0  # drawn extent from the centre, for bounds checks
 

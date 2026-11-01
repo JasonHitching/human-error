@@ -130,3 +130,156 @@ func test_replay_with_trips() -> void:
 	assert_eq(a.complaints, b.complaints)
 	assert_eq(a.idle_ticks, b.idle_ticks)
 	assert_eq(a.fault_counts, b.fault_counts)
+
+
+func _walk_cfg(speed: float) -> SimConfig:
+	var bal := SimConfig._read(SimConfig.BALANCE_PATH)
+	bal["walk_speed"] = speed
+	return SimConfig.from_dicts(SimConfig._read(SimConfig.MACHINES_PATH), bal)
+
+
+func _quiet(f: Factory) -> Factory:
+	for m in f.machines:
+		if m.bot != null:
+			m.bot.rates = {}
+			m.bot.sloppy = 0.0
+	f.worker.place(Worker.Location.FLOOR)
+	return f
+
+
+func test_arrives_at_stairs() -> void:
+	var f := _fac()
+	f.go_to_floor()
+	for i in _trip_ticks():
+		f.step()
+	assert_eq(f.worker_location(), Worker.Location.FLOOR)
+	assert_eq(f.worker.floor_pos, SimConfig.load_default().stairs)
+
+
+func test_walk_time_matches_distance_over_speed() -> void:
+	var cfg := _walk_cfg(0.5)  # 0.05 units/tick
+	var f := _quiet(Factory.new(cfg, 1))
+	var gen := f.get_machine("generator")
+	var dist := cfg.stairs.distance_to(gen.pos)
+	var want := ceili(dist / (0.5 / cfg.tick_rate))
+	assert_eq(want, 9, "stairs (0.08,0.06) -> generator (0.5,0.08) is 0.42 units")
+	assert_eq(f.worker.walk_ticks_to(gen.pos), want)
+	gen.overclocked = true
+	assert_eq(f.request_action("generator"), Factory.ActionResult.STARTED_FIX)
+	assert_true(not f.go_to_office(), "walking to a job counts as busy")
+	for i in want:
+		assert_true(f.crew_walking(), "walking, tick %d" % i)
+		f.step()
+	assert_true(not f.crew_walking(), "arrived")
+	assert_eq(f.worker.floor_pos, gen.pos)
+	assert_eq(f.worker.walk_ticks, want)
+	assert_eq(f.crew_progress, 0.0, "job timer starts on arrival")
+
+
+func test_job_starts_on_arrival() -> void:
+	var cfg := _walk_cfg(0.5)
+	var f := _quiet(Factory.new(cfg, 1))
+	var a := f.get_machine("proc_a")
+	a.misrouted = true
+	var walk := f.worker.walk_ticks_to(a.pos)
+	var job := roundi(cfg.fix_seconds * cfg.tick_rate)
+	assert_true(walk > 0)
+	f.request_action("proc_a")
+	for i in walk + job - 1:
+		f.step()
+	assert_true(a.misrouted and f.crew_busy, "not done one tick early")
+	f.step()
+	assert_true(not a.misrouted and not f.crew_busy, "done after walk + job ticks")
+	var g := _quiet(Factory.new(_walk_cfg(0.0), 1))  # walk_speed 0: instant, the old behaviour
+	g.get_machine("proc_a").misrouted = true
+	g.request_action("proc_a")
+	for i in job:
+		g.step()
+	assert_true(not g.get_machine("proc_a").misrouted)
+
+
+func test_queued_fix_runs_next_and_can_be_cancelled() -> void:
+	var cfg := _walk_cfg(0.5)
+	var f := _quiet(Factory.new(cfg, 1))
+	var a := f.get_machine("proc_a")
+	var b := f.get_machine("proc_b")
+	a.misrouted = true
+	b.misrouted = true
+	f.request_action("proc_a")
+	assert_eq(f.request_action("proc_b"), Factory.ActionResult.QUEUED)
+	assert_eq(f.request_action("proc_b"), Factory.ActionResult.UNQUEUED, "tap again cancels")
+	assert_eq(f.crew_queued, "")
+	assert_eq(f.request_action("proc_b"), Factory.ActionResult.QUEUED)
+	var first := f.worker.walk_ticks_to(a.pos) + roundi(cfg.fix_seconds * cfg.tick_rate)
+	for i in first:
+		f.step()
+	assert_true(not a.misrouted)
+	assert_eq(f.crew_target, "proc_b", "queued fix runs next")
+	assert_true(f.crew_walking())
+	assert_eq(f.crew_queued, "")
+	var second := f.worker.walk_ticks_to(b.pos) + roundi(cfg.fix_seconds * cfg.tick_rate)
+	assert_eq(f.worker.walk_ticks_to(b.pos), ceili(a.pos.distance_to(b.pos) / (0.5 / cfg.tick_rate)), "walks from proc_a")
+	for i in second:
+		f.step()
+	assert_true(not b.misrouted and not f.crew_busy)
+
+
+func test_leaving_walks_to_stairs_first() -> void:
+	var cfg := _walk_cfg(0.5)
+	var f := _quiet(Factory.new(cfg, 1))
+	var a := f.get_machine("proc_a")
+	a.misrouted = true
+	f.request_action("proc_a")
+	for i in 200:
+		if not f.crew_busy:
+			break
+		f.step()
+	var back := f.worker.walk_ticks_to(cfg.stairs)
+	assert_true(back > 0)
+	assert_true(f.go_to_office())
+	for i in back:
+		assert_eq(f.worker_location(), Worker.Location.FLOOR, "walking to the stairs")
+		f.step()
+	assert_eq(f.worker_location(), Worker.Location.TRANSIT)
+	for i in _trip_ticks():
+		f.step()
+	assert_eq(f.worker_location(), Worker.Location.OFFICE)
+	assert_eq(f.worker.trips, 1)
+
+
+func test_tap_on_the_way_out_turns_back() -> void:
+	var cfg := _walk_cfg(0.5)
+	var f := _quiet(Factory.new(cfg, 1))
+	f.worker.floor_pos = f.get_machine("assembler").pos
+	f.go_to_office()
+	f.step()
+	f.get_machine("proc_b").misrouted = true
+	assert_eq(f.request_action("proc_b"), Factory.ActionResult.STARTED_FIX)
+	assert_eq(f.transit_target(), Worker.Location.FLOOR)
+	for i in 200:
+		f.step()
+	assert_eq(f.worker_location(), Worker.Location.FLOOR, "stayed on the floor")
+	assert_true(not f.get_machine("proc_b").misrouted)
+
+
+func test_replay_with_walks_and_queued_fixes() -> void:
+	var cfg := SimConfig.load_default()
+	var a := Factory.new(cfg, 6)
+	var rng := Autoplayers.make_rng(6)
+	var mem := {}
+	var queued := 0
+	for i in 1200:
+		Autoplayers.act("careful", a, rng, mem)
+		if a.crew_queued != "":
+			queued += 1
+		a.step()
+	assert_true(a.worker.walk_ticks > 0, "walked")
+	assert_true(queued > 0, "queued fixes")
+	var b := Factory.replay(cfg, 6, a.actions, 1200)
+	assert_eq(a.worker.walk_ticks, b.worker.walk_ticks)
+	assert_eq(a.worker.floor_pos, b.worker.floor_pos)
+	assert_eq(a.worker.ticks_in, b.worker.ticks_in)
+	assert_eq(a.shipped, b.shipped)
+	assert_eq(a.complaints, b.complaints)
+	assert_eq(a.fault_counts, b.fault_counts)
+	assert_eq(a.idle_ticks, b.idle_ticks)

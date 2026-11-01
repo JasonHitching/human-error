@@ -180,6 +180,8 @@ func _check_floor_chars() -> void:
 	v.area = sw.floor_rect()
 	var back := sw.back_btn.get_global_rect()
 	var bad := 0
+	var off_sim := 0
+	var away := 0
 	for i in 900:
 		f.step()
 		v.push_events(f.events)
@@ -195,12 +197,21 @@ func _check_floor_chars() -> void:
 			if m.bot != null:
 				pts.append(v.bot_pos(m))
 		pts.append(v.worker_pos())
+		var sim_px := v.layout_to_px(f.worker.floor_pos_at(v.alpha))
+		if v.worker_pos().distance_to(sim_px) > WorkerView.HALF + 1.0:  # only the edge clamp may move it
+			off_sim += 1
+		if f.worker.floor_pos.distance_to(f.worker.stairs) > 0.1:
+			away += 1
 		for p in pts:
 			var box := Rect2(p - Vector2(22, 24), Vector2(44, 48))
 			if not v.area.encloses(box) or box.intersects(back):
 				bad += 1
 	if bad > 0:
 		_fails.append("%d character positions outside floor area or over the back button" % bad)
+	if off_sim > 0:
+		_fails.append("%d frames with the worker not drawn at the sim position" % off_sim)
+	if away == 0:
+		_fails.append("worker never walked away from the stairs")
 	f.crew_busy = false
 	f.worker.place(Worker.Location.FLOOR)
 

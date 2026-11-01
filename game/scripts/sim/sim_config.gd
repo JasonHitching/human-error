@@ -29,6 +29,8 @@ var qa_capacity: int = 8
 var decoy_chance: float = 0.2
 var inspect_seconds: float = 0.5
 var transition_seconds: float = 0.8
+var walk_speed: float = 0.0  # floor layout units per second (<= 0: instant)
+var stairs := Vector2(0.08, 0.06)  # floor layout position of the stairs
 var complaint_penalty: int = 3
 var quick_eye_mult: float = 0.8
 var bigger_desk_bonus: int = 2
@@ -102,6 +104,7 @@ func _load_balance(b: Dictionary) -> void:
 	decoy_chance = _opt(b, "decoy_chance", decoy_chance, 0.0, 1.0)
 	inspect_seconds = _opt(b, "inspect_seconds", inspect_seconds, 0.1, 100.0)
 	transition_seconds = _opt(b, "transition_seconds", transition_seconds, 0.0, 100.0)
+	walk_speed = _opt(b, "walk_speed", walk_speed, 0.0, 100.0)
 	complaint_penalty = int(_opt(b, "complaint_penalty", complaint_penalty, 0.0, 1000.0))
 	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))
@@ -125,6 +128,11 @@ func _num(d: Dictionary, key: String, lo: float, hi: float) -> float:
 
 func _load_factory(f: Dictionary) -> void:
 	var ids := {}
+	var st: Variant = f.get("stairs", [stairs.x, stairs.y])
+	if st is Array and (st as Array).size() == 2:
+		stairs = Vector2(float(st[0]), float(st[1]))
+	else:
+		errors.append("factory: stairs needs [x, y]")
 	for m: Variant in f.get("machines", []):
 		if not (m is Dictionary):
 			errors.append("factory: machine entry is not an object")

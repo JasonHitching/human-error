@@ -10,14 +10,15 @@ var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #
 enum InspectResult { SHIPPED, COMPLAINT, CAUGHT, WASTED, NOT_AT_DESK, EMPTY, BUSY }
 const DEFECTS := ["missing_bolt", "crack", "wrong_paint", "flipped_label", "dent"]
 const DECOYS := ["scuff", "sticker_blue", "sticker_green"]
-enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO, NOT_ON_FLOOR }
+enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO, NOT_ON_FLOOR, QUEUED, UNQUEUED }
 
 var target: int = 0
 var scrapped: int = 0
 var clog_count: int = 0  # times a machine became clogged
 var crew_busy: bool = false
 var crew_target: String = ""
-var crew_progress: float = 0.0  # 0..1
+var crew_progress: float = 0.0  # 0..1 (0 while walking to the machine)
+var crew_queued: String = ""  # next machine to fix (max 1), tap mode only
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
 var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0, "sloppy": 0}
 var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
@@ -53,6 +54,7 @@ var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from 
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
 var _crew_left: int = 0
+var _crew_walking: bool = false
 var _held: bool = false
 var _shift_ticks: int = 1
 var _by_id: Dictionary = {}
@@ -68,7 +70,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	_qa_rng.seed = seed * 31 + 17
 	target = config.target
 	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
-	worker = Worker.new(roundi(config.transition_seconds * config.tick_rate))
+	worker = Worker.new(roundi(config.transition_seconds * config.tick_rate), config.stairs, config.walk_speed / config.tick_rate)
 	for md in config.machines:
 		var m := Machine.new()
 		m.id = String(md["id"])
@@ -255,9 +257,7 @@ func inspect(ship: bool) -> int:
 
 func _has_fixable() -> bool:
 	for m in machines:
-		if m.is_faulted() or m.state == Machine.State.CLOGGED or m.overclocked or m.misrouted or m.wrong_recipe:
-			return true
-		if m.state == Machine.State.WORKING and m.heat >= _config.vent_min_heat:
+		if _job_kind(m) != ActionResult.NOTHING_TO_DO:
 			return true
 	return false
 
@@ -326,38 +326,57 @@ func ramp() -> float:
 	return lerpf(_config.ramp_start, _config.ramp_end, clampf(float(tick) / float(_shift_ticks), 0.0, 1.0))
 
 
-## Ask the crew to act on a machine. Recorded for replay.
+## Ask the crew to act on a machine: the worker walks there, then the job runs. Recorded for replay.
+## While busy, tapping another machine queues it (max 1); tapping the queued one again cancels it.
 func request_action(machine_id: String) -> int:
 	actions.append({"tick": tick, "machine_id": machine_id})
 	if worker.location != Worker.Location.FLOOR:
 		return ActionResult.NOT_ON_FLOOR
-	if crew_busy:
-		return ActionResult.CREW_BUSY
 	var m := get_machine(machine_id)
-	if m == null:
-		return ActionResult.NOTHING_TO_DO
-	var secs := 0.0
-	if m.is_faulted():
-		_crew_kind = ActionResult.STARTED_REPAIR
-		secs = _config.repair_seconds
-	elif m.state == Machine.State.CLOGGED:
-		_crew_kind = ActionResult.STARTED_CLEAR
-		secs = _config.clear_seconds
-	elif m.overclocked or m.misrouted or m.wrong_recipe:
-		_crew_kind = ActionResult.STARTED_FIX
-		secs = _config.fix_seconds
-	elif m.state == Machine.State.WORKING and m.heat >= _config.vent_min_heat:
-		_crew_kind = ActionResult.STARTED_VENT
-		secs = _config.vent_seconds
-	else:
-		return ActionResult.NOTHING_TO_DO
+	var kind := _job_kind(m)
+	if crew_busy:
+		if crew_queued == machine_id:
+			crew_queued = ""
+			return ActionResult.UNQUEUED
+		if crew_queued != "" or machine_id == crew_target or _config.repair_mode != "tap":
+			return ActionResult.CREW_BUSY
+		if kind != ActionResult.NOTHING_TO_DO:
+			crew_queued = machine_id
+			return ActionResult.QUEUED
+	if kind != ActionResult.NOTHING_TO_DO:
+		worker.go(Worker.Location.FLOOR)  # stop leaving, if on the way to the stairs
+		_start_walk(m)
+	return kind
+
+
+func _job_kind(m: Machine) -> int:
+	return CrewJob.kind(m, _config)
+
+
+func _start_walk(m: Machine) -> void:
 	crew_busy = true
-	crew_target = machine_id
+	crew_target = m.id
 	crew_progress = 0.0
-	_crew_ticks = maxi(1, roundi(secs * crew_speed * _config.tick_rate))
-	_crew_left = _crew_ticks
 	_held = true
-	return _crew_kind
+	_crew_walking = true
+	worker.walk_to(m.pos)
+	if not worker.is_walking():
+		_begin_job()
+
+
+## On arrival: the job (re-checked now) starts its timer; nothing to do -> on to the queued fix.
+func _begin_job() -> void:
+	_crew_walking = false
+	_crew_kind = _job_kind(_by_id[crew_target])
+	if _crew_kind == ActionResult.NOTHING_TO_DO:
+		_end_job()
+		return
+	_crew_ticks = maxi(1, roundi(CrewJob.seconds(_crew_kind, _config) * crew_speed * _config.tick_rate))
+	_crew_left = _crew_ticks
+
+
+func crew_walking() -> bool:  # the crew job is still the walk to its machine
+	return crew_busy and _crew_walking
 
 
 ## Hold mode: stop holding. Cancels the job and resets progress. No-op in tap mode.
@@ -374,12 +393,21 @@ func _end_job() -> void:
 	crew_target = ""
 	crew_progress = 0.0
 	_held = false
+	_crew_walking = false
+	var next := get_machine(crew_queued)
+	crew_queued = ""
+	if _job_kind(next) != ActionResult.NOTHING_TO_DO and worker.location == Worker.Location.FLOOR:
+		_start_walk(next)
 
 
 func _step_crew() -> void:
 	for m in machines:
 		m.venting = false
 	if not crew_busy or not (_held or _config.repair_mode == "tap"):
+		return
+	if _crew_walking:
+		if not worker.is_walking():
+			_begin_job()
 		return
 	var m: Machine = _by_id[crew_target]
 	if _crew_kind == ActionResult.STARTED_VENT:
@@ -388,19 +416,7 @@ func _step_crew() -> void:
 	crew_progress = 1.0 - float(_crew_left) / float(_crew_ticks)
 	if _crew_left > 0:
 		return
-	if _crew_kind == ActionResult.STARTED_REPAIR:
-		m.state = Machine.State.IDLE
-		m.heat = 0.0
-	if _crew_kind == ActionResult.STARTED_FIX:
-		if m.overclocked:
-			m.heat = maxf(0.0, m.heat - 50.0)
-		m.overclocked = false
-		m.misrouted = false
-		m.wrong_recipe = false
-	if _crew_kind == ActionResult.STARTED_CLEAR:
-		m.input_count = maxi(0, m.input_count - m.junk_count)
-		m.junk_count = 0
-	m.venting = false
+	CrewJob.finish(m, _crew_kind)
 	_end_job()
 
 
