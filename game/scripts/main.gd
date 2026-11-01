@@ -1,20 +1,23 @@
 extends Control
-## Owns the Factory; fixed-timestep stepping, input, best-score persistence.
+## Drives a Career: Foreman banner -> shift -> review/training -> next day ... -> fired.
 
 const BEST_PATH := "user://best.json"
 const HUD_TOP := 110.0
 const HUD_BOTTOM := 120.0
 
+enum Phase { BANNER, PLAYING, REVIEW, FIRED }
+
 var _config: SimConfig
+var _career: Career
 var _factory: Factory
 var _view: FactoryView
 var _hud: Hud
-var _seed: int = 1
+var _phase: Phase = Phase.BANNER
 var _acc: float = 0.0
-var _best: int = 0
-var _ended: bool = false
+var _best_days: int = 0
 var _holding: bool = false
 var _flash_left: float = 0.0
+var _offers: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -22,27 +25,39 @@ func _ready() -> void:
 	if not _config.is_valid():
 		push_error("config invalid: %s" % str(_config.errors))
 		return
-	_best = _load_best()
+	_best_days = _load_best()
 	_view = FactoryView.new()
 	add_child(_view)
 	_hud = Hud.new()
 	add_child(_hud)
-	_hud.restart_pressed.connect(func() -> void: _start(int(Time.get_ticks_usec())))
-	_hud.replay_pressed.connect(func() -> void: _start(_seed))
+	_hud.start_pressed.connect(_begin_shift)
+	_hud.offer_pressed.connect(_pick_offer)
+	_hud.continue_pressed.connect(_next_day)
+	_hud.restart_pressed.connect(func() -> void: _new_career(int(Time.get_ticks_usec())))
+	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
 	resized.connect(_fit)
-	_start(int(Time.get_ticks_usec()))
+	_new_career(int(Time.get_ticks_usec()))
 
 
-func _start(seed_value: int) -> void:
-	_seed = seed_value
-	_factory = Factory.new(_config, _seed)
+func _new_career(seed_value: int) -> void:
+	_career = Career.new(_config, seed_value)
+	_show_day()
+
+
+func _show_day() -> void:
+	_factory = _career.start_day()
 	_view.setup(_factory, _config)
 	_acc = 0.0
-	_ended = false
 	_holding = false
-	_hud.hide_end()
+	_phase = Phase.BANNER
 	_hud.set_flash("")
+	_hud.show_banner(_career.day, _career.foreman_line("start"), _career.day_target())
 	_fit()
+
+
+func _begin_shift() -> void:
+	_phase = Phase.PLAYING
+	_hud.hide_overlays()
 
 
 func _fit() -> void:
@@ -54,33 +69,53 @@ func _process(delta: float) -> void:
 	if _factory == null:
 		return
 	var dt := 1.0 / _config.tick_rate
-	if not _ended:
+	if _phase == Phase.PLAYING:
 		_acc += delta
 		while _acc >= dt and not _factory.is_over():
 			_factory.step()
+			_view.push_events(_factory.events)
 			_acc -= dt
 		if _factory.is_over():
 			_end_shift()
-	_view.alpha = 0.0 if _ended else clampf(_acc / dt, 0.0, 1.0)
+	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
 	if _flash_left > 0.0:
 		_flash_left -= delta
 		if _flash_left <= 0.0:
 			_hud.set_flash("")
-	_hud.update(_factory, _config.tick_rate, roundi(_config.shift_seconds * _config.tick_rate), _best, _seed)
+	_hud.update(_factory, _career, _config.tick_rate, roundi(_config.shift_seconds * _config.tick_rate), _best_days)
 
 
 func _end_shift() -> void:
-	_ended = true
+	_release()
 	_view.alpha = 0.0
-	var new_best := _factory.shipped > _best
-	if new_best:
-		_best = _factory.shipped
-		_save_best()
-	_hud.show_end(_factory.shipped, _factory.target, _best, new_best)
+	var res := _career.end_day(_factory)
+	if res["fired"]:
+		_phase = Phase.FIRED
+		var days := _career.day
+		var new_best := days > _best_days
+		if new_best:
+			_best_days = days
+			_save_best()
+		_hud.show_fired(days, _best_days, new_best, _career.foreman_line("fired"))
+		return
+	_phase = Phase.REVIEW
+	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])
+	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else "miss"), _offers)
+
+
+func _pick_offer(index: int) -> void:
+	if index >= 0 and index < _offers.size():
+		_career.apply(_offers[index])
+	_next_day()
+
+
+func _next_day() -> void:
+	_career.next_day()
+	_show_day()
 
 
 func _gui_input(event: InputEvent) -> void:
-	if _ended or _factory == null:
+	if _phase != Phase.PLAYING or _factory == null:
 		return
 	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var mb := event as InputEventMouseButton
@@ -126,10 +161,10 @@ func _load_best() -> int:
 	if not FileAccess.file_exists(BEST_PATH):
 		return 0
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(BEST_PATH))
-	return int((parsed as Dictionary).get("best", 0)) if parsed is Dictionary else 0
+	return int((parsed as Dictionary).get("best_days", 0)) if parsed is Dictionary else 0
 
 
 func _save_best() -> void:
 	var f := FileAccess.open(BEST_PATH, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify({"best": _best}))
+		f.store_string(JSON.stringify({"best_days": _best_days}))
