@@ -19,6 +19,8 @@ jobs:
         run: godot --headless --path game --import || true
       - name: Run tests
         run: godot --headless --path game -s res://tests/run_tests.gd
+      - name: UI check
+        run: godot --headless --path game -s res://tools/ui_check.gd
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -14,7 +14,7 @@ var _result: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_top = _label(26, HORIZONTAL_ALIGNMENT_CENTER)
 	_top.position = Vector2(0, 10)
 	_flash = _label(26, HORIZONTAL_ALIGNMENT_CENTER)
@@ -38,13 +38,15 @@ func _label(size: int, align: HorizontalAlignment) -> Label:
 func _build_overlay() -> void:
 	_overlay = ColorRect.new()
 	(_overlay as ColorRect).color = Color(0, 0, 0, 0.8)
-	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.visible = false
 	add_child(_overlay)
+	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	_overlay.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER)
 	box.add_theme_constant_override("separation", 24)
-	_overlay.add_child(box)
+	center.add_child(box)
 	_result = Label.new()
 	_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result.add_theme_font_size_override("font_size", 40)
@@ -56,7 +58,6 @@ func _build_overlay() -> void:
 		b.add_theme_font_size_override("font_size", 30)
 		b.pressed.connect((spec[1] as Signal).emit)
 		box.add_child(b)
-	box.position = Vector2(-210, -200)
 
 
 func _layout() -> void:
