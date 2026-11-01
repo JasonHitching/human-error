@@ -7,6 +7,14 @@ const TYPES := ["generator", "processor", "assembler", "warehouse"]
 
 var tick_rate: int = 10
 var shift_seconds: float = 180.0
+var target: int = 100
+var ramp_start: float = 1.0
+var ramp_end: float = 1.0
+var repair_seconds: float = 2.0
+var vent_seconds: float = 1.0
+var vent_min_heat: float = 50.0
+var vent_cool_per_sec: float = 40.0
+var repair_mode: String = "tap"  # "tap" or "hold"
 var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
 var errors: Array[String] = []
@@ -49,6 +57,24 @@ func _load_balance(b: Dictionary) -> void:
 		errors.append("balance: shift_seconds must be a positive number")
 	else:
 		shift_seconds = float(b["shift_seconds"])
+	target = int(_num(b, "target", 0.0, 1.0e9))
+	ramp_start = _num(b, "ramp_start", 0.0, 100.0)
+	ramp_end = _num(b, "ramp_end", 0.0, 100.0)
+	repair_seconds = _num(b, "repair_seconds", 0.1, 1.0e4)
+	vent_seconds = _num(b, "vent_seconds", 0.1, 1.0e4)
+	vent_min_heat = _num(b, "vent_min_heat", 0.0, 100.0)
+	vent_cool_per_sec = _num(b, "vent_cool_per_sec", 0.0, 1.0e4)
+	repair_mode = String(b.get("repair_mode", ""))
+	if repair_mode != "tap" and repair_mode != "hold":
+		errors.append("balance: repair_mode must be \"tap\" or \"hold\"")
+
+
+func _num(d: Dictionary, key: String, lo: float, hi: float) -> float:
+	var v: Variant = d.get(key)
+	if not (v is float or v is int) or float(v) < lo or float(v) > hi:
+		errors.append("balance: %s must be a number in [%s, %s]" % [key, lo, hi])
+		return lo
+	return float(v)
 
 
 func _load_factory(f: Dictionary) -> void:
