@@ -7,6 +7,7 @@ const COL_BG := Color(0.1, 0.11, 0.14)
 
 var factory: Factory
 var area := Rect2(0, 0, 100, 100)  # screen rect the unit layout maps into
+var desk_anchor := Vector2.ZERO  # strip's left edge; the qa_desk machine is drawn there instead
 var alpha: float = 0.0  # 0..1 progress between ticks
 var _link_ticks: Dictionary = {}  # "from>to" -> ticks
 var _tick_rate: int = 10
@@ -35,7 +36,7 @@ func machine_rect(m: Machine) -> Rect2:
 
 func machine_at(p: Vector2) -> Machine:
 	for m in factory.machines:
-		if machine_rect(m).has_point(p):
+		if m.type != "qa" and machine_rect(m).has_point(p):
 			return m
 	return null
 
@@ -87,7 +88,8 @@ func _draw() -> void:
 	draw_rect(sr, Color(0.5, 0.35, 0.35), false, 2.0)
 	_text("SCRAP", sr.position + Vector2(-2, -6), 13, Color(0.7, 0.6, 0.6), 60.0)
 	for m in factory.machines:
-		_draw_machine(m)
+		if m.type != "qa":
+			_draw_machine(m)
 	for b in _bubbles:
 		_draw_bubble(b)
 
@@ -95,7 +97,7 @@ func _draw() -> void:
 func _draw_links() -> void:
 	var pts := {}
 	for m in factory.machines:
-		pts[m.id] = machine_rect(m).get_center()
+		pts[m.id] = desk_anchor if m.type == "qa" else machine_rect(m).get_center()
 	for key: String in _link_ticks:
 		var ids := key.split(">")
 		draw_line(pts[ids[0]], pts[ids[1]], Color(0.35, 0.37, 0.42), 3.0)
