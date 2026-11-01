@@ -26,6 +26,8 @@ var crew_speed_upgrade: float = 0.85
 var offers_per_review: int = 3
 var train_factor: float = 0.6
 var qa_capacity: int = 8
+var shelf_slots: int = 4
+var probation_days: int = 1
 var decoy_chance: float = 0.2
 var inspect_seconds: float = 0.5
 var transition_seconds: float = 0.8
@@ -101,6 +103,8 @@ func _load_balance(b: Dictionary) -> void:
 	crew_speed_upgrade = _opt(b, "crew_speed_upgrade", crew_speed_upgrade, 0.1, 1.0)
 	offers_per_review = int(_opt(b, "offers_per_review", offers_per_review, 1.0, 20.0))
 	qa_capacity = int(_opt(b, "qa_capacity", qa_capacity, 1.0, 100.0))
+	shelf_slots = int(_opt(b, "shelf_slots", shelf_slots, 0.0, 50.0))
+	probation_days = int(_opt(b, "probation_days", probation_days, 0.0, 100.0))
 	decoy_chance = _opt(b, "decoy_chance", decoy_chance, 0.0, 1.0)
 	inspect_seconds = _opt(b, "inspect_seconds", inspect_seconds, 0.1, 100.0)
 	transition_seconds = _opt(b, "transition_seconds", transition_seconds, 0.0, 100.0)
