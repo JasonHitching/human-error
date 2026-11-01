@@ -1,4 +1,13 @@
 extends SceneTree
+
+## Captures engine/script errors (e.g. a runtime error inside a _draw() call) so the check can fail on them.
+class ErrCatcher extends Logger:
+	var errors: Array[String] = []
+
+	func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, _error_type: int, _backtraces: Array[ScriptBacktrace]) -> void:
+		errors.append("%s:%d %s" % [file.get_file(), line, rationale if rationale != "" else code])
+
+var _catcher := ErrCatcher.new()
 ## Headless UI smoke check for the career flow: banner, review, training pick,
 ## next day, and fired overlays are full-screen with on-screen buttons. Exits 0/1.
 ## godot --headless --path game -s res://tools/ui_check.gd
@@ -9,6 +18,7 @@ var _fails: Array[String] = []
 
 
 func _initialize() -> void:
+	OS.add_logger(_catcher)
 	_main = load("res://main.tscn").instantiate()
 	root.add_child(_main)
 
@@ -403,6 +413,8 @@ func _process(_delta: float) -> bool:
 		21:
 			_check_overlay("fired", hud.fired, true)
 			_check_glyphs()
+			for e in _catcher.errors.slice(0, 5):
+				_fails.append("engine/script error while drawing: " + e)
 			for f in _fails:
 				print("FAIL ui_check: " + f)
 			print("ui_check: %s" % ("ok" if _fails.is_empty() else "%d failed" % _fails.size()))
