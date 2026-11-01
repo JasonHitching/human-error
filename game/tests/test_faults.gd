@@ -18,7 +18,8 @@ func _run_until(f: Factory, pred: Callable, max_ticks: int = 3000) -> bool:
 
 func _quiet(f: Factory) -> void:
 	for m in f.machines:
-		m.jam_chance_per_sec = 0.0
+		if m.bot != null:
+			m.bot.rates = {}
 
 
 func test_overheat_at_100() -> void:

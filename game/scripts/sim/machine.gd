@@ -20,7 +20,9 @@ var state: State = State.IDLE
 var heat: float = 0.0  # 0..100
 var heat_per_sec: float = 0.0
 var cool_per_sec: float = 0.0
-var jam_chance_per_sec: float = 0.0
+var bot: Bot = null  # null for the warehouse
+var overclocked: bool = false
+var speed_frac: float = 0.0  # fractional progress carry when overclocked
 var venting: bool = false  # crew is venting this machine (paused, cooling)
 var next_link: int = 0  # round-robin pointer over outgoing links
 

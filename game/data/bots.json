@@ -1,0 +1,79 @@
+{
+ "balance": {
+  "train_factor": 0.6,
+  "overclock_speed_mult": 1.3,
+  "overclock_heat_mult": 3.0
+ },
+ "bots": [
+  {
+   "name": "Sparky",
+   "color": "#ffd23f",
+   "rates": {
+    "jam": 0.4,
+    "overclock": 2.0,
+    "misroute": 0.3,
+    "wrong_recipe": 0.3
+   },
+   "lines": [
+    "MAXIMUM EFFICIENCY!",
+    "Turbo mode!"
+   ]
+  },
+  {
+   "name": "Clank",
+   "color": "#8d99ae",
+   "rates": {
+    "jam": 2.0,
+    "overclock": 0.3,
+    "misroute": 0.3,
+    "wrong_recipe": 0.3
+   },
+   "lines": [
+    "I have optimised the gears.",
+    "Fewer moving parts now."
+   ]
+  },
+  {
+   "name": "Loopy",
+   "color": "#c77dff",
+   "rates": {
+    "jam": 0.5,
+    "overclock": 0.3,
+    "misroute": 2.0,
+    "wrong_recipe": 0.3
+   },
+   "lines": [
+    "Shortcut found!",
+    "This way is faster!"
+   ]
+  },
+  {
+   "name": "Dozer",
+   "color": "#f77f00",
+   "rates": {
+    "jam": 0.5,
+    "overclock": 0.3,
+    "misroute": 0.3,
+    "wrong_recipe": 2.0
+   },
+   "lines": [
+    "New product line!",
+    "Innovation!"
+   ]
+  },
+  {
+   "name": "Rusty",
+   "color": "#2a9d8f",
+   "rates": {
+    "jam": 1.0,
+    "overclock": 0.8,
+    "misroute": 0.8,
+    "wrong_recipe": 0.8
+   },
+   "lines": [
+    "Oops.",
+    "Was that important?"
+   ]
+  }
+ ]
+}

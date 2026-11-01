@@ -7,13 +7,17 @@ var shipped: int = 0
 var machines: Array[Machine] = []
 var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #4)
 
-enum ActionResult { STARTED_REPAIR, STARTED_VENT, CREW_BUSY, NOTHING_TO_DO }
+enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, CREW_BUSY, NOTHING_TO_DO }
 
 var target: int = 0
 var crew_busy: bool = false
 var crew_target: String = ""
 var crew_progress: float = 0.0  # 0..1
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
+var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0}
+var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
+var mistake_log: Array[Dictionary] = []  # all mistakes this run (for stats)
+var day_mult: float = 1.0
 var actions: Array[Dictionary] = []  # {tick, machine_id} or {tick, release: true}
 
 var _config: SimConfig
@@ -28,8 +32,9 @@ var _out_links: Dictionary = {}  # Machine -> Array[int] indices into _links
 var _transit: Array[Dictionary] = []  # {link: int, left: int}
 
 
-func _init(config: SimConfig, seed: int) -> void:
+func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: float = 1.0) -> void:
 	_config = config
+	day_mult = p_day_mult
 	rng.seed = seed
 	target = config.target
 	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
@@ -45,15 +50,40 @@ func _init(config: SimConfig, seed: int) -> void:
 		m.output_cap = int(md.get("output_cap", 0))
 		m.heat_per_sec = float(md.get("heat_per_sec", 0.0))
 		m.cool_per_sec = float(md.get("cool_per_sec", 0.0))
-		m.jam_chance_per_sec = float(md.get("jam_chance_per_sec", 0.0))
 		m.process_ticks = maxi(1, roundi(float(md["process_time"]) * config.tick_rate))
 		machines.append(m)
 		_by_id[m.id] = m
 		_out_links[m] = []
+	_assign_bots(roster)
 	for ld in config.links:
 		var from: Machine = _by_id[ld["from"]]
 		_out_links[from].append(_links.size())
 		_links.append({"from": from, "to": _by_id[ld["to"]], "ticks": maxi(1, roundi(float(ld["transit_time"]) * config.tick_rate))})
+
+
+func _assign_bots(roster: Array[Bot]) -> void:
+	var pool: Array[Bot] = roster.duplicate()
+	if pool.is_empty():
+		var defs := _config.bot_defs.duplicate()
+		for i in range(defs.size() - 1, 0, -1):  # seeded Fisher-Yates
+			var j := rng.randi_range(0, i)
+			var t: Dictionary = defs[i]
+			defs[i] = defs[j]
+			defs[j] = t
+		for d: Dictionary in defs:
+			pool.append(Bot.from_dict(d, _config.train_factor))
+	if pool.is_empty():
+		return
+	var n := 0
+	for m in machines:
+		if m.type != "warehouse":
+			m.bot = pool[n % pool.size()]
+			n += 1
+
+
+func bot_for(machine_id: String) -> Bot:
+	var m := get_machine(machine_id)
+	return m.bot if m != null else null
 
 
 func get_machine(id: String) -> Machine:
@@ -70,6 +100,7 @@ func items_in_transit() -> Array:
 
 
 func step() -> void:
+	events.clear()
 	tick += 1
 	_step_crew()
 	_advance_transit()
@@ -111,6 +142,9 @@ func request_action(machine_id: String) -> int:
 	if m.is_faulted():
 		_crew_kind = ActionResult.STARTED_REPAIR
 		secs = _config.repair_seconds
+	elif m.overclocked:
+		_crew_kind = ActionResult.STARTED_FIX
+		secs = _config.fix_seconds
 	elif m.state == Machine.State.WORKING and m.heat >= _config.vent_min_heat:
 		_crew_kind = ActionResult.STARTED_VENT
 		secs = _config.vent_seconds
@@ -156,6 +190,9 @@ func _step_crew() -> void:
 	if _crew_kind == ActionResult.STARTED_REPAIR:
 		m.state = Machine.State.IDLE
 		m.heat = 0.0
+	if _crew_kind == ActionResult.STARTED_FIX:
+		m.overclocked = false
+		m.heat = maxf(0.0, m.heat - 50.0)
 	m.venting = false
 	_end_job()
 
@@ -185,14 +222,33 @@ func _step_machine(m: Machine) -> void:
 	_advance_machine(m)
 	var rate := float(_config.tick_rate)
 	if m.state == Machine.State.WORKING:
-		m.heat += m.heat_per_sec / rate
+		m.heat += m.heat_per_sec * (_config.overclock_heat_mult if m.overclocked else 1.0) / rate
 		if m.heat >= 100.0:
 			m.heat = 100.0
+			m.overclocked = false
 			_fault(m, Machine.State.OVERHEATED)
-		elif m.jam_chance_per_sec > 0.0 and rng.randf() < m.jam_chance_per_sec * ramp() / rate:
+		elif _roll(m, "jam"):
+			_mistake(m, "jam")
 			_fault(m, Machine.State.JAMMED)
+		elif not m.overclocked and _roll(m, "overclock"):
+			_mistake(m, "overclock")
+			m.overclocked = true
 	else:
 		m.heat = maxf(0.0, m.heat - m.cool_per_sec / rate)
+
+
+func _roll(m: Machine, mistake: String) -> bool:
+	if m.bot == null:
+		return false
+	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult)
+	return p > 0.0 and rng.randf() < p
+
+
+func _mistake(m: Machine, mistake: String) -> void:
+	mistake_counts[mistake] += 1
+	var ev := {"type": "mistake", "mistake": mistake, "machine_id": m.id, "bot": m.bot.name}
+	events.append(ev)
+	mistake_log.append(ev)
 
 
 func _fault(m: Machine, s: Machine.State) -> void:
@@ -202,7 +258,10 @@ func _fault(m: Machine, s: Machine.State) -> void:
 
 func _advance_machine(m: Machine) -> void:
 	if m.busy:
-		m.progress = mini(m.progress + 1, m.process_ticks)
+		m.speed_frac += _config.overclock_speed_mult if m.overclocked else 1.0
+		var add := int(m.speed_frac)
+		m.speed_frac -= add
+		m.progress = mini(m.progress + add, m.process_ticks)
 		if m.progress >= m.process_ticks:
 			if m.type == "warehouse":
 				shipped += 1

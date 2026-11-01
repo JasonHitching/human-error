@@ -2,6 +2,7 @@ class_name SimConfig
 extends RefCounted
 
 const MACHINES_PATH := "res://data/factory_m0.json"
+const BOTS_PATH := "res://data/bots.json"
 const BALANCE_PATH := "res://data/balance.json"
 const TYPES := ["generator", "processor", "assembler", "warehouse"]
 
@@ -14,6 +15,11 @@ var repair_seconds: float = 2.0
 var vent_seconds: float = 1.0
 var vent_min_heat: float = 50.0
 var vent_cool_per_sec: float = 40.0
+var fix_seconds: float = 1.0
+var train_factor: float = 0.6
+var overclock_speed_mult: float = 1.3
+var overclock_heat_mult: float = 3.0
+var bot_defs: Array[Dictionary] = []
 var repair_mode: String = "tap"  # "tap" or "hold"
 var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
@@ -25,7 +31,7 @@ func is_valid() -> bool:
 
 
 static func load_default() -> SimConfig:
-	return from_dicts(_read(MACHINES_PATH), _read(BALANCE_PATH))
+	return from_dicts(_read(MACHINES_PATH), _read(BALANCE_PATH), _read(BOTS_PATH))
 
 
 static func _read(path: String) -> Dictionary:
@@ -36,15 +42,18 @@ static func _read(path: String) -> Dictionary:
 	return {"__error": "cannot read or parse %s" % path}
 
 
-static func from_dicts(factory: Dictionary, balance: Dictionary) -> SimConfig:
+static func from_dicts(factory: Dictionary, balance: Dictionary, bots: Dictionary = {}) -> SimConfig:
 	var c := SimConfig.new()
-	for d: Dictionary in [factory, balance]:
+	if bots.is_empty():
+		bots = _read(BOTS_PATH)
+	for d: Dictionary in [factory, balance, bots]:
 		if d.has("__error"):
 			c.errors.append(String(d["__error"]))
 	if not c.is_valid():
 		return c
 	c._load_balance(balance)
 	c._load_factory(factory)
+	c._load_bots(bots)
 	return c
 
 
@@ -64,6 +73,7 @@ func _load_balance(b: Dictionary) -> void:
 	vent_seconds = _num(b, "vent_seconds", 0.1, 1.0e4)
 	vent_min_heat = _num(b, "vent_min_heat", 0.0, 100.0)
 	vent_cool_per_sec = _num(b, "vent_cool_per_sec", 0.0, 1.0e4)
+	fix_seconds = _num(b, "fix_seconds", 0.1, 1.0e4) if b.has("fix_seconds") else 1.0
 	repair_mode = String(b.get("repair_mode", ""))
 	if repair_mode != "tap" and repair_mode != "hold":
 		errors.append("balance: repair_mode must be \"tap\" or \"hold\"")
@@ -110,3 +120,34 @@ func _load_factory(f: Dictionary) -> void:
 			errors.append("factory: link %s -> %s needs transit_time >= 0" % [ld["from"], ld["to"]])
 		else:
 			links.append(ld)
+
+
+func _load_bots(b: Dictionary) -> void:
+	var bal: Dictionary = b.get("balance", {})
+	train_factor = float(bal.get("train_factor", 0.6))
+	overclock_speed_mult = float(bal.get("overclock_speed_mult", 1.3))
+	overclock_heat_mult = float(bal.get("overclock_heat_mult", 3.0))
+	if train_factor < 0.0 or train_factor > 1.0 or overclock_speed_mult < 1.0 or overclock_heat_mult < 1.0:
+		errors.append("bots: bad balance values")
+	var names := {}
+	for e: Variant in b.get("bots", []):
+		if not (e is Dictionary):
+			errors.append("bots: entry is not an object")
+			continue
+		var d: Dictionary = e
+		var n := String(d.get("name", ""))
+		if n == "" or names.has(n):
+			errors.append("bots: name missing or duplicate: '%s'" % n)
+			continue
+		names[n] = true
+		var rates: Variant = d.get("rates")
+		if not (rates is Dictionary):
+			errors.append("bots: '%s' needs rates" % n)
+			continue
+		for k: String in Bot.MISTAKES:
+			var v: Variant = (rates as Dictionary).get(k)
+			if not (v is float or v is int) or float(v) < 0.0:
+				errors.append("bots: '%s' rate '%s' must be a number >= 0" % [n, k])
+		bot_defs.append(d)
+	if bot_defs.is_empty():
+		errors.append("bots: roster is empty")

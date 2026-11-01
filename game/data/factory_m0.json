@@ -1,10 +1,10 @@
 {
   "machines": [
-    {"id": "generator", "type": "generator", "pos": [0.5, 0.08], "output": "raw", "input_cap": 0, "output_cap": 2, "process_time": 1.0, "heat_per_sec": 1.0, "cool_per_sec": 3.0, "jam_chance_per_sec": 0.002},
-    {"id": "proc_a", "type": "processor", "pos": [0.22, 0.33], "input": "raw", "output": "component", "input_cap": 2, "output_cap": 2, "process_time": 2.5, "heat_per_sec": 2.5, "cool_per_sec": 4.0, "jam_chance_per_sec": 0.03},
-    {"id": "proc_b", "type": "processor", "pos": [0.78, 0.33], "input": "raw", "output": "component", "input_cap": 2, "output_cap": 2, "process_time": 2.5, "heat_per_sec": 2.5, "cool_per_sec": 4.0, "jam_chance_per_sec": 0.03},
-    {"id": "assembler", "type": "assembler", "pos": [0.5, 0.6], "input": "component", "output": "product", "input_cap": 4, "output_cap": 2, "process_time": 1.5, "heat_per_sec": 2.0, "cool_per_sec": 4.0, "jam_chance_per_sec": 0.008},
-    {"id": "warehouse", "type": "warehouse", "pos": [0.5, 0.88], "input": "product", "input_cap": 4, "output_cap": 0, "process_time": 0.5, "heat_per_sec": 0.0, "cool_per_sec": 3.0, "jam_chance_per_sec": 0.0}
+    {"id": "generator", "type": "generator", "pos": [0.5, 0.08], "output": "raw", "input_cap": 0, "output_cap": 2, "process_time": 1.0, "heat_per_sec": 1.0, "cool_per_sec": 3.0},
+    {"id": "proc_a", "type": "processor", "pos": [0.22, 0.33], "input": "raw", "output": "component", "input_cap": 2, "output_cap": 2, "process_time": 2.5, "heat_per_sec": 2.5, "cool_per_sec": 4.0},
+    {"id": "proc_b", "type": "processor", "pos": [0.78, 0.33], "input": "raw", "output": "component", "input_cap": 2, "output_cap": 2, "process_time": 2.5, "heat_per_sec": 2.5, "cool_per_sec": 4.0},
+    {"id": "assembler", "type": "assembler", "pos": [0.5, 0.6], "input": "component", "output": "product", "input_cap": 4, "output_cap": 2, "process_time": 1.5, "heat_per_sec": 2.0, "cool_per_sec": 4.0},
+    {"id": "warehouse", "type": "warehouse", "pos": [0.5, 0.88], "input": "product", "input_cap": 4, "output_cap": 0, "process_time": 0.5, "heat_per_sec": 0.0, "cool_per_sec": 3.0}
   ],
   "links": [
     {"from": "generator", "to": "proc_a", "transit_time": 0.6},
