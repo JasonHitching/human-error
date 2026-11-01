@@ -71,6 +71,61 @@ func _check_desk() -> void:
 		_fails.append("BRB shown while worker at desk")
 
 
+func _check_button(b: Button, screen: Rect2) -> void:
+	if not b.is_visible_in_tree() or not screen.encloses(b.get_global_rect()):
+		_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
+	if b.size.x < 120.0 or b.size.y < 80.0:
+		_fails.append("button '%s' too small: %s" % [b.text, b.size])
+
+
+## Press a nav button; location must change exactly after transition_seconds of ticks.
+func _press_and_travel(b: Button, dest: Worker.Location) -> void:
+	var f: Factory = _main._factory
+	var trip := roundi(_main._config.transition_seconds * _main._config.tick_rate)
+	b.pressed.emit()
+	if f.worker_location() != Worker.Location.TRANSIT or f.transit_target() != dest:
+		_fails.append("'%s' did not start transit" % b.text)
+	for i in trip - 1:
+		f.step()
+	_main._screens.sync(0.5)
+	var off: float = _main._screens.offset
+	if f.worker_location() != Worker.Location.TRANSIT or off <= 0.0 or off >= 1.0:
+		_fails.append("'%s' arrived early or no slide (offset %.2f)" % [b.text, off])
+	f.step()
+	if f.worker_location() != dest:
+		_fails.append("'%s' not arrived after %d ticks" % [b.text, trip])
+	_main._screens.sync(0.0)
+
+
+func _check_screens() -> void:
+	var screen := Rect2(Vector2.ZERO, _main.size)
+	var sw: ScreenSwitch = _main._screens
+	var f: Factory = _main._factory
+	sw.sync(0.0)
+	for r: Rect2 in [sw.monitor_rect(), sw.desk_rect(), sw.floor_rect()]:
+		if not screen.encloses(r):
+			_fails.append("screen rect %s not inside viewport %s" % [r, screen])
+	if sw.office_page.position != Vector2.ZERO or sw.floor_page.visible:
+		_fails.append("office not shown at desk")
+	_check_button(sw.factory_btn, screen)
+	if sw.desk_rect().intersects(sw.monitor_rect()):
+		_fails.append("desk overlaps wall monitor")
+	_press_and_travel(sw.factory_btn, Worker.Location.FLOOR)
+	if sw.floor_page.position != Vector2.ZERO or sw.office_page.visible:
+		_fails.append("floor not shown on the floor")
+	if not screen.encloses(_main._view.area):
+		_fails.append("factory view %s not inside viewport" % _main._view.area)
+	_check_button(sw.back_btn, screen)
+	if _main._ship_btn.is_visible_in_tree():
+		_fails.append("ship button visible on the floor")
+	var ql: Label = sw.queue_label
+	if not ql.is_visible_in_tree() or not screen.encloses(ql.get_global_rect()) or not ql.text.begins_with("Desk queue"):
+		_fails.append("queue meter not visible on the floor: '%s' %s" % [ql.text, ql.get_global_rect()])
+	_press_and_travel(sw.back_btn, Worker.Location.OFFICE)
+	if sw.office_page.position != Vector2.ZERO:
+		_fails.append("office not shown after back to desk")
+
+
 func _end_shift(shipped: int) -> void:
 	_main._factory.shipped = shipped
 	_main._factory.tick = int(_main._config.shift_seconds * _main._config.tick_rate)
@@ -89,6 +144,7 @@ func _process(_delta: float) -> bool:
 			if _main._desk.hint == "":
 				_fails.append("day 1 hint not shown")
 			_check_desk()
+			_check_screens()
 		5:
 			if _main._phase != _main.Phase.PLAYING:
 				_fails.append("shift did not start after banner tap")

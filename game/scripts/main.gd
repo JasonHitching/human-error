@@ -3,11 +3,9 @@ extends Control
 
 const BEST_PATH := "user://best.json"
 const HUD_TOP := 110.0
-const FACTORY_FRAC := 0.62  # factory view: top 62% (below the HUD)
-const STRIP_FRAC := 0.67  # desk strip: bottom 33%
 const SWIPE_MIN := 80.0
 const COLOUR_NAME := "blue"  # matches QaDeskView.COL_BODY
-const HINT := "Swipe → ship good ones. Swipe ← reject defects. Bots will interrupt you."
+const HINT := "Swipe → ship good ones, ← reject defects.\nBots call for help. Go down to fix, come back up to inspect."
 
 enum Phase { BANNER, PLAYING, REVIEW, FIRED }
 
@@ -16,6 +14,7 @@ var _career: Career
 var _factory: Factory
 var _view: FactoryView
 var _desk: QaDeskView
+var _screens: ScreenSwitch
 var _swipe_from := Vector2(-1, -1)
 var _hud: Hud
 var _phase: Phase = Phase.BANNER
@@ -25,9 +24,7 @@ var _holding: bool = false
 var _decoy_tip_shown: bool = false
 var _flash_left: float = 0.0
 var _offers: Array[Dictionary] = []
-var _pending_tap: String = ""  # machine to act on when the worker reaches the floor
-var _pending_inspect: int = -1  # 0 reject / 1 ship when the worker reaches the desk
-var _ship_btn: Button  # temporary inspect buttons (real desk comes in M2-02)
+var _ship_btn: Button
 var _reject_btn: Button
 
 
@@ -37,10 +34,14 @@ func _ready() -> void:
 		push_error("config invalid: %s" % str(_config.errors))
 		return
 	_best_days = _load_best()
+	_screens = ScreenSwitch.new()
+	_screens.hud_top = HUD_TOP
+	add_child(_screens)
+	_screens.refused.connect(_flash)
 	_view = FactoryView.new()
-	add_child(_view)
+	_screens.add_view(_screens.floor_page, _view)
 	_desk = QaDeskView.new()
-	add_child(_desk)
+	_screens.add_view(_screens.office_page, _desk)
 	_hud = Hud.new()
 	add_child(_hud)
 	_hud.start_pressed.connect(_begin_shift)
@@ -61,9 +62,8 @@ func _new_career(seed_value: int) -> void:
 
 
 func _show_day() -> void:
-	_pending_tap = ""
-	_pending_inspect = -1
 	_factory = _career.start_day()
+	_screens.factory = _factory
 	_view.setup(_factory, _config)
 	_desk.setup(_factory)
 	_desk.hint = HINT if _career.day == 1 else ""
@@ -78,6 +78,7 @@ func _show_day() -> void:
 
 func _begin_shift() -> void:
 	_phase = Phase.PLAYING
+	_screens.active = true
 	_hud.hide_overlays()
 
 
@@ -86,18 +87,15 @@ func _inspect_button(text: String, ship: bool) -> Button:
 	b.text = text
 	b.add_theme_font_size_override("font_size", 28)
 	b.pressed.connect(func() -> void: _inspect(ship))
-	add_child(b)
+	_screens.office_page.add_child(b)
 	return b
 
 
 func _inspect(ship: bool) -> void:
 	if _phase != Phase.PLAYING or _factory == null:
 		return
-	if not _factory.worker_at_desk() and not _factory.crew_busy:
-		_pending_tap = ""
-		_pending_inspect = 1 if ship else 0
-		_factory.go_to_office()  # until the two-screen UI (M3-03): walk back, inspect on arrival
-		return
+	if not _factory.worker_at_desk():
+		return  # on the floor or in transit: the desk isn't here
 	var q := _factory.qa_queue()
 	var front: Dictionary = q[0] if not q.is_empty() else {}
 	var res := _factory.inspect(ship)
@@ -124,10 +122,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		match (event as InputEventKey).keycode:
 			KEY_LEFT: _inspect(false)
 			KEY_RIGHT: _inspect(true)
+			KEY_DOWN: _screens.go_floor()
+			KEY_UP: _screens.go_office()
 
 
 func _fit() -> void:
-	var strip := Rect2(0, size.y * STRIP_FRAC, size.x, size.y * (1.0 - STRIP_FRAC))
+	if _screens == null:
+		return
+	_screens.layout()
+	var strip := _screens.desk_rect()
 	if _ship_btn != null:
 		var w := size.x * 0.45
 		var y := strip.end.y - 104.0
@@ -136,8 +139,7 @@ func _fit() -> void:
 		_reject_btn.position = Vector2(size.x * 0.03, y)
 		_ship_btn.position = Vector2(size.x * 0.52, y)
 	if _view != null:
-		_view.area = Rect2(0, HUD_TOP, size.x, maxf(100.0, size.y * FACTORY_FRAC - HUD_TOP))
-		_view.desk_anchor = Vector2(0, strip.position.y + 30.0)
+		_view.area = _screens.floor_rect()
 	if _desk != null:
 		_desk.rect = strip
 
@@ -152,7 +154,6 @@ func _process(delta: float) -> void:
 			_factory.step()
 			_view.push_events(_factory.events)
 			_acc -= dt
-			_apply_pending()
 		if _factory.is_over():
 			_end_shift()
 	_desk.visible = _phase == Phase.PLAYING
@@ -164,6 +165,7 @@ func _process(delta: float) -> void:
 	_ship_btn.visible = _phase == Phase.PLAYING
 	_reject_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
+	_screens.sync(_view.alpha)
 	if _flash_left > 0.0:
 		_flash_left -= delta
 		if _flash_left <= 0.0:
@@ -173,6 +175,7 @@ func _process(delta: float) -> void:
 
 func _end_shift() -> void:
 	_release()
+	_screens.active = false
 	_view.alpha = 0.0
 	var res := _career.end_day(_factory)
 	if res["fired"]:
@@ -205,38 +208,29 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var mb := event as InputEventMouseButton
+		var loc := _factory.worker_location()
 		if mb.pressed:
-			if _desk.rect.has_point(mb.position):
-				_swipe_from = mb.position
-			else:
+			if loc == Worker.Location.FLOOR:
+				_swipe_from = mb.position  # swipe up anywhere on the floor: back to the desk
 				_tap(mb.position)
+			elif loc == Worker.Location.OFFICE and _desk.rect.has_point(mb.position):
+				_swipe_from = mb.position
 		else:
 			_release()
 			if _swipe_from.x >= 0.0:
-				var dx := mb.position.x - _swipe_from.x
+				var d := mb.position - _swipe_from
 				_swipe_from = Vector2(-1, -1)
-				if absf(dx) >= SWIPE_MIN:
-					_inspect(dx > 0.0)
+				if loc == Worker.Location.FLOOR and -d.y >= SWIPE_MIN and -d.y > absf(d.x):
+					_screens.go_office()
+				elif loc == Worker.Location.OFFICE and absf(d.x) >= SWIPE_MIN:
+					_inspect(d.x > 0.0)
 	elif event is InputEventMouseMotion and _holding:
 		var m := _view.machine_at((event as InputEventMouseMotion).position)
 		if m == null or m.id != _factory.crew_target:
 			_release()
 
 
-func _apply_pending() -> void:
-	if _pending_tap != "" and _factory.worker_location() == Worker.Location.FLOOR:
-		var id := _pending_tap
-		_pending_tap = ""
-		_apply_tap(id)
-	elif _pending_inspect >= 0 and _factory.worker_at_desk():
-		var ship := _pending_inspect == 1
-		_pending_inspect = -1
-		_inspect(ship)
-
-
 func _release() -> void:
-	if _config.repair_mode == "hold":
-		_pending_tap = ""  # let go before arriving: cancel
 	if _holding:
 		_holding = false
 		_factory.release_action()
@@ -244,12 +238,7 @@ func _release() -> void:
 
 func _tap(p: Vector2) -> void:
 	var m := _view.machine_at(p)
-	if m == null:
-		return
-	if _factory.worker_location() != Worker.Location.FLOOR and not _factory.crew_busy:
-		_pending_inspect = -1
-		_pending_tap = m.id
-		_factory.go_to_floor()  # until the two-screen UI (M3-03): walk over, act on arrival
+	if m == null or _factory.worker_location() != Worker.Location.FLOOR:
 		return
 	_apply_tap(m.id)
 
