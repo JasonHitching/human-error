@@ -61,11 +61,11 @@ func end_day(f: Factory) -> Dictionary:
 		points += 1
 		if float(score) >= float(f.target) * config.bonus_threshold:
 			points += 1
-	else:
+	elif day > config.probation_days:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate()}
+	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate()}
 
 
 func offers() -> Array[Dictionary]:

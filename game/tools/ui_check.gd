@@ -48,6 +48,8 @@ func _check_desk() -> void:
 			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
 			_fails.append("button '%s' too small: %s" % [b.text, b.size])
+	if not Rect2(desk.rect).encloses(desk.shelf_rect()):
+		_fails.append("shelf not inside desk area: %s" % desk.shelf_rect())
 	var spec := desk.spec_rect()
 	if not screen.encloses(spec):
 		_fails.append("spec card off-screen: %s" % spec)

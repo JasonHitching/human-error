@@ -112,7 +112,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 			for _t in int(cfg.shift_seconds * cfg.tick_rate):
 				Autoplayers.act(player, f, prng, mem)
 				f.step()
-			qa.add(f)
+			qa.add(f, c.day)
 			var res := c.end_day(f)
 			if not res["hit"]:
 				var top := ""
@@ -136,6 +136,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 		sum += d
 	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
+	print("  days p10=%d" % days[days.size() / 10])
+	print("  day-1 queue full %.0f%% of shifts" % (100.0 * qa.day1_full / maxf(1.0, qa.day1_shifts)))
 	print("  ", qa.report(true))
 	print("  ", qa.worker_report())
 	var parts: Array[String] = []
@@ -163,14 +165,19 @@ class QaStats:
 	var queue_sum := 0
 	var queue_max := 0
 	var full_shifts := 0
+	var day1_shifts := 0
+	var day1_full := 0
 	var loc_ticks := [0, 0, 0]  # office, floor, transit
 	var trips := 0
 	var walk := 0
 
 	var tick_rate := 10
 
-	func add(f: Factory) -> void:
+	func add(f: Factory, day: int = 0) -> void:
 		shifts += 1
+		if day == 1:
+			day1_shifts += 1
+			day1_full += 1 if f.qa_full_seen else 0
 		tick_rate = f._config.tick_rate
 		for l in 3:
 			loc_ticks[l] += int(f.worker.ticks_in[l])

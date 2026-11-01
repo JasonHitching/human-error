@@ -243,7 +243,7 @@ func _end_shift() -> void:
 		return
 	_phase = Phase.REVIEW
 	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])
-	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else "miss"), _offers)
+	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers)
 
 
 func _pick_offer(index: int) -> void:

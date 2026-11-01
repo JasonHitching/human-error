@@ -25,6 +25,7 @@ func test_target_and_rate_scale_by_day() -> void:
 
 func test_strikes_fire_at_max() -> void:
 	var c := _c()
+	c.day = c.config.probation_days + 1  # past probation
 	var r := _fake(c, 0)
 	assert_eq(r["strikes"], 1)
 	assert_true(not r["fired"])

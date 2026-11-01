@@ -128,6 +128,8 @@ func show_banner(day: int, line: String, target: int) -> void:
 
 func show_review(res: Dictionary, line: String, offers: Array[Dictionary]) -> void:
 	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), line]
+	if res.get("probation", false):
+		_review_label.text = _review_label.text.replace("Strikes %d" % res["strikes"], "Probation: no strike")
 	for n in _review_box.get_children():
 		if n != _review_label:
 			_review_box.remove_child(n)
