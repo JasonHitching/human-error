@@ -6,6 +6,7 @@ const MACHINE_H := 96.0
 const COL_BG := Color(0.1, 0.11, 0.14)
 
 var factory: Factory
+var board: StatusBoard  # light ring colours (same language as the office monitor)
 var area := Rect2(0, 0, 100, 100)  # screen rect the unit layout maps into
 var alpha: float = 0.0  # 0..1 progress between ticks
 var _link_ticks: Dictionary = {}  # "from>to" -> ticks
@@ -123,6 +124,9 @@ func _draw_machine(m: Machine) -> void:
 		sb.border_color = Color.WHITE
 		sb.set_border_width_all(4)
 	draw_style_box(sb, r)
+	if board != null and StatusBoard.is_monitored(m):
+		var lc: Color = WallMonitor.COL[board.machine_light(m)]
+		draw_arc(r.position + Vector2(r.size.x - 20, 20), 11.0, 0.0, TAU, 24, lc, 5.0)
 	_text(m.id, r.position + Vector2(8, 24), 20, Color.WHITE, r.size.x - 16)
 	var pulse := 0.5 + 0.5 * sin(_time * 8.0)
 	if m.is_faulted():

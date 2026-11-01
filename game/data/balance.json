@@ -24,5 +24,6 @@
   "transition_seconds": 0.6,
   "complaint_penalty": 3,
   "quick_eye_mult": 0.8,
-  "bigger_desk_bonus": 2
+  "bigger_desk_bonus": 2,
+  "monitor_amber_heat": 60
 }

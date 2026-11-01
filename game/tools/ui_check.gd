@@ -97,6 +97,38 @@ func _press_and_travel(b: Button, dest: Worker.Location) -> void:
 	_main._screens.sync(0.0)
 
 
+func _check_wall(sw: ScreenSwitch, f: Factory) -> void:
+	var wall: WallMonitor = sw.wall
+	var n := 0
+	for m in f.machines:
+		if m.type != "qa" and m.type != "warehouse":
+			n += 1
+	var rects := wall.light_rects()
+	if rects.size() != n or n == 0:
+		_fails.append("wall monitor has %d lights, expected %d" % [rects.size(), n])
+		return
+	for r in rects:
+		if not Rect2(Vector2.ZERO, wall.size).encloses(r):
+			_fails.append("monitor light %s outside monitor %s" % [r, wall.size])
+	var m := f.get_machine("proc_a")
+	m.state = Machine.State.JAMMED
+	wall.poll()
+	if wall.board.machine_light(m) != StatusBoard.Light.RED:
+		_fails.append("forced jam did not turn the light RED")
+	if wall.call_text == "" or wall.flash_id != "proc_a" or wall.flash_left <= 0.0:
+		_fails.append("forced jam showed no call-in/flash: '%s'" % wall.call_text)
+	m.state = Machine.State.IDLE
+	wall.poll()
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = rects[0].get_center()
+	wall._gui_input(ev)
+	if f.worker_location() != Worker.Location.TRANSIT or f.transit_target() != Worker.Location.FLOOR:
+		_fails.append("tapping a monitor light did not start a trip to the floor")
+	f.worker.place(Worker.Location.OFFICE)
+
+
 func _check_screens() -> void:
 	var screen := Rect2(Vector2.ZERO, _main.size)
 	var sw: ScreenSwitch = _main._screens
@@ -110,6 +142,7 @@ func _check_screens() -> void:
 	_check_button(sw.factory_btn, screen)
 	if sw.desk_rect().intersects(sw.monitor_rect()):
 		_fails.append("desk overlaps wall monitor")
+	_check_wall(sw, f)
 	_press_and_travel(sw.factory_btn, Worker.Location.FLOOR)
 	if sw.floor_page.position != Vector2.ZERO or sw.office_page.visible:
 		_fails.append("floor not shown on the floor")

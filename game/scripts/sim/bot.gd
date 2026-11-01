@@ -9,6 +9,7 @@ var color: Color = Color.WHITE
 var rates: Dictionary = {}  # mistake -> events per minute
 var sloppy: float = 0.0  # chance per product of a defect (before ramp/day/training)
 var lines: Array[String] = []
+var call_in: Array[String] = []  # lines said on the office wall monitor when this bot's machine goes RED
 var levels: Dictionary = {}  # mistake -> training level (default 0)
 var train_factor: float = 0.6
 
@@ -21,6 +22,8 @@ static func from_dict(d: Dictionary, train: float) -> Bot:
 	b.sloppy = float(d.get("sloppy", 0.0))
 	for l: Variant in d.get("lines", []):
 		b.lines.append(String(l))
+	for l: Variant in d.get("call_in", []):
+		b.call_in.append(String(l))
 	b.train_factor = train
 	return b
 
