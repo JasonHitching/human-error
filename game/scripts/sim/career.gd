@@ -65,7 +65,7 @@ func end_day(f: Factory) -> Dictionary:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points}
+	return {"hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted}
 
 
 func offers() -> Array[Dictionary]:
@@ -129,3 +129,9 @@ func foreman_line(kind: String) -> String:
 		return ""
 	var s: String = arr[rng.randi_range(0, arr.size() - 1)]
 	return s.replace("{day}", str(day)).replace("{target}", str(day_target()))
+
+
+## Deterministic line pick that does not touch the career RNG (safe to call mid-shift).
+func foreman_line_at(kind: String, index: int) -> String:
+	var arr: Array = _lines.get(kind, [])
+	return "" if arr.is_empty() else String(arr[index % arr.size()])

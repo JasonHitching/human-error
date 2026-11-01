@@ -3,7 +3,10 @@ extends Control
 
 const BEST_PATH := "user://best.json"
 const HUD_TOP := 110.0
-const HUD_BOTTOM := 120.0
+const FACTORY_FRAC := 0.62  # factory view: top 62% (below the HUD)
+const STRIP_FRAC := 0.67  # desk strip: bottom 33%
+const SWIPE_MIN := 80.0
+const HINT := "Swipe → ship good ones. Swipe ← reject defects. Bots will interrupt you."
 
 enum Phase { BANNER, PLAYING, REVIEW, FIRED }
 
@@ -11,6 +14,8 @@ var _config: SimConfig
 var _career: Career
 var _factory: Factory
 var _view: FactoryView
+var _desk: QaDeskView
+var _swipe_from := Vector2(-1, -1)
 var _hud: Hud
 var _phase: Phase = Phase.BANNER
 var _acc: float = 0.0
@@ -30,6 +35,8 @@ func _ready() -> void:
 	_best_days = _load_best()
 	_view = FactoryView.new()
 	add_child(_view)
+	_desk = QaDeskView.new()
+	add_child(_desk)
 	_hud = Hud.new()
 	add_child(_hud)
 	_hud.start_pressed.connect(_begin_shift)
@@ -51,6 +58,8 @@ func _new_career(seed_value: int) -> void:
 func _show_day() -> void:
 	_factory = _career.start_day()
 	_view.setup(_factory, _config)
+	_desk.setup(_factory)
+	_desk.hint = HINT if _career.day == 1 else ""
 	_acc = 0.0
 	_holding = false
 	_phase = Phase.BANNER
@@ -76,26 +85,45 @@ func _inspect_button(text: String, ship: bool) -> Button:
 func _inspect(ship: bool) -> void:
 	if _phase != Phase.PLAYING or _factory == null:
 		return
-	match _factory.inspect(ship):
+	var q := _factory.qa_queue()
+	var front: Dictionary = q[0] if not q.is_empty() else {}
+	var res := _factory.inspect(ship)
+	if res in [Factory.InspectResult.SHIPPED, Factory.InspectResult.COMPLAINT, Factory.InspectResult.CAUGHT, Factory.InspectResult.WASTED]:
+		_desk.hint = ""
+		_desk.play_inspect(front, ship)
+	match res:
 		Factory.InspectResult.NOT_AT_DESK:
-			_flash("Worker is away from the desk")
+			_desk.flash("BRB — busy at a machine", Color(0.8, 0.8, 0.85))
 		Factory.InspectResult.COMPLAINT:
-			_flash("Complaint! Shipped a defect")
+			_desk.flash("COMPLAINT!", Color(1.0, 0.25, 0.2), 1.6)
+			_desk.flash(_career.foreman_line_at("complaint", _factory.complaints), Color(1.0, 0.7, 0.6), 2.0)
 		Factory.InspectResult.WASTED:
-			_flash("Wasted a good product")
+			_desk.flash("Wasted", Color(1.0, 0.75, 0.3))
 		Factory.InspectResult.CAUGHT:
-			_flash("Caught a defect")
+			_desk.flash("Caught it!", Color(0.4, 1.0, 0.5))
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
+		match (event as InputEventKey).keycode:
+			KEY_LEFT: _inspect(false)
+			KEY_RIGHT: _inspect(true)
 
 
 func _fit() -> void:
+	var strip := Rect2(0, size.y * STRIP_FRAC, size.x, size.y * (1.0 - STRIP_FRAC))
 	if _ship_btn != null:
 		var w := size.x * 0.45
-		_reject_btn.size = Vector2(w, 64)
-		_ship_btn.size = Vector2(w, 64)
-		_reject_btn.position = Vector2(size.x * 0.03, size.y - 84)
-		_ship_btn.position = Vector2(size.x * 0.52, size.y - 84)
+		var y := strip.end.y - 104.0
+		_reject_btn.size = Vector2(w, 84)
+		_ship_btn.size = Vector2(w, 84)
+		_reject_btn.position = Vector2(size.x * 0.03, y)
+		_ship_btn.position = Vector2(size.x * 0.52, y)
 	if _view != null:
-		_view.area = Rect2(0, HUD_TOP, size.x, maxf(100.0, size.y - HUD_TOP - HUD_BOTTOM))
+		_view.area = Rect2(0, HUD_TOP, size.x, maxf(100.0, size.y * FACTORY_FRAC - HUD_TOP))
+		_view.desk_anchor = Vector2(0, strip.position.y + 30.0)
+	if _desk != null:
+		_desk.rect = strip
 
 
 func _process(delta: float) -> void:
@@ -110,6 +138,7 @@ func _process(delta: float) -> void:
 			_acc -= dt
 		if _factory.is_over():
 			_end_shift()
+	_desk.visible = _phase == Phase.PLAYING
 	_ship_btn.visible = _phase == Phase.PLAYING
 	_reject_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
@@ -155,9 +184,17 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var mb := event as InputEventMouseButton
 		if mb.pressed:
-			_tap(mb.position)
+			if _desk.rect.has_point(mb.position):
+				_swipe_from = mb.position
+			else:
+				_tap(mb.position)
 		else:
 			_release()
+			if _swipe_from.x >= 0.0:
+				var dx := mb.position.x - _swipe_from.x
+				_swipe_from = Vector2(-1, -1)
+				if absf(dx) >= SWIPE_MIN:
+					_inspect(dx > 0.0)
 	elif event is InputEventMouseMotion and _holding:
 		var m := _view.machine_at((event as InputEventMouseMotion).position)
 		if m == null or m.id != _factory.crew_target:

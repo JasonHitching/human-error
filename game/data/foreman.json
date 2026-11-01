@@ -26,5 +26,11 @@
   "Out. Take the bots' resignation letters with you.",
   "Fired. Please don't touch anything on your way out.",
   "Your services are no longer required. The bots will miss you."
+ ],
+ "complaint": [
+  "A customer got a dented gift. Guess whose desk.",
+  "Complaint filed. Under your name. In pen.",
+  "Someone shipped a defect. The camera says: you.",
+  "Customer complaint. They want a refund and an apology."
  ]
 }

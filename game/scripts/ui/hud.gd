@@ -23,9 +23,9 @@ var _fired_label: Label
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_top = _label(24, HORIZONTAL_ALIGNMENT_CENTER)
+	_top = _label(22, HORIZONTAL_ALIGNMENT_CENTER)
 	_top.position = Vector2(0, 8)
-	_flash = _label(26, HORIZONTAL_ALIGNMENT_CENTER)
+	_flash = _label(22, HORIZONTAL_ALIGNMENT_CENTER)
 	_flash.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
 	_seed = _label(14, HORIZONTAL_ALIGNMENT_RIGHT)
 	_seed.modulate = Color(1, 1, 1, 0.5)
@@ -95,7 +95,7 @@ func _button(box: Control, text: String, cb: Callable) -> Button:
 func _layout() -> void:
 	_top.size = Vector2(size.x, 80)
 	_flash.size = Vector2(size.x, 40)
-	_flash.position = Vector2(0, size.y - 110)
+	_flash.position = Vector2(0, 84)
 	_seed.size = Vector2(size.x - 8, 20)
 	_seed.position = Vector2(0, size.y - 24)
 
@@ -108,7 +108,7 @@ func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, best_days: 
 	var marks := ""
 	for i in c.config.max_strikes:
 		marks += "✖" if i < c.strikes else "✕"
-	_top.text = "Day %d · %d:%02d · Shipped %d / %d · Strikes %s\n%s · Best %d days" % [c.day, int(left) / 60, int(left) % 60, f.score(), f.target, marks, crew, best_days]
+	_top.text = "Day %d · %d:%02d · Score %d / %d · Strikes %s\nComplaints %d (-%d each) · %s · Best %d" % [c.day, int(left) / 60, int(left) % 60, f.score(), f.target, marks, f.complaints, c.config.complaint_penalty, crew, best_days]
 	_seed.text = "career %d" % c.seed
 
 
@@ -122,7 +122,7 @@ func show_banner(day: int, line: String, target: int) -> void:
 
 
 func show_review(res: Dictionary, line: String, offers: Array[Dictionary]) -> void:
-	_review_label.text = "Day over\nShipped %d / %d — %s\nStrikes %d\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["strikes"], line]
+	_review_label.text = "Day over\nScore %d / %d — %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], line]
 	for n in _review_box.get_children():
 		if n != _review_label:
 			_review_box.remove_child(n)

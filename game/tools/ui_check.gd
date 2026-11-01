@@ -28,6 +28,34 @@ func _check_overlay(name: String, o: Control, need_buttons: bool) -> void:
 			_fails.append("%s button '%s' off-screen at %s" % [name, b.text, b.get_global_rect()])
 
 
+func _check_desk() -> void:
+	var screen := Rect2(Vector2.ZERO, _main.size)
+	var desk: QaDeskView = _main._desk
+	if not screen.encloses(desk.rect):
+		_fails.append("desk strip %s not inside screen %s" % [desk.rect, screen])
+	for b: Button in [_main._reject_btn, _main._ship_btn]:
+		if not b.is_visible_in_tree() or not screen.encloses(b.get_global_rect()):
+			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
+		if b.size.x < 120.0 or b.size.y < 80.0:
+			_fails.append("button '%s' too small: %s" % [b.text, b.size])
+	var f: Factory = _main._factory
+	f._qa_items.append({"defect": "", "decoy": "", "bot": ""})
+	f._qa.input_count += 1
+	if f.qa_queue().size() != 1:
+		_fails.append("forced queue item missing")
+	_main._inspect(false)  # rejecting a good product -> wasted
+	if not f.qa_queue().is_empty() or f.wasted != 1:
+		_fails.append("inspect did not update queue (queue %d, wasted %d)" % [f.qa_queue().size(), f.wasted])
+	if desk.hint != "":
+		_fails.append("first-time hint not dismissed after inspect")
+	f.crew_busy = true
+	if not desk.brb_visible():
+		_fails.append("BRB not shown while crew busy")
+	f.crew_busy = false
+	if desk.brb_visible():
+		_fails.append("BRB shown while worker at desk")
+
+
 func _end_shift(shipped: int) -> void:
 	_main._factory.shipped = shipped
 	_main._factory.tick = int(_main._config.shift_seconds * _main._config.tick_rate)
@@ -42,6 +70,10 @@ func _process(_delta: float) -> bool:
 				_fails.append("HUD size %s != screen %s" % [hud.size, _main.size])
 			_check_overlay("banner", hud.banner, true)
 			hud.start_pressed.emit()
+		4:
+			if _main._desk.hint == "":
+				_fails.append("day 1 hint not shown")
+			_check_desk()
 		5:
 			if _main._phase != _main.Phase.PLAYING:
 				_fails.append("shift did not start after banner tap")
