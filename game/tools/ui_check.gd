@@ -430,6 +430,31 @@ func _end_shift(shipped: int) -> void:
 	_main._factory.tick = int(_main._config.shift_seconds * _main._config.tick_rate)
 
 
+func _check_rookie(hud: Hud) -> void:
+	var rook: Machine = null
+	for m in _main._factory.machines:
+		if m.bot != null and m.bot.rookie:
+			rook = m
+	if rook == null:
+		_fails.append("rookie not on the floor on a rookie day")
+		return
+	if not hud.banner.is_visible_in_tree() or not hud._banner_label.text.contains("NEW: ") or not hud._banner_label.text.contains(rook.bot.name):
+		_fails.append("foreman banner did not announce the rookie")
+	_check_overlay("rookie banner", hud.banner, true)
+	var wall: WallMonitor = _main._screens.wall
+	rook.state = Machine.State.JAMMED
+	wall.poll()
+	if not wall.call_text.begins_with(rook.bot.name):
+		_fails.append("rookie call-in not on the monitor: '%s'" % wall.call_text)
+	rook.state = Machine.State.IDLE
+	wall.poll()
+	# the review lists a learned lesson
+	hud.show_review({"shipped": 30, "target": 24, "hit": true, "caught": 0, "complaints": 0, "wasted": 0, "strikes": 0, "points": 1, "probation": false, "lessons": [{"bot": "Pip", "mistake": "wrong_recipe"}, {"bot": "Bolt", "mistake": "overclock"}, {"bot": "Nudge", "mistake": "misroute"}], "rookie": {"name": "Pip", "replaced": "Clank"}}, "ok", [{"text": "Train Pip: jam -40%"}, {"text": "Quick eye: inspect -20%"}, {"text": "Bigger desk: +2 queue"}] as Array[Dictionary], "Streak: 1 days on target\nTraining point banked: pick below")
+	if not hud._review_label.text.contains("Pip learned") or not hud._review_label.text.contains("Rookie: "):
+		_fails.append("review did not list the lesson and rookie")
+	_check_overlay("lesson review", hud.review, true)
+
+
 func _check_stats(hud: Hud) -> void:
 	var sb: Button = hud.stats_btn
 	if sb.size.x < 120 or sb.size.y < 80:
@@ -507,6 +532,13 @@ func _process(_delta: float) -> bool:
 		24:
 			if not hud._twist.is_visible_in_tree() or hud._twist.text == "":
 				_fails.append("twist HUD label not visible on a twist day")
+			hud.start_pressed.emit()
+			_main._career.day = 4  # first rookie day
+			_main._show_day()
+		26:
+			_check_rookie(hud)
+			hud.start_pressed.emit()
+		28:
 			for e in _catcher.errors.slice(0, 5):
 				_fails.append("engine/script error while drawing: " + e)
 			for f in _fails:

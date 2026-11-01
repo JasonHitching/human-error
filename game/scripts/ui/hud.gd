@@ -144,10 +144,12 @@ func set_flash(text: String) -> void:
 	_flash.text = text
 
 
-func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, spec_change: String = "") -> void:
+func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, spec_change: String = "", news: String = "") -> void:
 	var tw := ""
+	if news != "":
+		tw = "\n\n" + news
 	if spec_change != "":
-		tw = "\n\n" + spec_change
+		tw += "\n\n" + spec_change
 	if not twist.is_empty():
 		tw += "\n\nTWIST: %s %s\n%s" % [twist.get("icon", ""), twist.get("name", ""), twist.get("line", "")]
 	_banner_label.text = "FOREMAN\nDay %d · target %d\n\n%s%s" % [day, target, line, tw]
@@ -158,6 +160,18 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra
 	var qa_lines := ""
 	if String(res.get("spec_change", "")) != "":
 		qa_lines += "\n" + String(res["spec_change"])
+	var rk: Dictionary = res.get("rookie", {})
+	var extras := false
+	if not rk.is_empty():
+		qa_lines += "\nRookie: %s%s" % [rk["name"], "" if String(rk["replaced"]) == "" else " (replaces %s)" % rk["replaced"]]
+		extras = true
+	var ls: Array = res.get("lessons", [])
+	for i in mini(ls.size(), 2):
+		qa_lines += "\n%s learned: no more %s" % [ls[i]["bot"], String(ls[i]["mistake"]).replace("_", " ")]
+		extras = true
+	if ls.size() > 2:
+		qa_lines += "\n+%d more lessons" % (ls.size() - 2)
+	_review_label.add_theme_font_size_override("font_size", 26 if extras else 32)
 	if int(res.get("subtle_scanned", 0)) + int(res.get("subtle_shipped", 0)) > 0:
 		qa_lines += "\nHairline faults: caught %d by scanning, shipped %d" % [res.get("subtle_caught", 0), res.get("subtle_shipped", 0)]
 	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), qa_lines, line]

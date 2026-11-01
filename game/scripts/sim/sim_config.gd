@@ -60,6 +60,11 @@ var burst_seconds: float = 8.0
 var burst_mult: float = 1.4
 var mistake_rate_mult: float = 1.0
 var bot_defs: Array[Dictionary] = []
+var rookie_defs: Array[Dictionary] = []
+var rookie_days: Array[int] = [4, 7, 10]
+var learn_after: int = 3
+var learn_chance: float = 0.5
+var learn_mult: float = 0.5
 var repair_mode: String = "tap"  # "tap" or "hold"
 var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
@@ -136,6 +141,13 @@ func _load_balance(b: Dictionary) -> void:
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))
 	monitor_amber_heat = _opt(b, "monitor_amber_heat", monitor_amber_heat, 0.0, 100.0)
 	twist_start_day = int(_opt(b, "twist_start_day", twist_start_day, 1.0, 1000.0))
+	learn_after = int(_opt(b, "learn_after", learn_after, 1.0, 1000.0))
+	learn_chance = _opt(b, "learn_chance", learn_chance, 0.0, 1.0)
+	learn_mult = _opt(b, "learn_mult", learn_mult, 0.0, 1.0)
+	if b.has("rookie_days"):
+		rookie_days.clear()
+		for v: Variant in b["rookie_days"]:
+			rookie_days.append(int(v))
 	spec_change_day = int(_opt(b, "spec_change_day", spec_change_day, 1.0, 1000.0))
 	spec_change_gap = int(_opt(b, "spec_change_gap", spec_change_gap, 1.0, 1000.0))
 	spec_change_chance = _opt(b, "spec_change_chance", spec_change_chance, 0.0, 1.0)
@@ -218,7 +230,14 @@ func _load_bots(b: Dictionary) -> void:
 	if train_factor < 0.0 or train_factor > 1.0 or overclock_speed_mult < 1.0 or overclock_heat_mult < 1.0:
 		errors.append("bots: bad balance values")
 	var names := {}
-	for e: Variant in b.get("bots", []):
+	_read_bot_list(b.get("bots", []), names, bot_defs)
+	_read_bot_list(b.get("rookies", []), names, rookie_defs)
+	if bot_defs.is_empty():
+		errors.append("bots: roster is empty")
+
+
+func _read_bot_list(list: Array, names: Dictionary, into: Array[Dictionary]) -> void:
+	for e: Variant in list:
 		if not (e is Dictionary):
 			errors.append("bots: entry is not an object")
 			continue
@@ -239,6 +258,4 @@ func _load_bots(b: Dictionary) -> void:
 		var sl: Variant = d.get("sloppy", 0.0)
 		if not (sl is float or sl is int) or float(sl) < 0.0 or float(sl) > 1.0:
 			errors.append("bots: '%s' sloppy must be a number in [0, 1]" % n)
-		bot_defs.append(d)
-	if bot_defs.is_empty():
-		errors.append("bots: roster is empty")
+		into.append(d)

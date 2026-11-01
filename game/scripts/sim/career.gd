@@ -17,6 +17,9 @@ var qa_bonus: int = 0  # extra queue slots (Bigger desk)
 var inspect_speed: float = 1.0  # Quick eye multiplies inspect time
 var history: Array = []  # {day, shipped, target, hit}
 var twists: Twists
+var rookies_joined: int = 0
+var arrival: Dictionary = {}  # today's rookie, {name, replaced} (replaced "" = took a free slot); {} = none
+var lessons_learned: int = 0
 var _lines: Dictionary = {}
 
 
@@ -32,7 +35,7 @@ func _init(p_config: SimConfig, p_seed: int) -> void:
 		defs[i] = defs[j]
 		defs[j] = t
 	for d: Dictionary in defs:
-		roster.append(Bot.from_dict(d, config.train_factor))
+		roster.append(Bot.from_dict(d, config.train_factor, config.learn_mult))
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(FOREMAN_PATH))
 	if parsed is Dictionary:
 		_lines = parsed
@@ -62,6 +65,7 @@ func day_mult() -> float:
 
 
 func start_day() -> Factory:
+	_add_rookie()
 	var f := Factory.new(config, seed * 1000 + day, roster, day_mult())
 	f.apply_twist(twist())
 	f.apply_spec(qa_spec())
@@ -73,8 +77,49 @@ func start_day() -> Factory:
 	return f
 
 
+## Machines a bot can run (everything but the warehouse and QA desk).
+func bot_slots() -> int:
+	var n := 0
+	for md in config.machines:
+		if md.get("type") != "warehouse" and md.get("type") != "qa":
+			n += 1
+	return n
+
+
+## At the start of a configured rookie day the next rookie joins: a free slot, else the most-trained bot goes to head office.
+func _add_rookie() -> void:
+	arrival = {}
+	var i := rookies_joined
+	if i >= config.rookie_days.size() or i >= config.rookie_defs.size() or day < config.rookie_days[i]:
+		return
+	var rk := Bot.from_dict(config.rookie_defs[i], config.train_factor, config.learn_mult)
+	rk.rookie = true
+	rookies_joined += 1
+	var slots := bot_slots()
+	if roster.size() < slots:
+		roster.append(rk)
+		arrival = {"name": rk.name, "replaced": ""}
+		return
+	var worst := 0
+	for k in mini(slots, roster.size()):
+		if roster[k].training_total() > roster[worst].training_total():
+			worst = k
+	arrival = {"name": rk.name, "replaced": roster[worst].name}
+	roster[worst] = rk
+
+
+## Foreman news for the banner about today's rookie ("" = none).
+func arrival_line() -> String:
+	if arrival.is_empty():
+		return ""
+	if String(arrival["replaced"]) == "":
+		return "NEW: rookie %s joins the floor." % arrival["name"]
+	return "NEW: %s promoted to head office. Rookie %s takes over." % [arrival["replaced"], arrival["name"]]
+
+
 func end_day(f: Factory) -> Dictionary:
 	var score := f.score()
+	lessons_learned += f.lessons.size()
 	var hit := score >= f.target
 	history.append({"day": day, "shipped": score, "target": f.target, "hit": hit})
 	if hit:
@@ -85,7 +130,7 @@ func end_day(f: Factory) -> Dictionary:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log)}
+	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
 
 
 ## Builds {bot: {count, top}} from a factory mistake_log.
