@@ -154,9 +154,45 @@ func _check_screens() -> void:
 	var ql: Label = sw.queue_label
 	if not ql.is_visible_in_tree() or not screen.encloses(ql.get_global_rect()) or not ql.text.begins_with("Desk queue"):
 		_fails.append("queue meter not visible on the floor: '%s' %s" % [ql.text, ql.get_global_rect()])
+	_check_floor_chars()
 	_press_and_travel(sw.back_btn, Worker.Location.OFFICE)
 	if sw.office_page.position != Vector2.ZERO:
 		_fails.append("office not shown after back to desk")
+
+
+## Run a forced shift on the floor with jobs and misroutes; bots and worker stay inside the floor area.
+func _check_floor_chars() -> void:
+	var f: Factory = _main._factory
+	var v: FactoryView = _main._view
+	var sw: ScreenSwitch = _main._screens
+	f.worker.place(Worker.Location.FLOOR)
+	sw.sync(0.0)
+	v.area = sw.floor_rect()
+	var back := sw.back_btn.get_global_rect()
+	var bad := 0
+	for i in 900:
+		f.step()
+		v.push_events(f.events)
+		if i % 40 == 0:
+			var m := f.machines[(i / 40) % f.machines.size()]
+			if m.type != "qa":
+				m.misrouted = true
+				v.push_events([{"type": "mistake", "mistake": "misroute", "machine_id": m.id}])
+				f.request_action(m.id)
+		v._process(0.1)
+		var pts: Array[Vector2] = []
+		for m in f.machines:
+			if m.bot != null:
+				pts.append(v.bot_pos(m))
+		pts.append(v.worker_pos())
+		for p in pts:
+			var box := Rect2(p - Vector2(22, 24), Vector2(44, 48))
+			if not v.area.encloses(box) or box.intersects(back):
+				bad += 1
+	if bad > 0:
+		_fails.append("%d character positions outside floor area or over the back button" % bad)
+	f.crew_busy = false
+	f.worker.place(Worker.Location.FLOOR)
 
 
 func _end_shift(shipped: int) -> void:
