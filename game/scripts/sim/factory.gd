@@ -7,7 +7,21 @@ var shipped: int = 0
 var machines: Array[Machine] = []
 var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #4)
 
+enum ActionResult { STARTED_REPAIR, STARTED_VENT, CREW_BUSY, NOTHING_TO_DO }
+
+var target: int = 0
+var crew_busy: bool = false
+var crew_target: String = ""
+var crew_progress: float = 0.0  # 0..1
+var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
+var actions: Array[Dictionary] = []  # {tick, machine_id} or {tick, release: true}
+
 var _config: SimConfig
+var _crew_kind: int = ActionResult.NOTHING_TO_DO
+var _crew_ticks: int = 0
+var _crew_left: int = 0
+var _held: bool = false
+var _shift_ticks: int = 1
 var _by_id: Dictionary = {}
 var _links: Array[Dictionary] = []  # {from: Machine, to: Machine, ticks: int}
 var _out_links: Dictionary = {}  # Machine -> Array[int] indices into _links
@@ -17,6 +31,8 @@ var _transit: Array[Dictionary] = []  # {link: int, left: int}
 func _init(config: SimConfig, seed: int) -> void:
 	_config = config
 	rng.seed = seed
+	target = config.target
+	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
 	for md in config.machines:
 		var m := Machine.new()
 		m.id = String(md["id"])
@@ -27,6 +43,9 @@ func _init(config: SimConfig, seed: int) -> void:
 		m.output_resource = String(md.get("output", ""))
 		m.input_cap = int(md.get("input_cap", 0))
 		m.output_cap = int(md.get("output_cap", 0))
+		m.heat_per_sec = float(md.get("heat_per_sec", 0.0))
+		m.cool_per_sec = float(md.get("cool_per_sec", 0.0))
+		m.jam_chance_per_sec = float(md.get("jam_chance_per_sec", 0.0))
 		m.process_ticks = maxi(1, roundi(float(md["process_time"]) * config.tick_rate))
 		machines.append(m)
 		_by_id[m.id] = m
@@ -52,6 +71,7 @@ func items_in_transit() -> Array:
 
 func step() -> void:
 	tick += 1
+	_step_crew()
 	_advance_transit()
 	for m in machines:
 		_step_machine(m)
@@ -70,7 +90,117 @@ func _advance_transit() -> void:
 	_transit = remaining
 
 
+func is_over() -> bool:
+	return tick >= _shift_ticks
+
+
+## Fault pressure multiplier: linear from ramp_start to ramp_end over the shift.
+func ramp() -> float:
+	return lerpf(_config.ramp_start, _config.ramp_end, clampf(float(tick) / float(_shift_ticks), 0.0, 1.0))
+
+
+## Ask the crew to act on a machine. Recorded for replay.
+func request_action(machine_id: String) -> int:
+	actions.append({"tick": tick, "machine_id": machine_id})
+	if crew_busy:
+		return ActionResult.CREW_BUSY
+	var m := get_machine(machine_id)
+	if m == null:
+		return ActionResult.NOTHING_TO_DO
+	var secs := 0.0
+	if m.is_faulted():
+		_crew_kind = ActionResult.STARTED_REPAIR
+		secs = _config.repair_seconds
+	elif m.state == Machine.State.WORKING and m.heat >= _config.vent_min_heat:
+		_crew_kind = ActionResult.STARTED_VENT
+		secs = _config.vent_seconds
+	else:
+		return ActionResult.NOTHING_TO_DO
+	crew_busy = true
+	crew_target = machine_id
+	crew_progress = 0.0
+	_crew_ticks = maxi(1, roundi(secs * _config.tick_rate))
+	_crew_left = _crew_ticks
+	_held = true
+	return _crew_kind
+
+
+## Hold mode: stop holding. Cancels the job and resets progress. No-op in tap mode.
+func release_action() -> void:
+	actions.append({"tick": tick, "release": true})
+	if _config.repair_mode == "hold":
+		_held = false
+		if crew_busy:
+			_end_job()
+
+
+func _end_job() -> void:
+	crew_busy = false
+	crew_target = ""
+	crew_progress = 0.0
+	_held = false
+
+
+func _step_crew() -> void:
+	for m in machines:
+		m.venting = false
+	if not crew_busy or not (_held or _config.repair_mode == "tap"):
+		return
+	var m: Machine = _by_id[crew_target]
+	if _crew_kind == ActionResult.STARTED_VENT:
+		m.venting = true
+	_crew_left -= 1
+	crew_progress = 1.0 - float(_crew_left) / float(_crew_ticks)
+	if _crew_left > 0:
+		return
+	if _crew_kind == ActionResult.STARTED_REPAIR:
+		m.state = Machine.State.IDLE
+		m.heat = 0.0
+	m.venting = false
+	_end_job()
+
+
+## Replay a recorded run: same seed + same action list => same result.
+static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ticks: int) -> Factory:
+	var f := Factory.new(config, seed)
+	var i := 0
+	for _t in ticks:
+		while i < recorded.size() and int(recorded[i]["tick"]) <= f.tick:
+			if recorded[i].has("release"):
+				f.release_action()
+			else:
+				f.request_action(String(recorded[i]["machine_id"]))
+			i += 1
+		f.step()
+	return f
+
+
 func _step_machine(m: Machine) -> void:
+	if m.is_faulted():
+		return
+	if m.venting:
+		m.state = Machine.State.IDLE
+		m.heat = maxf(0.0, m.heat - _config.vent_cool_per_sec / _config.tick_rate)
+		return
+	_advance_machine(m)
+	var rate := float(_config.tick_rate)
+	if m.state == Machine.State.WORKING:
+		m.heat += m.heat_per_sec / rate
+		if m.heat >= 100.0:
+			m.heat = 100.0
+			_fault(m, Machine.State.OVERHEATED)
+		elif m.jam_chance_per_sec > 0.0 and rng.randf() < m.jam_chance_per_sec * ramp() / rate:
+			_fault(m, Machine.State.JAMMED)
+	else:
+		m.heat = maxf(0.0, m.heat - m.cool_per_sec / rate)
+
+
+func _fault(m: Machine, s: Machine.State) -> void:
+	m.state = s
+	fault_counts[m.state_name()] += 1
+
+
+func _advance_machine(m: Machine) -> void:
 	if m.busy:
 		m.progress = mini(m.progress + 1, m.process_ticks)
 		if m.progress >= m.process_ticks:
