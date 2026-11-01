@@ -11,6 +11,7 @@ var factory: Factory
 var feel: Feel
 var rect := Rect2(0, 0, 100, 100)  # strip rect in screen space
 var hint: String = ""
+var spec_new: bool = false  # the Foreman changed the spec today: highlight the card
 var caption: String = ""  # spec card caption (day 1 only), lines split by " · "
 var _font: Font = ThemeDB.fallback_font
 var _time: float = 0.0
@@ -61,8 +62,8 @@ func spec_rect() -> Rect2:
 func _draw_spec() -> void:
 	var r := spec_rect()
 	draw_rect(r, Color(0.2, 0.22, 0.28))
-	draw_rect(r, Color(0.5, 0.55, 0.65), false, 2.0)
-	_text("SPEC", r.position + Vector2(8, 22), 18, Color(0.8, 0.85, 1.0), r.size.x - 16)
+	draw_rect(r, Color(1.0, 0.85, 0.2) if spec_new else Color(0.5, 0.55, 0.65), false, 4.0 if spec_new else 2.0)
+	_text("NEW SPEC" if spec_new else "SPEC", r.position + Vector2(8, 22), 18, Color(0.8, 0.85, 1.0), r.size.x - 16)
 	draw_product({"defect": "", "decoy": "", "bot": ""}, r.position + Vector2(r.size.x * 0.5, 30.0 + r.size.x * 0.4), Vector2(r.size.x - 8.0, r.size.x - 8.0))
 	if caption != "":
 		var y := r.position.y + 36.0 + r.size.x * 0.75
@@ -247,12 +248,19 @@ func _draw_hint() -> void:
 		y += 30.0
 
 
+## The defect that is drawn: a subtle one looks fine until scanned.
+static func shown_defect(item: Dictionary) -> String:
+	if bool(item.get("subtle", false)) and not bool(item.get("scanned", false)):
+		return ""
+	return String(item.get("defect", ""))
+
+
 ## Draw one product centred at c, fitting in a square of size s. Used for the pad and animations.
 func draw_product(item: Dictionary, c: Vector2, s: Vector2) -> void:
 	var w := s.x * 0.9
 	var h := s.y * 0.75
 	var body := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
-	var defect := String(item.get("defect", ""))
+	var defect := shown_defect(item)
 	var decoy := String(item.get("decoy", ""))
 	if _draw_product_sprites(defect, decoy, c, s):
 		return
