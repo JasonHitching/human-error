@@ -19,3 +19,4 @@ One line each. Newest at the bottom. Don't re-argue settled decisions without ne
 | 13 | One GitHub issue → one cloud session → one PR | Small contexts, small reviews, cheap retries |
 | 14 | Opus plans and writes issues; Sonnet implements; Haiku tunes data | Token cost |
 | 15 | `repair_mode` tap vs hold is a data setting | Cheap A/B in playtest |
+| 16 | Sessions squash-merge their own PRs when CLAUDE.md criteria are met; stop conditions go to Jason | Jason vibe-codes from phone; human gate is the playtest, not code review |

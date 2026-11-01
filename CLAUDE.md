@@ -6,7 +6,23 @@ Human Error: portrait mobile factory game, Godot 4.7.2 + GDScript. Design: `docs
 - One GitHub issue = one session = one PR. Implement **only** that issue.
 - Read the issue, this file, and only the files the issue names or you must touch. Don't explore the whole repo.
 - If the issue is ambiguous or blocked, stop and comment on the issue instead of guessing big.
+- Before starting, check the issue's "Depends on" issues are closed. If not, stop and say so.
 - Branch: `issue-<N>-<short-name>`. PR title: `#<N> <title>`. PR body: what changed, how to test, sim/test output summary, `Closes #<N>`.
+
+## Merging (you merge your own PR — Jason doesn't review every PR)
+Squash-merge your PR yourself when ALL are true:
+1. Every **Accept** item in the issue is met, and the PR body shows the evidence (test/sim output).
+2. Tests pass locally, and CI checks on the PR are green (once CI exists, #2). Never skip, disable or weaken a test to get green.
+3. The PR touches only what the issue asks for.
+4. None of the stop conditions below apply.
+
+**Stop — don't merge, comment on the PR and leave it for Jason — if the PR:**
+- adds a dependency, addon, third-party action, backend, networking, ads or monetisation;
+- changes `CLAUDE.md`, `docs/DECISIONS.md` or the design in `docs/GAME_DESIGN.md`;
+- deletes or weakens existing tests;
+- can't meet an Accept item, or needed a judgement call the issue didn't cover.
+
+After merging: delete the branch; if the merge broke `main`, revert immediately.
 
 ## Layout
 ```

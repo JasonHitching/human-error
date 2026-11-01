@@ -6,7 +6,7 @@ You vibe-code from your phone and playtest on your PC (or phone) in a browser.
 ```
 Opus session     → plans a milestone, writes issues (rarely)
 Sonnet session   → one per issue: "Implement issue #N" → PR
-You (phone)      → skim PR, merge
+Sonnet session   → merges its own PR when CLAUDE.md merge criteria are met
 GitHub Actions   → tests + publishes web build
 You (PC browser) → playtest the Pages URL
 You (phone)      → write feedback as ONE issue → back to top
@@ -15,16 +15,16 @@ You (phone)      → write feedback as ONE issue → back to top
 ## Starting an implementation session (claude.ai/code, phone)
 1. New session → repo `human-error` → model **Sonnet** (Haiku for `model:haiku` issues).
 2. Prompt:
-   > Implement issue #N. Follow CLAUDE.md. Open a PR when tests pass.
-3. Leave it. Come back to a PR.
+   > Implement issue #N. Follow CLAUDE.md.
+3. Leave it. It merges itself if the merge criteria in `CLAUDE.md` are met; otherwise it leaves the PR open with a comment saying why.
 
 If a session goes sideways: close it, start a fresh one on the same issue. Don't argue with it in a long chat.
 If Sonnet fails the same issue twice: start an **Opus** session on it.
 
-## Reviewing a PR on your phone
-- Read the PR description (what changed, how to test, test/sim summary).
-- Tests green → merge. You don't need to read every line of code.
-- Something looks off → comment on the PR in one message, start a new session: "Address review comments on PR #M".
+## PRs
+- Sessions merge their own PRs when the criteria in `CLAUDE.md` are met. You only see PRs left open for a reason (new dependency, design change, unmet criteria) — those have a comment explaining why.
+- To unblock one: reply on the PR in one message, start a new session: "Address the comments on PR #M, then follow CLAUDE.md merge rules".
+- Something bad merged? New session: "Revert PR #M".
 
 ## Playtesting on PC
 - Open the GitHub Pages URL (set up in issue #2). Mouse click = tap.
