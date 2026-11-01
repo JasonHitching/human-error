@@ -1,7 +1,7 @@
 class_name Machine
 extends RefCounted
 
-enum State { IDLE, WORKING, STARVED, BLOCKED, OVERHEATED, JAMMED }  # last two are root faults
+enum State { IDLE, WORKING, STARVED, BLOCKED, OVERHEATED, JAMMED, CLOGGED }  # OVERHEATED/JAMMED are faults; CLOGGED = junk in input (cause upstream)
 
 var id: String
 var type: String
@@ -23,6 +23,10 @@ var cool_per_sec: float = 0.0
 var bot: Bot = null  # null for the warehouse
 var overclocked: bool = false
 var speed_frac: float = 0.0  # fractional progress carry when overclocked
+var misrouted: bool = false  # output goes to the scrap bin
+var wrong_recipe: bool = false  # output is junk
+var junk_count: int = 0  # junk items in input (counted within input_count)
+var output_junk: int = 0  # junk items in output (counted within output_count)
 var venting: bool = false  # crew is venting this machine (paused, cooling)
 var next_link: int = 0  # round-robin pointer over outgoing links
 

@@ -15,9 +15,14 @@ static func act(player: String, f: Factory) -> void:
 			f.request_action(m.id)
 			return
 	for m in f.machines:
-		if m.overclocked:
+		if m.state == Machine.State.CLOGGED:
 			f.request_action(m.id)
 			return
+	for flag in ["wrong_recipe", "misrouted", "overclocked"]:
+		for m in f.machines:
+			if m.get(flag):
+				f.request_action(m.id)
+				return
 	var hottest: Machine = null
 	for m in f.machines:
 		if m.state == Machine.State.WORKING and m.heat >= VENT_HEAT and (hottest == null or m.heat > hottest.heat):

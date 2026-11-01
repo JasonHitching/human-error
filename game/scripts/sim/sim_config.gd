@@ -16,6 +16,7 @@ var vent_seconds: float = 1.0
 var vent_min_heat: float = 50.0
 var vent_cool_per_sec: float = 40.0
 var fix_seconds: float = 1.0
+var clear_seconds: float = 1.5
 var train_factor: float = 0.6
 var overclock_speed_mult: float = 1.3
 var overclock_heat_mult: float = 3.0
@@ -74,6 +75,7 @@ func _load_balance(b: Dictionary) -> void:
 	vent_min_heat = _num(b, "vent_min_heat", 0.0, 100.0)
 	vent_cool_per_sec = _num(b, "vent_cool_per_sec", 0.0, 1.0e4)
 	fix_seconds = _num(b, "fix_seconds", 0.1, 1.0e4) if b.has("fix_seconds") else 1.0
+	clear_seconds = _num(b, "clear_seconds", 0.1, 1.0e4) if b.has("clear_seconds") else 1.5
 	repair_mode = String(b.get("repair_mode", ""))
 	if repair_mode != "tap" and repair_mode != "hold":
 		errors.append("balance: repair_mode must be \"tap\" or \"hold\"")

@@ -44,6 +44,7 @@ func _state_color(m: Machine) -> Color:
 		Machine.State.JAMMED: return Color(0.95, 0.25, 0.2)
 		Machine.State.OVERHEATED: return Color(1.0, 0.55, 0.1)
 		Machine.State.WORKING: return Color(0.2, 0.65, 0.3)
+		Machine.State.CLOGGED: return Color(0.55, 0.35, 0.65)
 		Machine.State.STARVED, Machine.State.BLOCKED: return Color(0.33, 0.38, 0.47)
 	return Color(0.4, 0.4, 0.42)
 
@@ -65,10 +66,15 @@ func _draw_links() -> void:
 		var ids := key.split(">")
 		draw_line(pts[ids[0]], pts[ids[1]], Color(0.35, 0.37, 0.42), 3.0)
 	for it in factory.items_in_transit():
-		var ticks: float = _link_ticks["%s>%s" % [it["from"], it["to"]]]
+		var ticks: float = _link_ticks["%s>%s" % [it["from"], it["via"]]]
 		var t := clampf(float(it["progress"]) + alpha / ticks, 0.0, 1.0)
-		var p: Vector2 = (pts[it["from"]] as Vector2).lerp(pts[it["to"]], t)
-		draw_circle(p, 6.0, Color(1.0, 0.85, 0.3))
+		var p: Vector2 = (pts[it["from"]] as Vector2).lerp(pts[it["via"]], t)
+		var ic := Color(1.0, 0.85, 0.3)
+		if it["junk"]:
+			ic = Color(0.6, 0.3, 0.7)
+		if it["to"] == "scrap":
+			ic = Color(0.9, 0.2, 0.2)
+		draw_circle(p, 6.0, ic)
 
 
 func _draw_machine(m: Machine) -> void:
@@ -85,6 +91,8 @@ func _draw_machine(m: Machine) -> void:
 	if m.is_faulted():
 		var txt := "JAMMED" if m.state == Machine.State.JAMMED else "OVERHEAT"
 		_text(txt, r.position + Vector2(8, 52), 24, Color.WHITE, r.size.x - 16)
+	elif m.state == Machine.State.CLOGGED:
+		_text("CLOGGED", r.position + Vector2(8, 52), 24, Color.WHITE, r.size.x - 16)
 	elif m.state == Machine.State.STARVED or m.state == Machine.State.BLOCKED:
 		_text(m.state_name().to_lower(), r.position + Vector2(8, 50), 16, Color(0.8, 0.85, 0.95), r.size.x - 16)
 	# heat bar
