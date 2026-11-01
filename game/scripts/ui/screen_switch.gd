@@ -20,6 +20,7 @@ var monitor: Panel  # wall-monitor panel
 var wall: WallMonitor  # lights + call-ins, inside the panel
 var factory_btn: Button
 var back_btn: Button
+var worst_btn: Button
 var queue_label: Label
 var offset: float = 0.0  # 0 = office on screen, 1 = floor on screen
 
@@ -43,6 +44,7 @@ func _ready() -> void:
 	monitor.add_child(wall)
 	factory_btn = _button(monitor, "Factory", go_floor)
 	back_btn = _button(floor_page, "Back to desk", go_office)
+	worst_btn = _button(floor_page, "Worst first", func() -> void: worst_first())
 	queue_label = Label.new()
 	queue_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -97,8 +99,10 @@ func layout() -> void:
 	wall.size = m.size
 	factory_btn.size = Vector2(minf(280.0, m.size.x * 0.5), 84)
 	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - 16, m.size.y - 84 - 16)
-	back_btn.size = Vector2(size.x * 0.56, BACK_H)
-	back_btn.position = Vector2(size.x * 0.22, size.y - BACK_H - 12.0)
+	back_btn.size = Vector2(size.x * 0.44, BACK_H)
+	back_btn.position = Vector2(12.0, size.y - BACK_H - 12.0)
+	worst_btn.size = Vector2(size.x * 0.44, BACK_H)
+	worst_btn.position = Vector2(size.x - worst_btn.size.x - 12.0, size.y - BACK_H - 12.0)
 	queue_label.size = Vector2(300, 36)
 	queue_label.position = Vector2(size.x - 312, hud_top + 6.0)
 	_place()
@@ -107,6 +111,11 @@ func layout() -> void:
 func go_floor() -> void:
 	if active and factory != null:
 		factory.go_to_floor()
+
+
+func worst_first() -> void:
+	if active and factory != null:
+		factory.request_worst()
 
 
 func go_office() -> void:

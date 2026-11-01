@@ -49,7 +49,7 @@ static func act(who: String, f: Factory, rng: RandomNumberGenerator = null, mem:
 	if paced and f.tick < int(mem.get("next", 0)):
 		return
 	if f.crew_busy:
-		if player == "careful" and f.crew_queued == "":
+		if player == "careful" and f.crew_queue.is_empty():
 			var nxt := _nearest(f, f.get_machine(f.crew_target).pos, CAREFUL_VENT_HEAT, f.crew_target)
 			if nxt != null:
 				f.request_action(nxt.id)

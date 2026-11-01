@@ -161,6 +161,7 @@ func _check_screens() -> void:
 	if not screen.encloses(_main._view.area):
 		_fails.append("factory view %s not inside viewport" % _main._view.area)
 	_check_button(sw.back_btn, screen)
+	_check_button(sw.worst_btn, screen)
 	if _main._ship_btn.is_visible_in_tree():
 		_fails.append("ship button visible on the floor")
 	var ql: Label = sw.queue_label
@@ -290,13 +291,18 @@ func _check_layouts() -> void:
 				_fails.append("[%s] scrap bin overlaps a machine" % tag)
 		var wp := v.worker_pos()
 		_within(Rect2(wp - Vector2(22, 22), Vector2(44, 44)), a, "[%s] worker" % tag)
-		for b: Button in [sw.back_btn, _main._mute_btn]:
+		for b: Button in [sw.back_btn, sw.worst_btn, _main._mute_btn]:
 			if not vp.encloses(b.get_global_rect()):
 				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
-			if b.size.x < 80.0 or b.size.y < 80.0 or (b == sw.back_btn and b.size.x < 120.0):
+			if b.size.x < 80.0 or b.size.y < 80.0 or ((b == sw.back_btn or b == sw.worst_btn) and b.size.x < 120.0):
 				_fails.append("[%s] button '%s' too small %s (scale %.2f)" % [tag, b.text, b.size, k])
-		if a.intersects(sw.back_btn.get_global_rect()):
-			_fails.append("[%s] floor overlaps back button" % tag)
+		if a.intersects(sw.back_btn.get_global_rect()) or a.intersects(sw.worst_btn.get_global_rect()):
+			_fails.append("[%s] floor overlaps back/worst button" % tag)
+		if sw.worst_btn.get_global_rect().intersects(sw.back_btn.get_global_rect()):
+			_fails.append("[%s] worst-first overlaps back button" % tag)
+		for m in v.factory.machines:
+			if m.type != "qa" and m.type != "warehouse" and not v.machine_rect(m).encloses(v.queue_badge_rect(m)):
+				_fails.append("[%s] %s queue badge outside machine rect" % [tag, m.id])
 		_check_jitter(tag)
 	_main.size = old
 	_main._fit()
