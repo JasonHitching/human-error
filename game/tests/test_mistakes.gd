@@ -6,6 +6,7 @@ func _fac(seed: int = 1) -> Factory:
 	for m in f.machines:
 		if m.bot != null:
 			m.bot.rates = {}  # no random mistakes
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	return f
 
 
@@ -46,9 +47,15 @@ func test_wrong_recipe_clogs_next_and_clear_restores() -> void:
 	f.get_machine("proc_b").wrong_recipe = false
 	for i in 600:
 		if asm.state == Machine.State.CLOGGED and not f.crew_busy:
-			f.request_action("assembler")
+			if f.worker_location() == Worker.Location.FLOOR:
+				f.request_action("assembler")
+			else:
+				f.go_to_floor()
 		elif not f.qa_queue().is_empty():
-			f.inspect(String(f.qa_queue()[0]["defect"]) == "")
+			if f.worker_at_desk():
+				f.inspect(String(f.qa_queue()[0]["defect"]) == "")
+			else:
+				f.go_to_office()
 		f.step()
 	assert_true(f.shipped > 0, "flow restored")
 

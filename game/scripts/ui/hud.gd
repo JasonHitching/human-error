@@ -105,6 +105,11 @@ func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, best_days: 
 	var crew := "Crew: idle"
 	if f.crew_busy:
 		crew = "Crew: %s %d%%" % [f.crew_target, roundi(f.crew_progress * 100.0)]
+	elif f.worker_location() == Worker.Location.TRANSIT:
+		crew = "Walking…"
+	elif f.worker_location() == Worker.Location.FLOOR:
+		crew = "On the floor"
+
 	var marks := ""
 	for i in c.config.max_strikes:
 		marks += "✖" if i < c.strikes else "✕"

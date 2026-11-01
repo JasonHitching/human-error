@@ -56,10 +56,17 @@ func _check_desk() -> void:
 		_fails.append("inspect did not update queue (queue %d, wasted %d)" % [f.qa_queue().size(), f.wasted])
 	if desk.hint != "":
 		_fails.append("first-time hint not dismissed after inspect")
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs happen on the floor
 	f.crew_busy = true
 	if not desk.brb_visible():
 		_fails.append("BRB not shown while crew busy")
 	f.crew_busy = false
+	if not desk.brb_visible():
+		_fails.append("BRB not shown while worker on the floor")
+	f.go_to_office()
+	if not desk.brb_visible():
+		_fails.append("BRB not shown while worker walking")
+	f.worker.place(Worker.Location.OFFICE)
 	if desk.brb_visible():
 		_fails.append("BRB shown while worker at desk")
 

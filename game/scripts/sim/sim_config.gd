@@ -28,6 +28,7 @@ var train_factor: float = 0.6
 var qa_capacity: int = 8
 var decoy_chance: float = 0.2
 var inspect_seconds: float = 0.5
+var transition_seconds: float = 0.8
 var complaint_penalty: int = 3
 var quick_eye_mult: float = 0.8
 var bigger_desk_bonus: int = 2
@@ -99,6 +100,7 @@ func _load_balance(b: Dictionary) -> void:
 	qa_capacity = int(_opt(b, "qa_capacity", qa_capacity, 1.0, 100.0))
 	decoy_chance = _opt(b, "decoy_chance", decoy_chance, 0.0, 1.0)
 	inspect_seconds = _opt(b, "inspect_seconds", inspect_seconds, 0.1, 100.0)
+	transition_seconds = _opt(b, "transition_seconds", transition_seconds, 0.0, 100.0)
 	complaint_penalty = int(_opt(b, "complaint_penalty", complaint_penalty, 0.0, 1000.0))
 	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))

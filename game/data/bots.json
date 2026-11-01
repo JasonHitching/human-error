@@ -18,7 +18,7 @@
     "MAXIMUM EFFICIENCY!",
     "Turbo mode!"
    ],
-   "sloppy": 0.097
+   "sloppy": 0.107
   },
   {
    "name": "Clank",
@@ -33,7 +33,7 @@
     "I have optimised the gears.",
     "Fewer moving parts now."
    ],
-   "sloppy": 0.066
+   "sloppy": 0.073
   },
   {
    "name": "Loopy",
@@ -48,7 +48,7 @@
     "Shortcut found!",
     "This way is faster!"
    ],
-   "sloppy": 0.121
+   "sloppy": 0.133
   },
   {
    "name": "Dozer",
@@ -63,7 +63,7 @@
     "New product line!",
     "Innovation!"
    ],
-   "sloppy": 0.22
+   "sloppy": 0.242
   },
   {
    "name": "Rusty",
@@ -78,7 +78,7 @@
     "Oops.",
     "Was that important?"
    ],
-   "sloppy": 0.275
+   "sloppy": 0.303
   }
  ]
 }

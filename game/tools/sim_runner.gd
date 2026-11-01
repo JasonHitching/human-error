@@ -80,6 +80,7 @@ func _init() -> void:
 		parts_m.append("%s %.2f" % [k, float(mistakes[k]) / runs])
 	print("  mistakes/shift: ", ", ".join(parts_m))
 	print("  ", qa.report())
+	print("  ", qa.worker_report())
 	print("  scrapped/shift: %.2f, clogs/shift: %.2f" % [float(scrapped) / runs, float(clogs) / runs])
 	for b: String in by_bot:
 		var pb: Array[String] = []
@@ -132,6 +133,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
 	print("  ", qa.report(true))
+	print("  ", qa.worker_report())
 	var parts: Array[String] = []
 	for k: String in fail_causes:
 		parts.append("%s %d" % [k, fail_causes[k]])
@@ -157,9 +159,14 @@ class QaStats:
 	var queue_sum := 0
 	var queue_max := 0
 	var full_shifts := 0
+	var loc_ticks := [0, 0, 0]  # office, floor, transit
+	var trips := 0
 
 	func add(f: Factory) -> void:
 		shifts += 1
+		for l in 3:
+			loc_ticks[l] += int(f.worker.ticks_in[l])
+		trips += f.worker.trips
 		ticks += f.qa_ticks
 		idle += f.idle_ticks
 		complaints += f.complaints
@@ -176,3 +183,8 @@ class QaStats:
 		return "QA: idle %.1f%%, shipped/%s %.1f, complaints/%s %.2f, caught %.2f, wasted %.2f, queue avg %.2f max %d, %s with full queue %.0f%%" % [
 			100.0 * idle / maxf(1.0, ticks), unit, shipped / n, unit, complaints / n, caught / n, wasted / n,
 			queue_sum / maxf(1.0, ticks), queue_max, ("days" if per_day else "runs"), 100.0 * full_shifts / n]
+
+	func worker_report() -> String:
+		var t := maxf(1.0, loc_ticks[0] + loc_ticks[1] + loc_ticks[2])
+		return "worker: office %.1f%%, floor %.1f%%, transit %.1f%%, trips/shift %.1f" % [
+			100.0 * loc_ticks[0] / t, 100.0 * loc_ticks[1] / t, 100.0 * loc_ticks[2] / t, float(trips) / maxf(1.0, shifts)]
