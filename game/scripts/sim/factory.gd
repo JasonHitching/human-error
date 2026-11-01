@@ -18,7 +18,8 @@ var clog_count: int = 0  # times a machine became clogged
 var crew_busy: bool = false
 var crew_target: String = ""
 var crew_progress: float = 0.0  # 0..1 (0 while walking to the machine)
-var crew_queued: String = ""  # next machine to fix (max 1), tap mode only
+var crew_queue: Array[String] = []  # next machines to fix, in order (max fix_queue_max), tap mode only
+var _jam_left: Dictionary = {}  # machine id -> ticks until an untouched jam clears itself
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
 var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0, "sloppy": 0}
 var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
@@ -327,7 +328,7 @@ func ramp() -> float:
 
 
 ## Ask the crew to act on a machine: the worker walks there, then the job runs. Recorded for replay.
-## While busy, tapping another machine queues it (max 1); tapping the queued one again cancels it.
+## While busy, tapping another machine appends it to the fix queue (max fix_queue_max); tapping a queued one again cancels it.
 func request_action(machine_id: String) -> int:
 	actions.append({"tick": tick, "machine_id": machine_id})
 	if worker.location != Worker.Location.FLOOR:
@@ -335,18 +336,40 @@ func request_action(machine_id: String) -> int:
 	var m := get_machine(machine_id)
 	var kind := _job_kind(m)
 	if crew_busy:
-		if crew_queued == machine_id:
-			crew_queued = ""
+		if crew_queue.has(machine_id):
+			crew_queue.erase(machine_id)
 			return ActionResult.UNQUEUED
-		if crew_queued != "" or machine_id == crew_target or _config.repair_mode != "tap":
+		if crew_queue.size() >= _config.fix_queue_max or machine_id == crew_target or _config.repair_mode != "tap":
 			return ActionResult.CREW_BUSY
 		if kind != ActionResult.NOTHING_TO_DO:
-			crew_queued = machine_id
+			crew_queue.append(machine_id)
 			return ActionResult.QUEUED
 	if kind != ActionResult.NOTHING_TO_DO:
 		worker.go(Worker.Location.FLOOR)  # stop leaving, if on the way to the stairs
 		_start_walk(m)
 	return kind
+
+
+## Worst-first: queue (or start) the most urgent problem not already queued. Recorded as a normal tap.
+## Order: OVERHEATED > JAMMED > CLOGGED > wrong recipe/misrouted/overclocked > hot; ties: nearest to the worker.
+func request_worst() -> int:
+	var best: Machine = null
+	var best_key := Vector2(99.0, 0.0)
+	for m in machines:
+		if m.id == crew_target or crew_queue.has(m.id) or _job_kind(m) == ActionResult.NOTHING_TO_DO:
+			continue
+		var rank := 4.0
+		if m.state == Machine.State.OVERHEATED: rank = 0.0
+		elif m.state == Machine.State.JAMMED: rank = 1.0
+		elif m.state == Machine.State.CLOGGED: rank = 2.0
+		elif m.overclocked or m.misrouted or m.wrong_recipe: rank = 3.0
+		var key := Vector2(rank, worker.floor_pos.distance_squared_to(m.pos))
+		if key.x < best_key.x or (key.x == best_key.x and key.y < best_key.y):
+			best = m
+			best_key = key
+	if best == null or worker.location != Worker.Location.FLOOR:
+		return ActionResult.NOTHING_TO_DO
+	return request_action(best.id)
 
 
 func _job_kind(m: Machine) -> int:
@@ -394,10 +417,12 @@ func _end_job() -> void:
 	crew_progress = 0.0
 	_held = false
 	_crew_walking = false
-	var next := get_machine(crew_queued)
-	crew_queued = ""
-	if _job_kind(next) != ActionResult.NOTHING_TO_DO and worker.location == Worker.Location.FLOOR:
-		_start_walk(next)
+	while not crew_queue.is_empty() and worker.location == Worker.Location.FLOOR:
+		var next := get_machine(crew_queue.pop_front())
+		if _job_kind(next) != ActionResult.NOTHING_TO_DO:
+			_start_walk(next)
+			return
+	crew_queue.clear()
 
 
 func _step_crew() -> void:
@@ -447,7 +472,9 @@ func _step_machine(m: Machine) -> void:
 		m.state = Machine.State.CLOGGED if m.junk_count > 0 else Machine.State.IDLE
 		return
 	if m.is_faulted():
+		_step_jam(m)
 		return
+	_jam_left.erase(m.id)
 	if m.venting:
 		m.state = Machine.State.IDLE
 		m.heat = maxf(0.0, m.heat - _config.vent_cool_per_sec / _config.tick_rate)
@@ -479,6 +506,22 @@ func _step_machine(m: Machine) -> void:
 				m.wrong_recipe = true
 	else:
 		m.heat = maxf(0.0, m.heat - m.cool_per_sec / rate)
+
+
+## An untouched JAMMED machine clears itself after jam_self_clear_seconds; OVERHEATED never does.
+func _step_jam(m: Machine) -> void:
+	if m.state != Machine.State.JAMMED or _config.jam_self_clear_seconds <= 0.0:
+		return
+	if crew_busy and crew_target == m.id:  # a crew job on it cancels the timer
+		_jam_left.erase(m.id)
+		return
+	var left: int = _jam_left.get(m.id, maxi(1, roundi(_config.jam_self_clear_seconds * _config.tick_rate))) - 1
+	if left > 0:
+		_jam_left[m.id] = left
+		return
+	_jam_left.erase(m.id)
+	m.state = Machine.State.IDLE
+	events.append({"type": "self_clear", "machine_id": m.id})
 
 
 func _roll(m: Machine, mistake: String) -> bool:
