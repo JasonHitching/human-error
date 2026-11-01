@@ -41,6 +41,7 @@ func _ready() -> void:
 	office_page.add_child(monitor)
 	wall = WallMonitor.new()
 	wall.tapped.connect(go_floor)
+	wall.light_tapped.connect(radio_tap)
 	monitor.add_child(wall)
 	factory_btn = _button(monitor, "Factory", go_floor)
 	back_btn = _button(floor_page, "Back to desk", go_office)
@@ -110,6 +111,12 @@ func layout() -> void:
 
 func go_floor() -> void:
 	if active and factory != null:
+		factory.go_to_floor()
+
+
+## Tap on a monitor light with the radio: clear that jam from the desk, else head to the floor.
+func radio_tap(machine_id: String) -> void:
+	if active and factory != null and factory.radio_fix(machine_id) != Factory.RadioResult.FIXED:
 		factory.go_to_floor()
 
 

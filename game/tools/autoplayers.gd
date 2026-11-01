@@ -67,6 +67,12 @@ static func act(who: String, f: Factory, rng: RandomNumberGenerator = null, mem:
 			f.go_to_office()
 			mem["next"] = f.tick + HUMAN_GAP
 		return
+	if f.radio_ready():  # radio: clear a noticed jam without the trip
+		for m in f.machines:
+			if m.state == Machine.State.JAMMED and (not paced or order.has(m.id)):
+				f.radio_fix(m.id)
+				mem["next"] = f.tick + HUMAN_GAP
+				return
 	var want_floor := job != null and (player != "careful" or f.qa_queue().size() < CAREFUL_QUEUE or _red(f))
 	if loc == Worker.Location.TRANSIT:
 		if want_floor:

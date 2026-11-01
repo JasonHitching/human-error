@@ -20,6 +20,8 @@ var twists: Twists
 var rookies_joined: int = 0
 var arrival: Dictionary = {}  # today's rookie, {name, replaced} (replaced "" = took a free slot); {} = none
 var lessons_learned: int = 0
+var perks: Dictionary = {}  # radio: bool, supervise: bot name, auto_inspect: bool (see offers())
+var offers_taken: Dictionary = {}  # offer kind -> times taken
 var _lines: Dictionary = {}
 
 
@@ -74,6 +76,7 @@ func start_day() -> Factory:
 	f.crew_speed = crew_speed
 	f.qa_capacity += qa_bonus
 	f.inspect_speed = inspect_speed
+	f.apply_perks(perks)
 	return f
 
 
@@ -172,6 +175,14 @@ func offers() -> Array[Dictionary]:
 	cands.append({"kind": "qa_capacity", "text": "Bigger desk: +%d queue" % config.bigger_desk_bonus})
 	cands.append({"kind": "inspect_speed", "text": "Quick eye: inspect -%d%%" % roundi((1.0 - config.quick_eye_mult) * 100.0)})
 	cands.append({"kind": "crew_speed", "text": "Faster hands: crew jobs -%d%%" % roundi((1.0 - config.crew_speed_upgrade) * 100.0)})
+	if not perks.get("radio", false):
+		cands.append({"kind": "radio", "text": "Radio: clear a jam from the desk"})
+	if not perks.get("auto_inspect", false):
+		cands.append({"kind": "auto_inspect", "text": "Auto-inspector: checks while you're away (errs)"})
+	if not roster.is_empty():
+		var sb := roster[(seed + day) % roster.size()]
+		if sb.name != perks.get("supervise", ""):
+			cands.append({"kind": "supervise", "bot": sb.name, "text": "Supervise %s: -%d%% mistakes near you" % [sb.name, roundi((1.0 - config.supervise_mult) * 100.0)]})
 	var r := RandomNumberGenerator.new()
 	r.seed = seed * 7919 + day * 31 + history.size()  # deterministic per career state
 	for i in range(cands.size() - 1, 0, -1):
@@ -195,6 +206,17 @@ func apply(offer: Dictionary) -> void:
 	if points < 1:
 		return
 	points -= 1
+	var kind := String(offer.get("kind", ""))
+	offers_taken[kind] = int(offers_taken.get(kind, 0)) + 1
+	if kind == "radio":
+		perks["radio"] = true
+		return
+	if kind == "auto_inspect":
+		perks["auto_inspect"] = true
+		return
+	if kind == "supervise":
+		perks["supervise"] = String(offer["bot"])
+		return
 	if offer.get("kind") == "crew_speed":
 		crew_speed *= config.crew_speed_upgrade
 		return
@@ -226,3 +248,15 @@ func foreman_line(kind: String) -> String:
 func foreman_line_at(kind: String, index: int) -> String:
 	var arr: Array = _lines.get(kind, [])
 	return "" if arr.is_empty() else String(arr[index % arr.size()])
+
+
+## Which offer a scripted player takes: greedy-style players the first, careful-style the best by a fixed preference.
+static func pick_offer(careful: bool, offs: Array[Dictionary]) -> Dictionary:
+	if not careful or offs.is_empty():
+		return offs[0]
+	const PREF := ["radio", "supervise", "auto_inspect", "crew_speed", "qa_capacity", "inspect_speed", "train"]
+	var best := offs[0]
+	for o in offs:
+		if PREF.find(String(o["kind"])) < PREF.find(String(best["kind"])):
+			best = o
+	return best

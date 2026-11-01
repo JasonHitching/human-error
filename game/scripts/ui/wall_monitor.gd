@@ -13,6 +13,9 @@ const COL := {
 }
 
 signal tapped
+signal light_tapped(machine_id: String)  # only with radio: a tap on a light
+
+var radio: bool = false
 
 var board: StatusBoard
 var call_text: String = ""
@@ -82,6 +85,13 @@ func _process(d: float) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		if radio and board != null:
+			var ms := board.monitored()
+			var rects := light_rects()
+			for i in ms.size():
+				if rects[i].grow(rects[i].size.x * 0.4).has_point((event as InputEventMouseButton).position):
+					light_tapped.emit(ms[i].id)
+					return
 		tapped.emit()
 
 
