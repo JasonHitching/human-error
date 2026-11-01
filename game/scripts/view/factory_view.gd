@@ -24,7 +24,7 @@ var _was_crew: String = ""
 var _qa_seen: int = 0
 var _bounce: float = 0.0
 const SCRAP_RUN := 2.4
-const PULSE_TIME := 0.4
+const PULSE_TIME := 0.3
 const SPARK_N := 12
 
 
@@ -46,10 +46,29 @@ func setup(f: Factory, config: SimConfig) -> void:
 	queue_redraw()
 
 
+## One layout source: every floor rect below derives from `area` (and these pure functions of it).
+func machine_h() -> float:
+	return MACHINE_H * clampf(area.size.x / 720.0, 0.85, 1.0)
+
+
 func machine_rect(m: Machine) -> Rect2:
 	var w := area.size.x * 0.34
+	var h := machine_h()
 	var c := area.position + Vector2(m.pos.x * area.size.x, m.pos.y * area.size.y)
-	return Rect2(c - Vector2(w, MACHINE_H) * 0.5, Vector2(w, MACHINE_H))
+	return Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
+
+
+## Heat bar, inside the machine rect.
+func heat_rect(m: Machine) -> Rect2:
+	var r := machine_rect(m)
+	return Rect2(r.position + Vector2(8, r.size.y - 18), Vector2(r.size.x - 16, 8))
+
+
+## Bot name badge: fixed beside the bot's rest spot (follows the bot only during the scrap run).
+func badge_rect(m: Machine) -> Rect2:
+	var o := bot_pos(m) if _scrap_runs.has(m.id) else bot_anchor(m)
+	var w := _font.get_string_size(m.bot.name if m.bot != null else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	return Rect2(o + Vector2(24, -10), Vector2(w + 4.0, 20))
 
 
 func machine_at(p: Vector2) -> Machine:
@@ -166,16 +185,21 @@ func _clamp_in(p: Vector2, margin: float) -> Vector2:
 
 
 ## Cosmetic bot position for a machine's bot, always inside the floor area.
-func bot_pos(m: Machine) -> Vector2:
+func bot_anchor(m: Machine) -> Vector2:
 	var r := machine_rect(m)
-	var p := r.position + Vector2(24, r.size.y + 26)
+	return _clamp_in(r.position + Vector2(24, r.size.y + 26), BotView.HALF + 4.0)
+
+
+## Anchor plus the idle bob (at most 3 px), or the scrap-run path.
+func bot_pos(m: Machine) -> Vector2:
+	var p := bot_anchor(m)
 	if _scrap_runs.has(m.id):
 		var u := float(_scrap_runs[m.id]) / SCRAP_RUN
 		var k := 1.0 - absf(2.0 * u - 1.0)
 		k = k * k * (3.0 - 2.0 * k)
 		p = p.lerp(scrap_rect().get_center(), k)
 	elif m.state == Machine.State.WORKING:
-		p.x += sin(_time * 3.0 + float(m.id.hash() % 7)) * 10.0
+		p.x += sin(_time * 3.0 + float(m.id.hash() % 7)) * 2.0
 	else:
 		p.y += sin(_time * 2.0 + float(m.id.hash() % 7)) * 2.0
 	return _clamp_in(p, BotView.HALF + 4.0)
@@ -278,9 +302,10 @@ func _draw_machine(m: Machine) -> void:
 			if b["id"] == m.id:
 				hit = clampf(float(b["left"]) / 2.0, 0.0, 1.0)
 		BotView.draw(self, c, m.bot.color, mood, _time, hit, sin(_time * 3.0) if m.state == Machine.State.WORKING else 0.0, m.bot.name.to_lower())
-		_text(m.bot.name, c + Vector2(24, 6), 16, Color(0.85, 0.87, 0.92), r.size.x - 40)
+		var bd := badge_rect(m)
+		_text(m.bot.name, bd.position + Vector2(0, 16), 16, Color(0.85, 0.87, 0.92), r.size.x - 40)
 	# heat bar
-	var bar := Rect2(r.position + Vector2(8, r.size.y - 18), Vector2(r.size.x - 16, 8))
+	var bar := heat_rect(m)
 	draw_rect(bar, Color(0, 0, 0, 0.45))
 	var hf := clampf(m.heat / 100.0, 0.0, 1.0)
 	draw_rect(Rect2(bar.position, Vector2(bar.size.x * hf, bar.size.y)), Color(1.0, 0.8, 0.2).lerp(Color(1, 0.15, 0.1), hf))
@@ -307,7 +332,9 @@ func _draw_hatch(m: Machine) -> void:
 			var x := r.position.x + 14.0 + float(i) * 28.0
 			draw_line(Vector2(x, r.position.y + 4), Vector2(x - 12, r.end.y - 4), Color(0.9, 0.75, 0.2, 0.7), 4.0)
 		draw_rect(r, Color(0.9, 0.75, 0.2), false, 3.0)
-	_text("▲ QA DESK", r.position + Vector2(r.size.x + 8, 34), 18, Color(0.85, 0.87, 0.92), 120.0)
+	var tc := Vector2(r.end.x + 16, r.position.y + 26)
+	draw_colored_polygon(PackedVector2Array([tc + Vector2(0, -9), tc + Vector2(8, 7), tc + Vector2(-8, 7)]), Color(0.85, 0.87, 0.92))
+	_text("QA DESK", tc + Vector2(14, 7), 18, Color(0.85, 0.87, 0.92), 120.0)
 
 
 func _text(s: String, pos: Vector2, size: int, col: Color, width: float) -> void:
@@ -322,5 +349,6 @@ func _draw_bubble(b: Dictionary) -> void:
 	var w := minf(area.size.x * 0.6, 240.0)
 	var box := Rect2(r.get_center().x - w * 0.5, r.position.y - 46, w, 38)
 	box.position.x = clampf(box.position.x, area.position.x + 2, area.end.x - w - 2)
+	box.position.y = maxf(box.position.y, area.position.y + 2)
 	draw_rect(box, Color(1, 1, 1, 0.95))
 	_text(String(b["text"]), box.position + Vector2(8, 26), 16, Color.BLACK, w - 16)

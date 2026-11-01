@@ -41,8 +41,8 @@ func _ready() -> void:
 	wall = WallMonitor.new()
 	wall.tapped.connect(go_floor)
 	monitor.add_child(wall)
-	factory_btn = _button(monitor, "Factory ▼", go_floor)
-	back_btn = _button(floor_page, "▲ Back to desk", go_office)
+	factory_btn = _button(monitor, "Factory", go_floor)
+	back_btn = _button(floor_page, "Back to desk", go_office)
 	queue_label = Label.new()
 	queue_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	queue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -97,8 +97,8 @@ func layout() -> void:
 	wall.size = m.size
 	factory_btn.size = Vector2(minf(280.0, m.size.x * 0.5), 84)
 	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - 16, m.size.y - 84 - 16)
-	back_btn.size = Vector2(size.x * 0.7, BACK_H)
-	back_btn.position = Vector2(size.x * 0.15, size.y - BACK_H - 12.0)
+	back_btn.size = Vector2(size.x * 0.56, BACK_H)
+	back_btn.position = Vector2(size.x * 0.22, size.y - BACK_H - 12.0)
 	queue_label.size = Vector2(300, 36)
 	queue_label.position = Vector2(size.x - 312, hud_top + 6.0)
 	_place()
@@ -111,7 +111,7 @@ func go_floor() -> void:
 
 func go_office() -> void:
 	if active and factory != null and not factory.go_to_office():
-		refused.emit("Crew busy — finish the fix first")
+		refused.emit("Crew busy - finish the fix first")
 
 
 ## Follow the sim: slide offset from worker location + trip progress (alpha = 0..1 between ticks).
