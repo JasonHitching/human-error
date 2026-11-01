@@ -1,17 +1,21 @@
-class_name Bots
+class_name Autoplayers
 extends RefCounted
-## Scripted players for sim_runner. Bots act as if holding (never release).
+## Scripted players for sim_runner (not in-game bots). They act as if holding (never release).
 
 const NAMES := ["none", "greedy"]
 const VENT_HEAT := 80.0
 
 
 ## Call once per tick before factory.step().
-static func act(bot: String, f: Factory) -> void:
-	if bot != "greedy" or f.crew_busy:
+static func act(player: String, f: Factory) -> void:
+	if player != "greedy" or f.crew_busy:
 		return
 	for m in f.machines:
 		if m.is_faulted():
+			f.request_action(m.id)
+			return
+	for m in f.machines:
+		if m.overclocked:
 			f.request_action(m.id)
 			return
 	var hottest: Machine = null
