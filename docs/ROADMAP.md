@@ -20,12 +20,21 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Phase | Goal | Issues |
 |---|---|---|
-| ☐ 1 Bots in the sim | Roster, bots on machines, per-bot jam + overclock | M1-01 |
-| ☐ 2 New mistakes | Misroute (scrap), wrong recipe (junk → clog), tap priority | M1-02 |
-| ☐ 3 Career | Days, Foreman targets, strikes/fired, training offers | M1-03 |
-| ☐ 4 Playable | Bots, bubbles, scrap/junk, Foreman banners, review/training/fired screens | M1-04 |
-| ☐ 5 Balance | Careers last a satisfying number of days | M1-05 |
-| ☐ 6 Playtest | Is it fun? Do I want another run? | — |
+| ☑ 1 Bots in the sim | Roster, bots on machines, per-bot jam + overclock | M1-01 |
+| ☑ 2 New mistakes | Misroute (scrap), wrong recipe (junk → clog), tap priority | M1-02 |
+| ☑ 3 Career | Days, Foreman targets, strikes/fired, training offers | M1-03 |
+| ☑ 4 Playable | Bots, bubbles, scrap/junk, Foreman banners, review/training/fired screens | M1-04 |
+| ☑ 5 Balance | Careers last a satisfying number of days | M1-05 |
+| ☑ 6 Playtest | Is it fun? | Verdict: concept good; too much idle → QA desk (DECISIONS #23) |
 
-## After M1
-Candidates in `GAME_DESIGN.md` (training your replacement, growing factory). Decide after the playtest.
+## M2 — The QA Desk
+
+| Phase | Goal | Issues |
+|---|---|---|
+| ☐ 1 QA in the sim | Queue, defects, ship/reject, complaints, idle metric | #26 |
+| ☐ 2 QA desk screen | Desk strip, product drawing, swipe, BRB, streak | #27 |
+| ☐ 3 Balance | Idle < 30%, careers still 6–10 days | #28 |
+| ☐ Checkpoint M2 | Gates, report, plan M3 | #29 |
+
+## M3–M7
+See `docs/VISION.md`. Each is planned by the previous checkpoint (`docs/CHAIN.md`).

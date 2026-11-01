@@ -4,7 +4,8 @@
 
 Portrait mobile game. You are the one human worker on a factory floor run by **bots** — AI coworkers who are confident, cheerful and constantly wrong. The **Foreman** sets daily targets. You keep the line running by fixing the bots' mistakes with your one pair of hands (the "crew"). Between shifts you **train** bots so they mess up less — slowly training your own replacement.
 
-**Core loop (moment to moment):** Notice → Diagnose → Fix → Recover
+**Core loop (moment to moment):** Inspect at your desk → a bot messes up → decide: leave the desk or not → Fix → back to the backlog
+**Full plan:** `docs/VISION.md`
 **Run loop:** Shift → Foreman review → Train a bot → Harder shift → … → Fired
 **Long-term hook (M2+):** train bots so well that you get *automated* — a win that promotes you to a harder factory (prestige).
 
@@ -12,7 +13,34 @@ Portrait mobile game. You are the one human worker on a factory floor run by **b
 
 ---
 
-## M1 — Bad Bots (current target)
+## M2 — The QA Desk (current target)
+
+**Playtest finding (M1):** too much idle time; bots err about every 11 s and fixes take 1–2 s, so the worker was idle about 85% of the time.
+**Hypothesis:** giving the worker their own job (quality control) turns every bot mistake into an *interruption* and a real decision.
+
+### How it works
+- New station **QA desk** between the assembler and the warehouse (machine type `qa`, no bot). Every finished product queues there. Nothing ships without the worker's check.
+- Queue capacity `qa_capacity` (default 8). Full queue → the assembler is BLOCKED → the cascade upstream (existing knock-on logic).
+- The worker inspects the **front item**: **ship** (swipe right / ✔) or **reject** (swipe left / ✖). Each decision takes `inspect_seconds`.
+- **Defects** come from **sloppy** bots: new per-bot mistake `sloppy` (rate per product made). When the assembler finishes a product, it may be defective; the defect is attributed to one of the bots on its path (weighted by their sloppy rates) and carries that bot's **flair**.
+- Defect kinds (code-drawn now, sprite overlays later): `missing_bolt`, `crack`, `wrong_paint`, `flipped_label`, `dent`. All defects are on the **front**: always visible, always fair.
+- **Decoys:** harmless variations on good products (a scuff, a different-coloured sticker), so you must look rather than reject anything odd.
+- Outcomes: ship good → shipped +1. Ship defective → **complaint** (−`complaint_penalty` shipped, Foreman line). Reject defective → good catch (streak). Reject good → wasted.
+- **Only one place at a time:** while the crew (you) is on a machine job, you're away from the desk ("BRB") and the queue grows. After the job you're back at the desk (walking travel time comes in M3).
+- **The title is literal now:** bots make the mess; only *human error* lets a defect reach a customer.
+
+### New training offers
+"Bigger desk: +2 queue", "Quick eye: inspect −20%", "Train <bot>: sloppy −40%".
+
+### Screen
+Factory on the top ~62%; QA desk strip at the bottom: incoming queue boxes (count, turning orange then red near full), the front product shown large, ✖ / ✔ buttons, swipe anywhere on the strip, a "BRB" sign when away, a streak counter.
+
+### Metrics (autoplayer greedy)
+Idle (nothing to do) < 30% of ticks; complaints 0.5–2 per shift (greedy is 95% accurate); the queue fills completely in some runs; career median stays 6–10 days.
+
+---
+
+## M1 — Bad Bots (built)
 
 **Hypothesis:** Fixing characterful bot mistakes under a Foreman's targets is fun, and training bots between shifts makes you want "one more day".
 

@@ -26,3 +26,7 @@ One line each. Newest at the bottom. Don't re-argue settled decisions without ne
 | 20 | Every problem is caused by a visible bot, shown with a speech bubble | Readability: you always know who did what |
 | 21 | Simulated players renamed "autoplayers" (`tools/autoplayers.gd`) | "Bots" now means in-game AI coworkers |
 | 22 | Long-term hook: training your replacement → "automated" = prestige win (M2) | Fits theme; proven replay loop |
+| 23 | M1 playtest: concept good, too much idle → worker's own job is QA with a backlog (no unfair slip-through) | Every bot mistake becomes an interruption + decision; title becomes literal |
+| 24 | Defects on the front only (flip-to-check deferred to M4) | Fast, fair, readable first |
+| 25 | Prototype built by an autonomous chain M2→M7 with Opus checkpoints per milestone (`docs/CHAIN.md`) | Minimal input from Jason; quality gates + re-planning at each checkpoint |
+| 26 | Bots are wheeled robots (no walk cycles); the worker walks with travel time (M3) | Cheap art; distance adds route decisions |
