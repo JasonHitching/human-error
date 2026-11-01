@@ -49,6 +49,7 @@ docs/                 design, roadmap, decisions
 ## Commands
 ```
 godot --headless --path game -s res://tests/run_tests.gd          # tests (must pass before PR)
+godot --headless --path game -s res://tools/ui_check.gd                # UI smoke check (CI runs it)
 godot --headless --path game -s res://tools/sim_runner.gd -- --seed 1 --runs 50     # sim stats
 ```
 If `godot` is missing: `bash tools/cloud_setup.sh`.
