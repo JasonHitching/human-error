@@ -185,11 +185,12 @@ func test_deterministic_with_inspects() -> void:
 
 
 func test_career_offers_and_score() -> void:
-	var c := Career.new(SimConfig.load_default(), 1)
+	var cfg := SimConfig.load_default()
+	var c := Career.new(cfg, 1)
 	c.points = 5
 	c.apply({"kind": "qa_capacity"})
 	c.apply({"kind": "inspect_speed"})
-	assert_eq(c.start_day().qa_capacity, 10)
+	assert_eq(c.start_day().qa_capacity, cfg.qa_capacity + cfg.bigger_desk_bonus)
 	assert_near(c.start_day().inspect_speed, 0.8)
 	var texts := ""
 	for k in 40:
