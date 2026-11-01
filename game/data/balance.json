@@ -25,5 +25,14 @@
   "complaint_penalty": 3,
   "quick_eye_mult": 0.8,
   "bigger_desk_bonus": 2,
-  "monitor_amber_heat": 60
+  "monitor_amber_heat": 60,
+  "sfx": {
+    "volume": 0.35,
+    "ship": {"pitch": 520, "pitch_end": 900, "length": 0.12, "volume": 1.0},
+    "reject": {"pitch": 110, "pitch_end": 70, "length": 0.16, "volume": 1.0},
+    "complaint": {"pitch": 140, "pitch_end": 140, "length": 0.35, "volume": 0.8},
+    "alarm": {"pitch": 880, "pitch_end": 660, "length": 0.3, "volume": 0.8},
+    "fix": {"pitch": 400, "pitch_end": 800, "length": 0.3, "volume": 0.9},
+    "transition": {"pitch": 0, "pitch_end": 0, "length": 0.35, "volume": 0.6}
+  }
 }

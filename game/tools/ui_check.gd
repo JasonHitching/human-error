@@ -195,6 +195,42 @@ func _check_floor_chars() -> void:
 	f.worker.place(Worker.Location.FLOOR)
 
 
+func _check_sprites_sfx() -> void:
+	if Sprites.tex("no_such_sprite") != null:
+		_fails.append("missing sprite should be null")
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	img.fill(Color.RED)
+	var t := ImageTexture.create_from_image(img)
+	Sprites.inject("test_sprite", t)
+	if Sprites.tex("test_sprite") != t:
+		_fails.append("injected sprite not returned by loader")
+	Sprites.inject("bot_sparky", t)  # draw sites must accept a sprite without erroring
+	Sprites.inject("machine_processor", t)
+	Sprites.inject("product", t)
+	await_redraw()  # cleared next frame, after the draw sites ran with sprites
+	var sfx: Sfx = _main._sfx
+	for k in Sfx.KINDS:
+		if sfx.render(k).is_empty():
+			_fails.append("sfx '%s' renders nothing" % k)
+	sfx.start()
+	sfx.play("ship")  # must not error headless
+	var mb: Button = _main._mute_btn
+	if not mb.is_visible_in_tree() or mb.size.x < 80.0 or mb.size.y < 80.0:
+		_fails.append("mute button missing/too small: %s" % mb.size)
+	if not Rect2(Vector2.ZERO, _main.size).encloses(mb.get_global_rect()):
+		_fails.append("mute button off-screen: %s" % mb.get_global_rect())
+	var before: bool = sfx.muted
+	mb.pressed.emit()
+	if sfx.muted == before:
+		_fails.append("mute button did not toggle")
+	mb.pressed.emit()
+
+
+func await_redraw() -> void:
+	_main._view.queue_redraw()
+	_main._desk.queue_redraw()
+
+
 func _end_shift(shipped: int) -> void:
 	_main._factory.shipped = shipped
 	_main._factory.tick = int(_main._config.shift_seconds * _main._config.tick_rate)
@@ -214,7 +250,9 @@ func _process(_delta: float) -> bool:
 				_fails.append("day 1 hint not shown")
 			_check_desk()
 			_check_screens()
+			_check_sprites_sfx()
 		5:
+			Sprites.clear_cache()
 			if _main._phase != _main.Phase.PLAYING:
 				_fails.append("shift did not start after banner tap")
 			_end_shift(_main._factory.target * 2)  # hit with bonus -> points to spend

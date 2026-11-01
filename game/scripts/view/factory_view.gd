@@ -195,10 +195,12 @@ func _draw() -> void:
 	if factory == null:
 		return
 	draw_rect(area, COL_BG)
+	Sprites.draw_fit(self, Sprites.tex("bg_floor"), area)
 	_draw_links()
 	var sr := scrap_rect()
-	draw_rect(sr, Color(0.25, 0.18, 0.18))
-	draw_rect(sr, Color(0.5, 0.35, 0.35), false, 2.0)
+	if not Sprites.draw_named(self, "scrap_bin", sr):
+		draw_rect(sr, Color(0.25, 0.18, 0.18))
+		draw_rect(sr, Color(0.5, 0.35, 0.35), false, 2.0)
 	_text("SCRAP", sr.position + Vector2(-2, -6), 13, Color(0.7, 0.6, 0.6), 60.0)
 	for m in factory.machines:
 		if m.type == "qa":
@@ -243,7 +245,11 @@ func _draw_machine(m: Machine) -> void:
 		sb.set_border_width_all(4)
 	if _pulse.has(m.id):
 		r = r.grow(sin(float(_pulse[m.id]) / PULSE_TIME * PI) * 6.0)
-	draw_style_box(sb, r)
+	var mt := Sprites.first(["machine_%s_%s" % [m.type, m.state_name().to_lower()], "machine_" + m.type] as Array[String])
+	if mt != null:
+		Sprites.draw_fit(self, mt, r)
+	else:
+		draw_style_box(sb, r)
 	if board != null and StatusBoard.is_monitored(m):
 		var lc: Color = WallMonitor.COL[board.machine_light(m)]
 		draw_arc(r.position + Vector2(r.size.x - 20, 20), 11.0, 0.0, TAU, 24, lc, 5.0)
@@ -271,7 +277,7 @@ func _draw_machine(m: Machine) -> void:
 		for b in _bubbles:
 			if b["id"] == m.id:
 				hit = clampf(float(b["left"]) / 2.0, 0.0, 1.0)
-		BotView.draw(self, c, m.bot.color, mood, _time, hit, sin(_time * 3.0) if m.state == Machine.State.WORKING else 0.0)
+		BotView.draw(self, c, m.bot.color, mood, _time, hit, sin(_time * 3.0) if m.state == Machine.State.WORKING else 0.0, m.bot.name.to_lower())
 		_text(m.bot.name, c + Vector2(24, 6), 16, Color(0.85, 0.87, 0.92), r.size.x - 40)
 	# heat bar
 	var bar := Rect2(r.position + Vector2(8, r.size.y - 18), Vector2(r.size.x - 16, 8))
@@ -295,11 +301,12 @@ func _draw_hatch(m: Machine) -> void:
 	var r := hatch_rect(m)
 	if _bounce > 0.0:
 		r.position.y += sin(_bounce / 0.3 * PI) * 5.0
-	draw_rect(r, Color(0.05, 0.05, 0.07))
-	for i in 5:
-		var x := r.position.x + 14.0 + float(i) * 28.0
-		draw_line(Vector2(x, r.position.y + 4), Vector2(x - 12, r.end.y - 4), Color(0.9, 0.75, 0.2, 0.7), 4.0)
-	draw_rect(r, Color(0.9, 0.75, 0.2), false, 3.0)
+	if not Sprites.draw_named(self, "desk_hatch", r):
+		draw_rect(r, Color(0.05, 0.05, 0.07))
+		for i in 5:
+			var x := r.position.x + 14.0 + float(i) * 28.0
+			draw_line(Vector2(x, r.position.y + 4), Vector2(x - 12, r.end.y - 4), Color(0.9, 0.75, 0.2, 0.7), 4.0)
+		draw_rect(r, Color(0.9, 0.75, 0.2), false, 3.0)
 	_text("▲ QA DESK", r.position + Vector2(r.size.x + 8, 34), 18, Color(0.85, 0.87, 0.92), 120.0)
 
 

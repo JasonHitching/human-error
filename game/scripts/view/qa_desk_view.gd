@@ -94,6 +94,7 @@ func _draw() -> void:
 	if factory == null:
 		return
 	draw_rect(rect, COL_BG)
+	Sprites.draw_fit(self, Sprites.tex("bg_office"), rect)
 	draw_line(rect.position, Vector2(rect.end.x, rect.position.y), Color(0.4, 0.42, 0.5), 3.0)
 	var q := factory.qa_queue()
 	if q.size() > _last_q:
@@ -163,7 +164,8 @@ func _draw_anim(pad: Rect2) -> void:
 	else:
 		var bin := Vector2(rect.position.x + 50, rect.end.y - 120)
 		draw_product(_anim["item"], c.lerp(bin, t) + Vector2(0, t * t * 40.0), pad.size * 0.8 * (1.0 - 0.5 * t))
-		draw_rect(Rect2(bin + Vector2(-34, 30), Vector2(68, 50)), Color(0.3, 0.2, 0.2))
+		if not Sprites.draw_named(self, "reject_bin", Rect2(bin + Vector2(-34, 30), Vector2(68, 50)).grow(8.0)):
+			draw_rect(Rect2(bin + Vector2(-34, 30), Vector2(68, 50)), Color(0.3, 0.2, 0.2))
 
 
 func _draw_flashes(pad: Rect2) -> void:
@@ -192,6 +194,8 @@ func draw_product(item: Dictionary, c: Vector2, s: Vector2) -> void:
 	var body := Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
 	var defect := String(item.get("defect", ""))
 	var decoy := String(item.get("decoy", ""))
+	if _draw_product_sprites(defect, decoy, c, s):
+		return
 	var col := COL_PAINT if defect == "wrong_paint" else COL_BODY
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = col
@@ -232,6 +236,33 @@ func draw_product(item: Dictionary, c: Vector2, s: Vector2) -> void:
 	var bot := String(item.get("bot", ""))
 	if bot != "":
 		draw_circle(body.position + Vector2(w * 0.08, h * 0.92), w * 0.04, _bot_color(bot))
+
+
+## Sprite path for a product. True if a sprite product was drawn (code drawing skipped).
+func _draw_product_sprites(defect: String, decoy: String, c: Vector2, s: Vector2) -> bool:
+	var full := Sprites.tex("product_full")
+	var base := Sprites.tex("product")
+	if full == null and base == null:
+		return false
+	var w := s.x * 0.9
+	var r := Rect2(c - Vector2(w, w * 0.75) * 0.5, Vector2(w, w * 0.75))
+	if full != null:
+		Sprites.draw_fit(self, full, r)
+	else:
+		Sprites.draw_fit(self, base, r)
+		var body := Rect2(r.position.x + r.size.x * 0.1, r.position.y + r.size.y * 0.06, r.size.x * 0.8, r.size.y * 0.18)
+		if defect == "flipped_label":
+			body.position.y = r.end.y - body.size.y - r.size.y * 0.06
+		draw_rect(body, COL_LABEL)
+		for i in 6:
+			var bp := Vector2(r.position.x + r.size.x * (0.25 + 0.25 * (i % 3)), r.position.y + r.size.y * (0.48 if i < 3 else 0.78))
+			if not (defect == "missing_bolt" and i == 4):
+				draw_circle(bp, r.size.x * 0.055, Color(0.78, 0.8, 0.85))
+	if defect != "":
+		Sprites.draw_named(self, "defect_" + defect, r)
+	if decoy != "":
+		Sprites.draw_named(self, "decoy_" + decoy, r)
+	return true
 
 
 func _text(s: String, pos: Vector2, size: int, col: Color, width: float) -> void:

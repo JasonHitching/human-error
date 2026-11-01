@@ -5,11 +5,15 @@ extends RefCounted
 const HALF := 20.0  # drawn extent from the centre, for bounds checks
 
 
-## Draw a bot centred at pos. mood: 0 normal, 1 panic. squash: 0..1 (mistake), roll: -1..1 lean.
-static func draw(ci: CanvasItem, pos: Vector2, col: Color, mood: int, t: float, squash: float, roll: float) -> void:
+## Draw a bot centred at pos. bot_name (lower-cased) selects an optional sprite. mood: 0 normal, 1 panic. squash: 0..1 (mistake), roll: -1..1 lean.
+static func draw(ci: CanvasItem, pos: Vector2, col: Color, mood: int, t: float, squash: float, roll: float, bot_name: String = "") -> void:
 	var tilt := squash * 0.35 + roll * 0.08
 	var sc := Vector2(1.0 + squash * 0.25, 1.0 - squash * 0.25)
 	ci.draw_set_transform(pos, tilt, sc)
+	var names: Array[String] = ["bot_" + bot_name + "_panic", "bot_" + bot_name] if mood == 1 else ["bot_" + bot_name]
+	if bot_name != "" and Sprites.draw_fit(ci, Sprites.first(names), Rect2(-HALF * 1.2, -HALF * 1.2, HALF * 2.4, HALF * 2.4)):
+		ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		return
 	var dark := col.darkened(0.4)
 	ci.draw_circle(Vector2(0, 12), 8.0, Color(0.12, 0.12, 0.14))  # wheel
 	ci.draw_circle(Vector2(0, 12), 3.0, Color(0.6, 0.6, 0.65))
