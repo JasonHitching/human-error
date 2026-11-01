@@ -1,0 +1,9 @@
+.godot/
+*.translation
+export/
+build/
+*.apk
+*.aab
+*.pck
+*.exe
+.mono/
