@@ -65,7 +65,33 @@ func end_day(f: Factory) -> Dictionary:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate()}
+	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "bot_mistakes": Career.mistake_tally(f.mistake_log)}
+
+
+## Builds {bot: {count, top}} from a factory mistake_log.
+static func mistake_tally(log: Array) -> Dictionary:
+	var per: Dictionary = {}  # bot -> {kind -> n}
+	for ev: Dictionary in log:
+		var b := String(ev.get("bot", ""))
+		var k := String(ev.get("mistake", ""))
+		if b == "":
+			continue
+		var d: Dictionary = per.get(b, {})
+		d[k] = int(d.get(k, 0)) + 1
+		per[b] = d
+	var out: Dictionary = {}
+	for b: String in per:
+		var d: Dictionary = per[b]
+		var kinds := d.keys()
+		kinds.sort()
+		var top := String(kinds[0])
+		var total := 0
+		for k: String in kinds:
+			total += int(d[k])
+			if int(d[k]) > int(d[top]):
+				top = k
+		out[b] = {"count": total, "top": top}
+	return out
 
 
 func offers() -> Array[Dictionary]:
