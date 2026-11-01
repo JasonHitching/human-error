@@ -27,7 +27,7 @@ If Sonnet fails the same issue twice: start an **Opus** session on it.
 - Something looks off → comment on the PR in one message, start a new session: "Address review comments on PR #M".
 
 ## Playtesting on PC
-- Open the GitHub Pages URL (set up in issue M0-02). Mouse click = tap.
+- Open the GitHub Pages URL (set up in issue #2). Mouse click = tap.
 - The window is portrait; that's intended.
 - Optional: install Godot 4.7.2 on PC, `git pull`, open `game/project.godot`, press F5. Only needed for debugging.
 

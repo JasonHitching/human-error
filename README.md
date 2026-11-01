@@ -8,4 +8,4 @@ Portrait mobile game (Godot 4.7.2). An autonomous factory breaks; you decide wha
 - Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
 - Decisions: [docs/DECISIONS.md](docs/DECISIONS.md)
 - How we work: [docs/WORKFLOW.md](docs/WORKFLOW.md)
-- Current issue drafts: [planning/M0_ISSUES.md](planning/M0_ISSUES.md)
+- Current work: GitHub issues #1–#6 (M0)
