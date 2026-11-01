@@ -16,7 +16,8 @@ var active: bool = false  # navigation allowed (shift is playing)
 var hud_top: float = 110.0
 var office_page: ColorRect  # page holding the desk; slides up when going to the floor
 var floor_page: ColorRect  # page holding the factory view; slides up from below
-var monitor: Panel  # wall-monitor area (M3-04 fills it with lights)
+var monitor: Panel  # wall-monitor panel
+var wall: WallMonitor  # lights + call-ins, inside the panel
 var factory_btn: Button
 var back_btn: Button
 var queue_label: Label
@@ -29,7 +30,7 @@ func _ready() -> void:
 	office_page = _page(Color(0.14, 0.15, 0.19))
 	floor_page = _page(Color(0.1, 0.11, 0.14))
 	monitor = Panel.new()
-	monitor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	monitor.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.07, 0.08, 0.1)
 	sb.border_color = Color(0.45, 0.47, 0.55)
@@ -37,6 +38,9 @@ func _ready() -> void:
 	sb.set_corner_radius_all(10)
 	monitor.add_theme_stylebox_override("panel", sb)
 	office_page.add_child(monitor)
+	wall = WallMonitor.new()
+	wall.tapped.connect(go_floor)
+	monitor.add_child(wall)
 	factory_btn = _button(monitor, "Factory ▼", go_floor)
 	back_btn = _button(floor_page, "▲ Back to desk", go_office)
 	queue_label = Label.new()
@@ -89,6 +93,8 @@ func layout() -> void:
 	var m := monitor_rect()
 	monitor.position = m.position
 	monitor.size = m.size
+	wall.position = Vector2.ZERO
+	wall.size = m.size
 	factory_btn.size = Vector2(minf(280.0, m.size.x * 0.5), 84)
 	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - 16, m.size.y - 84 - 16)
 	back_btn.size = Vector2(size.x * 0.7, BACK_H)

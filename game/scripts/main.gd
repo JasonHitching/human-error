@@ -64,7 +64,10 @@ func _new_career(seed_value: int) -> void:
 func _show_day() -> void:
 	_factory = _career.start_day()
 	_screens.factory = _factory
+	var board := StatusBoard.new(_factory.machines, _config.monitor_amber_heat)
+	_screens.wall.setup(board)
 	_view.setup(_factory, _config)
+	_view.board = board
 	_desk.setup(_factory)
 	_desk.hint = HINT if _career.day == 1 else ""
 	_desk.caption = "6 bolts · label on top · %s body" % COLOUR_NAME if _career.day == 1 else ""
@@ -165,6 +168,7 @@ func _process(delta: float) -> void:
 	_ship_btn.visible = _phase == Phase.PLAYING
 	_reject_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
+	_screens.wall.poll()
 	_screens.sync(_view.alpha)
 	if _flash_left > 0.0:
 		_flash_left -= delta
