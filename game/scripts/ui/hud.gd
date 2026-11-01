@@ -122,7 +122,7 @@ func show_banner(day: int, line: String, target: int) -> void:
 
 
 func show_review(res: Dictionary, line: String, offers: Array[Dictionary]) -> void:
-	_review_label.text = "Day over\nScore %d / %d — %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], line]
+	_review_label.text = "Day over\nScore %d / %d — %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), line]
 	for n in _review_box.get_children():
 		if n != _review_label:
 			_review_box.remove_child(n)
@@ -148,3 +148,14 @@ func hide_overlays() -> void:
 func _show_only(o: Control) -> void:
 	for c: Control in [banner, review, fired]:
 		c.visible = c == o
+
+
+## "\nMissed: crack ×2, dent ×1" or "" when nothing was missed.
+func _missed_line(res: Dictionary) -> String:
+	var m: Dictionary = res.get("missed_by_type", {})
+	if m.is_empty():
+		return ""
+	var parts: Array[String] = []
+	for k in m:
+		parts.append("%s ×%d" % [String(k).replace("_", " "), int(m[k])])
+	return "\nMissed: " + ", ".join(parts)

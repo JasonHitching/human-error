@@ -28,6 +28,7 @@ var actions: Array[Dictionary] = []  # {tick, machine_id}, {tick, release: true}
 var complaints: int = 0
 var caught: int = 0
 var wasted: int = 0
+var missed_by_type: Dictionary = {}  # defect -> count shipped with that defect this shift
 var streak: int = 0  # consecutive correct rejects
 var idle_ticks: int = 0  # worker had nothing useful to do
 var qa_ticks: int = 0
@@ -43,6 +44,7 @@ var qa_capacity: int = 8:
 
 var _config: SimConfig
 var _qa: Machine = null
+var _last_inspected: Dictionary = {}
 var _qa_items: Array[Dictionary] = []  # products waiting for inspection, front first
 var _qa_link: int = -1  # link index qa -> warehouse
 var _inspect_left: int = 0
@@ -188,6 +190,11 @@ func worker_at_desk() -> bool:
 	return not crew_busy
 
 
+## The product just inspected: {defect, decoy, bot}. Empty before the first inspect.
+func last_inspected() -> Dictionary:
+	return _last_inspected.duplicate()
+
+
 ## Inspect the front product: ship it or reject it. Recorded for replay.
 func inspect(ship: bool) -> int:
 	actions.append({"tick": tick, "inspect": true, "ship": ship})
@@ -198,6 +205,7 @@ func inspect(ship: bool) -> int:
 	if _qa_items.is_empty():
 		return InspectResult.EMPTY
 	var item: Dictionary = _qa_items.pop_front()
+	_last_inspected = {"defect": item["defect"], "decoy": item.get("decoy", ""), "bot": item.get("bot", "")}
 	_qa.input_count = maxi(0, _qa.input_count - 1)
 	_inspect_left = maxi(1, roundi(_config.inspect_seconds * inspect_speed * _config.tick_rate))
 	var bad := String(item["defect"]) != ""
@@ -206,6 +214,7 @@ func inspect(ship: bool) -> int:
 			_transit.append({"link": _qa_link, "left": _links[_qa_link]["ticks"], "junk": false, "scrap": false, "product": item})
 		if bad:
 			complaints += 1
+			missed_by_type[item["defect"]] = int(missed_by_type.get(item["defect"], 0)) + 1
 			streak = 0
 			return InspectResult.COMPLAINT
 		return InspectResult.SHIPPED

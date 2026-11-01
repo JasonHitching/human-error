@@ -38,6 +38,14 @@ func _check_desk() -> void:
 			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
 			_fails.append("button '%s' too small: %s" % [b.text, b.size])
+	var spec := desk.spec_rect()
+	if not screen.encloses(spec):
+		_fails.append("spec card off-screen: %s" % spec)
+	for r: Rect2 in [desk.pad_rect(), _main._reject_btn.get_global_rect(), _main._ship_btn.get_global_rect()]:
+		if spec.intersects(r):
+			_fails.append("spec card %s overlaps %s" % [spec, r])
+	if desk.caption == "":
+		_fails.append("day 1 spec caption missing")
 	var f: Factory = _main._factory
 	f._qa_items.append({"defect": "", "decoy": "", "bot": ""})
 	f._qa.input_count += 1
