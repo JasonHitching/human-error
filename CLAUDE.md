@@ -4,6 +4,7 @@ Human Error: portrait mobile factory game, Godot 4.7.2 + GDScript. Design: `docs
 
 ## How work arrives
 - One GitHub issue = one session = one PR. Implement **only** that issue.
+- Chain sessions also follow `docs/CHAIN.md` (pause check, handoff, checkpoints). Big picture: `docs/VISION.md`.
 - Read the issue, this file, and only the files the issue names or you must touch. Don't explore the whole repo.
 - If the issue is ambiguous or blocked, stop and comment on the issue instead of guessing big.
 - Before starting, check the issue's "Depends on" issues are closed. If not, stop and say so.
