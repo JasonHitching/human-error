@@ -1,17 +1,82 @@
 # Human Error — Game Design
 
-> The factory is smart enough to run itself, but not smart enough to survive without you.
+> Your coworkers are AI. They're terrible. Hit your target anyway.
 
-Portrait mobile game. An autonomous factory runs on its own; the player watches, predicts trouble, and intervenes with a scarce resource (their repair crew). The game is the act of correcting an autonomous system.
+Portrait mobile game. You are the one human worker on a factory floor run by **bots** — AI coworkers who are confident, cheerful and constantly wrong. The **Foreman** sets daily targets. You keep the line running by fixing the bots' mistakes with your one pair of hands (the "crew"). Between shifts you **train** bots so they mess up less — slowly training your own replacement.
 
-**Core loop:** Observe → Predict → Intervene → Recover → Improve → Repeat
-**Long-term hook (M4, unproven):** Fix → Teach → Automate → Expand → New problem → Fix
+**Core loop (moment to moment):** Notice → Diagnose → Fix → Recover
+**Run loop:** Shift → Foreman review → Train a bot → Harder shift → … → Fired
+**Long-term hook (M2+):** train bots so well that you get *automated* — a win that promotes you to a harder factory (prestige).
 
-**Open genre question (decide before M3):** active crisis-management game vs idle/automation game. Working assumption: *automation absorbs known problems so the player's attention moves to new ones* — the player is always needed, just for harder things.
+**Tone:** cute, miniature, slightly chaotic factory; bots are charming idiots; Foreman is gruff and funny. No realism, no grind.
 
 ---
 
-## M0 — Factory Alive (current target)
+## M1 — Bad Bots (current target)
+
+**Hypothesis:** Fixing characterful bot mistakes under a Foreman's targets is fun, and training bots between shifts makes you want "one more day".
+
+### Bots
+- Each working machine (generator, both processors, assembler) is run by one **bot**. The warehouse has no bot.
+- Bots come from a roster in `game/data/bots.json`. Each run deals bots to machines randomly (seeded), so every run has a different crew of idiots.
+- Each bot has: `name`, `color`, rates for each mistake type (events per minute), a `level` per mistake type (starts 0), and a few short lines it says when it makes a mistake.
+- Rates scale with the in-shift ramp and the day multiplier, and drop with training: `rate × train_factor^level`.
+
+Starting roster (tune in data):
+| Bot | Speciality (high rate) | Says |
+|---|---|---|
+| Sparky | Overclock | "MAXIMUM EFFICIENCY!" |
+| Clank | Jam | "I have optimised the gears." |
+| Loopy | Misroute | "Shortcut found!" |
+| Dozer | Wrong recipe | "New product line!" |
+| Rusty | A bit of everything | "Oops." |
+
+### Mistakes (what bots do wrong)
+Every problem is **caused by a bot** and shown with a speech bubble on that bot's machine, so you can always see *who* did *what*.
+
+| Mistake | Effect | What you see | Fix (tap machine; crew job) |
+|---|---|---|---|
+| **Jam** | Machine stops (existing fault) | JAMMED | Repair |
+| **Overclock** | Machine runs 30% faster but heats 3× faster → soon OVERHEATED | Pulsing "OVERCLOCK", heat bar racing | Tap: cancels overclock + vents |
+| **Misroute** | Output goes to the **scrap bin** instead of downstream | Dots fly to a scrap bin at the side; downstream starves | Tap: fix route |
+| **Wrong recipe** | Machine makes **junk** instead of its real output; junk travels downstream and **clogs** the next machine's input | Junk dots (different shape/colour); downstream shows CLOGGED | Tap source: fix recipe. Tap clogged machine: clear junk |
+| Overheat | Existing fault when heat hits 100 | OVERHEATED | Repair |
+
+Knock-on states (STARVED, BLOCKED) still clear on their own — diagnosis remains the skill.
+
+**One verb:** tap a machine. The crew does the most urgent thing there, in priority order: repair fault → clear clog → fix mistake → vent. One crew job at a time.
+
+### Foreman & career
+- A run is a **career** of days. Each day is one shift (`shift_seconds`, default 120).
+- Day N target = `target_base + target_per_day × (N−1)`. Mistake rates × `day_rate_mult^(N−1)`.
+- Start of shift: Foreman banner, e.g. *"Day 3. 140 widgets. Don't embarrass me."*
+- **Foreman review** after each shift:
+  - Hit target → +1 training point (+1 bonus at ≥ 125%). Strikes don't reset.
+  - Miss → +1 **strike**. At `max_strikes` (2) → **FIRED**. Game over.
+- **Training** (after a successful review): pick **1 of 3** offers (seeded), e.g.
+  - "Train Sparky: overclocks −40%" (that bot +1 level in that mistake)
+  - "Train Loopy: misroutes −40%"
+  - "Faster hands: crew jobs −15%" (player upgrade)
+- Game over screen: days survived, best days, Restart (new seed) / Replay (same seed).
+
+### Visuals (M1)
+Still code-drawn, no art: bot = coloured circle with initial + name under its machine; speech bubble for ~2 s on each mistake; scrap bin drawn at the side; junk dots distinct (e.g. grey squares). Foreman = text banner with a simple icon. Bright colours only for problems that need you.
+
+### Autoplayers (simulated players for balancing)
+Renamed from "bots" to avoid confusion: `tools/autoplayers.gd` — `none`, `greedy` (fixes anything immediately, nearest-to-failure first). `sim_runner` can run whole careers and report days survived.
+
+### M1 success criteria
+- You can tell which bot did what, every time.
+- Fixing a bad bot feels satisfying, sometimes funny.
+- Training choices feel meaningful ("Sparky is ruining me — train him").
+- After being fired, you want another run.
+
+### Out of scope for M1
+Factory growth/expansion, new machines, rookie bots arriving, being "automated", art, sound, monetisation.
+
+---
+
+## M0 — Factory Alive (built; base simulation for M1)
 
 **Hypothesis to test:** Is watching an autonomous factory fail, diagnosing the root cause, and choosing what to fix with limited help, fun?
 
@@ -104,13 +169,12 @@ Ugly but readable, and **must have motion**:
 
 ---
 
-## Beyond M0 (candidates — decide after playtest, not before)
+## Beyond M1 (candidates — decide after playtest)
 
-- **M1 Pressure:** more machines and branches, more fault types, power as a shared constraint.
-- **M2 Intervention economy:** more crew/tools, upgrades between shifts.
-- **M3 Factory intelligence:** the factory detects or handles some faults itself.
-- **M4 Reverse loop:** after you fix the same fault pattern N times, the factory offers "Automate this response?" — the factory learns from you.
-- **Shift variety:** career of shifts at a growing factory, shift types (rush order, heatwave).
+- **M2 Training your replacement:** fully trained bots → the Foreman "automates" you (a win) → promotion to a bigger factory with fresh rookies (prestige loop). Rookie bots join mid-career.
+- **M3 Growing factory:** bots "improve" the factory by building things — sometimes useless (unfed assemblers, loops) — and you remove/reroute them.
+- **Bot learning:** fix the same mistake on a bot N times and it learns ("Noted. Will not do that again.").
+- **Shift variety:** shift types (rush order, heatwave, inspection day).
 - **Later:** daily seeded shift, shareable factory configs ("keep my terrible factory alive"), presentation pass (cute, miniature, slightly chaotic).
 
 ## Constraints that always apply

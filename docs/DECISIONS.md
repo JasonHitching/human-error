@@ -20,3 +20,9 @@ One line each. Newest at the bottom. Don't re-argue settled decisions without ne
 | 14 | Opus plans and writes issues; Sonnet implements; Haiku tunes data | Token cost |
 | 15 | `repair_mode` tap vs hold is a data setting | Cheap A/B in playtest |
 | 16 | Sessions squash-merge their own PRs when CLAUDE.md criteria are met; stop conditions go to Jason | Jason vibe-codes from phone; human gate is the playtest, not code review |
+| 17 | Pivot: player is a worker fixing AI coworker ("bot") mistakes under a Foreman's targets | Clear identity + humour; gives variety (random bot roster) and progression (training) |
+| 18 | Bots are icons on machines (not walking characters) in M1 | Cheap; art later |
+| 19 | Run = career of days until fired (2 strikes); score = days survived | Simple, funny game-over, natural replay |
+| 20 | Every problem is caused by a visible bot, shown with a speech bubble | Readability: you always know who did what |
+| 21 | Simulated players renamed "autoplayers" (`tools/autoplayers.gd`) | "Bots" now means in-game AI coworkers |
+| 22 | Long-term hook: training your replacement → "automated" = prestige win (M2) | Fits theme; proven replay loop |
