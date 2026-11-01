@@ -31,6 +31,7 @@ var _mute_btn: Button
 var _muted: bool = false
 var _haptics_btn: Button
 var _feel := Feel.new()
+var _stats: RunStats
 var _front_since: float = 0.0
 var _last_qn: int = 0
 var _was_crew_busy: bool = false
@@ -43,6 +44,7 @@ func _ready() -> void:
 		push_error("config invalid: %s" % str(_config.errors))
 		return
 	_load_save()
+	_stats = RunStats.load_from()
 	_sfx = Sfx.new()
 	add_child(_sfx)
 	_sfx.set_muted(_muted)
@@ -61,6 +63,7 @@ func _ready() -> void:
 	_hud.offer_pressed.connect(_pick_offer)
 	_hud.continue_pressed.connect(_next_day)
 	_hud.restart_pressed.connect(func() -> void: _new_career(int(Time.get_ticks_usec())))
+	_hud.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
 	_ship_btn = _inspect_button("Ship", true)
 	_reject_btn = _inspect_button("Reject", false)
@@ -80,6 +83,7 @@ func _ready() -> void:
 func _new_career(seed_value: int) -> void:
 	_decoy_tip_shown = false
 	_career = Career.new(_config, seed_value)
+	_stats.career_started(int(Time.get_unix_time_from_system()))
 	_show_day()
 
 
@@ -274,7 +278,10 @@ func _end_shift() -> void:
 	_screens.active = false
 	_view.alpha = 0.0
 	var res := _career.end_day(_factory)
+	var now := int(Time.get_unix_time_from_system())
+	_stats.shift_ended(now, int(res["complaints"]))
 	if res["fired"]:
+		_stats.career_finished(now, _career.day)
 		_phase = Phase.FIRED
 		var days := _career.day
 		var new_best := days > _best_days

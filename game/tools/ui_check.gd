@@ -401,6 +401,22 @@ func _end_shift(shipped: int) -> void:
 	_main._factory.tick = int(_main._config.shift_seconds * _main._config.tick_rate)
 
 
+func _check_stats(hud: Hud) -> void:
+	var sb: Button = hud.stats_btn
+	if sb.size.x < 120 or sb.size.y < 80:
+		_fails.append("stats button too small: %s" % sb.size)
+	hud.stats_pressed.emit()
+	_check_overlay("stats", hud.stats_overlay, true)
+	var lab: Label = hud.stats_overlay.find_children("*", "Label", true, false)[0]
+	if not Rect2(Vector2.ZERO, _main.size).encloses(lab.get_global_rect()):
+		_fails.append("stats text off-screen %s" % lab.get_global_rect())
+	if lab.text.is_empty() or lab.text.contains("%"):
+		_fails.append("stats text bad: " + lab.text)
+	hud.hide_stats()
+	if hud.stats_overlay.visible:
+		_fails.append("stats close did not hide overlay")
+
+
 func _process(_delta: float) -> bool:
 	_frames += 1
 	var hud: Control = _main._hud
@@ -448,6 +464,7 @@ func _process(_delta: float) -> bool:
 			var need := Vector2(200, 100) if _main.size == Vector2(720, 1280) else Vector2(120, 80)
 			if rb.size.x < need.x or rb.size.y < need.y:
 				_fails.append("retry button too small: %s" % rb.size)
+			_check_stats(hud)
 			_check_glyphs()
 			for e in _catcher.errors.slice(0, 5):
 				_fails.append("engine/script error while drawing: " + e)
