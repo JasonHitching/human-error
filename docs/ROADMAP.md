@@ -40,13 +40,24 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Phase | Goal | Issues |
 |---|---|---|
-| ☐ 1 Spec card | Reference product, "why was that wrong", missed list | #38 |
-| ☐ 2 Worker location | Office / floor / transit in the sim, autoplayers, balance | #39 |
-| ☐ 3 Two screens | QA office + factory floor, transitions | #40 |
-| ☐ 4 Wall monitor | Machine lights, bots calling in | #41 |
-| ☐ 5 Living floor | Wheeled robots, juice | #42 |
-| ☐ 6 Art & sound ready | Sprite loader + naming, procedural sfx, mute | #43 |
-| ☐ Checkpoint M3 | Gates, report, plan M4 | #44 |
+| ☑ 1 Spec card | Reference product, "why was that wrong", missed list | #38 |
+| ☑ 2 Worker location | Office / floor / transit in the sim, autoplayers, balance | #39 |
+| ☑ 3 Two screens | QA office + factory floor, transitions | #40 |
+| ☑ 4 Wall monitor | Machine lights, bots calling in | #41 |
+| ☑ 5 Living floor | Wheeled robots, juice | #42 |
+| ☑ 6 Art & sound ready | Sprite loader + naming, procedural sfx, mute | #43 |
+| ☑ Checkpoint M3 | Gates, report, plan M4 | #44 → `docs/checkpoints/M3.md` |
 
-## M4–M7
+## M4 — Career Depth
+
+| Phase | Goal | Issues |
+|---|---|---|
+| ☐ 1 Floor walking | Travel time on the floor; fix order matters | #53 |
+| ☐ 2 Shift twists | One twist per day from day 3 | #54 |
+| ☐ 3 QA depth | Spec changes, subtle defects | #55 |
+| ☐ 4 Roster | Rookie bots, bot learning | #56 |
+| ☐ 5 Offers + balance | Radio, supervise, auto-inspector; careful ≥ greedy + 2 | #57 |
+| ☐ Checkpoint M4 | Gates, report, plan M5 | #58 |
+
+## M5–M7
 See `docs/VISION.md`. Each is planned by the previous checkpoint (`docs/CHAIN.md`).
