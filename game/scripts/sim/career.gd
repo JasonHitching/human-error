@@ -13,6 +13,8 @@ var strikes: int = 0
 var points: int = 0
 var fired: bool = false
 var crew_speed: float = 1.0
+var qa_bonus: int = 0  # extra queue slots (Bigger desk)
+var inspect_speed: float = 1.0  # Quick eye multiplies inspect time
 var history: Array = []  # {day, shipped, target, hit}
 var _lines: Dictionary = {}
 
@@ -46,21 +48,24 @@ func start_day() -> Factory:
 	var f := Factory.new(config, seed * 1000 + day, roster, day_mult())
 	f.target = day_target()
 	f.crew_speed = crew_speed
+	f.qa_capacity += qa_bonus
+	f.inspect_speed = inspect_speed
 	return f
 
 
 func end_day(f: Factory) -> Dictionary:
-	var hit := f.shipped >= f.target
-	history.append({"day": day, "shipped": f.shipped, "target": f.target, "hit": hit})
+	var score := f.score()
+	var hit := score >= f.target
+	history.append({"day": day, "shipped": score, "target": f.target, "hit": hit})
 	if hit:
 		points += 1
-		if float(f.shipped) >= float(f.target) * config.bonus_threshold:
+		if float(score) >= float(f.target) * config.bonus_threshold:
 			points += 1
 	else:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"hit": hit, "shipped": f.shipped, "target": f.target, "strikes": strikes, "fired": fired, "points": points}
+	return {"hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points}
 
 
 func offers() -> Array[Dictionary]:
@@ -71,6 +76,10 @@ func offers() -> Array[Dictionary]:
 		for k in mini(2, ms.size()):  # each bot's two highest effective rates
 			var m: String = ms[k]
 			cands.append({"kind": "train", "bot": b.name, "mistake": m, "text": "Train %s: %s −%d%%" % [b.name, m, roundi((1.0 - b.train_factor) * 100.0)]})
+		if b.sloppy > 0.0:
+			cands.append({"kind": "train", "bot": b.name, "mistake": "sloppy", "text": "Train %s: sloppy −%d%%" % [b.name, roundi((1.0 - b.train_factor) * 100.0)]})
+	cands.append({"kind": "qa_capacity", "text": "Bigger desk: +%d queue" % config.bigger_desk_bonus})
+	cands.append({"kind": "inspect_speed", "text": "Quick eye: inspect −%d%%" % roundi((1.0 - config.quick_eye_mult) * 100.0)})
 	cands.append({"kind": "crew_speed", "text": "Faster hands: crew jobs −%d%%" % roundi((1.0 - config.crew_speed_upgrade) * 100.0)})
 	var r := RandomNumberGenerator.new()
 	r.seed = seed * 7919 + day * 31 + history.size()  # deterministic per career state
@@ -97,6 +106,12 @@ func apply(offer: Dictionary) -> void:
 	points -= 1
 	if offer.get("kind") == "crew_speed":
 		crew_speed *= config.crew_speed_upgrade
+		return
+	if offer.get("kind") == "qa_capacity":
+		qa_bonus += config.bigger_desk_bonus
+		return
+	if offer.get("kind") == "inspect_speed":
+		inspect_speed *= config.quick_eye_mult
 		return
 	for b in roster:
 		if b.name == offer.get("bot"):

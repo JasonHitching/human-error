@@ -7,6 +7,9 @@ var shipped: int = 0
 var machines: Array[Machine] = []
 var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #4)
 
+enum InspectResult { SHIPPED, COMPLAINT, CAUGHT, WASTED, NOT_AT_DESK, EMPTY, BUSY }
+const DEFECTS := ["missing_bolt", "crack", "wrong_paint", "flipped_label", "dent"]
+const DECOYS := ["scuff", "sticker_blue", "sticker_green"]
 enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO }
 
 var target: int = 0
@@ -16,14 +19,34 @@ var crew_busy: bool = false
 var crew_target: String = ""
 var crew_progress: float = 0.0  # 0..1
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
-var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0}
+var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0, "sloppy": 0}
 var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
 var mistake_log: Array[Dictionary] = []  # all mistakes this run (for stats)
 var day_mult: float = 1.0
 var crew_speed: float = 1.0  # multiplies crew job durations (career upgrade < 1)
-var actions: Array[Dictionary] = []  # {tick, machine_id} or {tick, release: true}
+var actions: Array[Dictionary] = []  # {tick, machine_id}, {tick, release: true} or {tick, inspect: true, ship}
+var complaints: int = 0
+var caught: int = 0
+var wasted: int = 0
+var streak: int = 0  # consecutive correct rejects
+var idle_ticks: int = 0  # worker had nothing useful to do
+var qa_ticks: int = 0
+var qa_queue_sum: int = 0  # sum of queue length over ticks (for the average)
+var qa_queue_max: int = 0
+var qa_full_seen: bool = false
+var inspect_speed: float = 1.0  # multiplies inspect time (career upgrade < 1)
+var qa_capacity: int = 8:
+	set(v):
+		qa_capacity = v
+		if _qa != null:
+			_qa.input_cap = v
 
 var _config: SimConfig
+var _qa: Machine = null
+var _qa_items: Array[Dictionary] = []  # products waiting for inspection, front first
+var _qa_link: int = -1  # link index qa -> warehouse
+var _inspect_left: int = 0
+var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from rng
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
 var _crew_left: int = 0
@@ -39,6 +62,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	_config = config
 	day_mult = p_day_mult
 	rng.seed = seed
+	_qa_rng.seed = seed * 31 + 17
 	target = config.target
 	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
 	for md in config.machines:
@@ -58,10 +82,16 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 		_by_id[m.id] = m
 		_out_links[m] = []
 	_assign_bots(roster)
+	for m in machines:
+		if m.type == "qa":
+			_qa = m
+	qa_capacity = config.qa_capacity
 	for ld in config.links:
 		var from: Machine = _by_id[ld["from"]]
 		_out_links[from].append(_links.size())
 		_links.append({"from": from, "to": _by_id[ld["to"]], "ticks": maxi(1, roundi(float(ld["transit_time"]) * config.tick_rate))})
+		if from.type == "qa":
+			_qa_link = _links.size() - 1
 
 
 func _assign_bots(roster: Array[Bot]) -> void:
@@ -79,7 +109,7 @@ func _assign_bots(roster: Array[Bot]) -> void:
 		return
 	var n := 0
 	for m in machines:
-		if m.type != "warehouse":
+		if m.type != "warehouse" and m.type != "qa":
 			m.bot = pool[n % pool.size()]
 			n += 1
 
@@ -105,12 +135,14 @@ func items_in_transit() -> Array:
 func step() -> void:
 	events.clear()
 	tick += 1
+	_inspect_left = maxi(0, _inspect_left - 1)
 	_step_crew()
 	_advance_transit()
 	for m in machines:
 		_step_machine(m)
 	for m in machines:
 		_dispatch(m)
+	_track_qa()
 
 
 func _advance_transit() -> void:
@@ -123,6 +155,8 @@ func _advance_transit() -> void:
 			else:
 				var dest: Machine = _links[t["link"]]["to"]
 				dest.input_count += 1
+				if dest == _qa and not t["junk"]:
+					_qa_items.append(t["product"])
 				if t["junk"]:
 					if dest.junk_count == 0:
 						clog_count += 1
@@ -134,6 +168,116 @@ func _advance_transit() -> void:
 
 func is_over() -> bool:
 	return tick >= _shift_ticks
+
+
+## Score for the Foreman: shipped minus complaint penalties, never below 0.
+func score() -> int:
+	return maxi(0, shipped - complaints * _config.complaint_penalty)
+
+
+## Products waiting at the QA desk, front first: [{defect, decoy, bot}].
+func qa_queue() -> Array:
+	return _qa_items.duplicate()
+
+
+func inspect_busy() -> bool:
+	return _inspect_left > 0
+
+
+func worker_at_desk() -> bool:
+	return not crew_busy
+
+
+## Inspect the front product: ship it or reject it. Recorded for replay.
+func inspect(ship: bool) -> int:
+	actions.append({"tick": tick, "inspect": true, "ship": ship})
+	if _qa == null or crew_busy:
+		return InspectResult.NOT_AT_DESK
+	if _inspect_left > 0:
+		return InspectResult.BUSY
+	if _qa_items.is_empty():
+		return InspectResult.EMPTY
+	var item: Dictionary = _qa_items.pop_front()
+	_qa.input_count = maxi(0, _qa.input_count - 1)
+	_inspect_left = maxi(1, roundi(_config.inspect_seconds * inspect_speed * _config.tick_rate))
+	var bad := String(item["defect"]) != ""
+	if ship:
+		if _qa_link >= 0:
+			_transit.append({"link": _qa_link, "left": _links[_qa_link]["ticks"], "junk": false, "scrap": false, "product": item})
+		if bad:
+			complaints += 1
+			streak = 0
+			return InspectResult.COMPLAINT
+		return InspectResult.SHIPPED
+	if bad:
+		caught += 1
+		streak += 1
+		return InspectResult.CAUGHT
+	wasted += 1
+	streak = 0
+	return InspectResult.WASTED
+
+
+func _has_fixable() -> bool:
+	for m in machines:
+		if m.is_faulted() or m.state == Machine.State.CLOGGED or m.overclocked or m.misrouted or m.wrong_recipe:
+			return true
+		if m.state == Machine.State.WORKING and m.heat >= _config.vent_min_heat:
+			return true
+	return false
+
+
+func _track_qa() -> void:
+	if _qa == null:
+		return
+	var n := _qa_items.size()
+	qa_ticks += 1
+	qa_queue_sum += n
+	qa_queue_max = maxi(qa_queue_max, n)
+	if n >= qa_capacity:
+		qa_full_seen = true
+	if not crew_busy and n == 0 and not _has_fixable():
+		idle_ticks += 1
+
+
+## Product data for a freshly assembled item. Defect chance = mean "sloppy" of the assembler's
+## bot and the processors' bots (each scaled by ramp, day_mult, training). Blame is weighted by chance.
+func _make_product(asm: Machine) -> Dictionary:
+	var makers: Array[Machine] = []
+	for m in machines:
+		if m == asm or m.type == "processor":
+			if m.bot != null:
+				makers.append(m)
+	var total := 0.0
+	var chances: Array[float] = []
+	for m in makers:
+		var c := m.bot.sloppy_chance(ramp(), day_mult)
+		chances.append(c)
+		total += c
+	var p := total / float(maxi(1, makers.size()))
+	var roll := _qa_rng.randf()
+	var kind := _qa_rng.randi_range(0, DEFECTS.size() - 1)
+	var pick := _qa_rng.randf() * total
+	var decoy_roll := _qa_rng.randf()
+	var decoy_kind := _qa_rng.randi_range(0, DECOYS.size() - 1)
+	var prod := {"defect": "", "decoy": "", "bot": asm.bot.name if asm.bot != null else ""}
+	if p > 0.0 and roll < p:
+		var culprit := makers[0]
+		var acc := 0.0
+		for i in makers.size():
+			acc += chances[i]
+			if pick < acc:
+				culprit = makers[i]
+				break
+		prod["defect"] = DEFECTS[kind]
+		prod["bot"] = culprit.bot.name
+		mistake_counts["sloppy"] += 1
+		var ev := {"type": "mistake", "mistake": "sloppy", "machine_id": culprit.id, "bot": culprit.bot.name}
+		events.append(ev)
+		mistake_log.append(ev)
+	elif decoy_roll < _config.decoy_chance:
+		prod["decoy"] = DECOYS[decoy_kind]
+	return prod
 
 
 ## Fault pressure multiplier: linear from ramp_start to ramp_end over the shift.
@@ -225,6 +369,8 @@ static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ti
 		while i < recorded.size() and int(recorded[i]["tick"]) <= f.tick:
 			if recorded[i].has("release"):
 				f.release_action()
+			elif recorded[i].has("inspect"):
+				f.inspect(bool(recorded[i]["ship"]))
 			else:
 				f.request_action(String(recorded[i]["machine_id"]))
 			i += 1
@@ -233,6 +379,9 @@ static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ti
 
 
 func _step_machine(m: Machine) -> void:
+	if m.type == "qa":  # never processes on its own; the worker ships items
+		m.state = Machine.State.CLOGGED if m.junk_count > 0 else Machine.State.IDLE
+		return
 	if m.is_faulted():
 		return
 	if m.venting:
@@ -300,6 +449,8 @@ func _advance_machine(m: Machine) -> void:
 				m.progress = 0
 			elif m.output_count < m.output_cap:
 				m.output_count += 1
+				if m.type == "assembler":
+					m.output_products.append(_make_product(m))
 				if m.wrong_recipe:
 					m.output_junk += 1
 				m.busy = false
@@ -337,7 +488,8 @@ func _dispatch(m: Machine) -> void:
 			var junk := m.output_junk > 0
 			if junk:
 				m.output_junk -= 1
-			_transit.append({"link": li, "left": _links[li]["ticks"], "junk": junk, "scrap": m.misrouted})
+			var prod: Dictionary = m.output_products.pop_front() if not m.output_products.is_empty() else {}
+			_transit.append({"link": li, "left": _links[li]["ticks"], "junk": junk, "scrap": m.misrouted, "product": prod})
 			m.next_link = (m.next_link + k + 1) % idxs.size()
 			return
 
