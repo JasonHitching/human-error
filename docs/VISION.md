@@ -24,6 +24,7 @@ Changed from "A Living Floor": one screen with factory + desk was sensory overlo
 - Later (M4 candidates): Foreman changes the spec mid-career; a "radio" upgrade to fix one simple fault from the office.
 
 ### M4 — Career Depth
+- **Floor walking with real travel time (candidate, from Jason):** on the floor screen, walking distance between machines adds time, so the order of fixes matters. Consider it if the M3 checkpoint still shows careful ≈ greedy (player choices not mattering). The worker is already visible and walking cosmetically from M3-05 (#42).
 - **Shift twists:** one per day from day 3 (heatwave, rush order, inspection day, power flicker).
 - **Rookie bots** join mid-career (untrained, new personalities); roster grows to about 8 bots.
 - **Bot learning:** fix the same mistake on a bot N times and it may learn ("Noted. Will not do that again.").
