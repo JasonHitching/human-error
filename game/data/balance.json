@@ -9,5 +9,6 @@
   "vent_min_heat": 50,
   "vent_cool_per_sec": 40,
   "fix_seconds": 1.0,
+  "clear_seconds": 1.5,
   "repair_mode": "tap"
 }

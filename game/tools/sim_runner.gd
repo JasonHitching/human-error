@@ -30,6 +30,8 @@ func _init() -> void:
 	var by_bot := {}  # bot name -> {mistake -> count}
 	var faulted_machine_ticks := 0
 	var multi_fault_runs := 0
+	var scrapped := 0
+	var clogs := 0
 	var state_ticks := {}  # machine id -> {state name -> ticks}
 	for r in runs:
 		var f := Factory.new(cfg, seed_start + r)
@@ -53,6 +55,8 @@ func _init() -> void:
 		for ev in f.mistake_log:
 			var d: Dictionary = by_bot.get_or_add(ev["bot"], {})
 			d[ev["mistake"]] = int(d.get(ev["mistake"], 0)) + 1
+		scrapped += f.scrapped
+		clogs += f.clog_count
 		totals.append(f.shipped)
 	var sum := 0
 	for t in totals:
@@ -67,6 +71,7 @@ func _init() -> void:
 	for k: String in mistakes:
 		parts_m.append("%s %.2f" % [k, float(mistakes[k]) / runs])
 	print("  mistakes/shift: ", ", ".join(parts_m))
+	print("  scrapped/shift: %.2f, clogs/shift: %.2f" % [float(scrapped) / runs, float(clogs) / runs])
 	for b: String in by_bot:
 		var pb: Array[String] = []
 		for k: String in by_bot[b]:

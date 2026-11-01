@@ -7,9 +7,11 @@ var shipped: int = 0
 var machines: Array[Machine] = []
 var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #4)
 
-enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, CREW_BUSY, NOTHING_TO_DO }
+enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO }
 
 var target: int = 0
+var scrapped: int = 0
+var clog_count: int = 0  # times a machine became clogged
 var crew_busy: bool = false
 var crew_target: String = ""
 var crew_progress: float = 0.0  # 0..1
@@ -29,7 +31,7 @@ var _shift_ticks: int = 1
 var _by_id: Dictionary = {}
 var _links: Array[Dictionary] = []  # {from: Machine, to: Machine, ticks: int}
 var _out_links: Dictionary = {}  # Machine -> Array[int] indices into _links
-var _transit: Array[Dictionary] = []  # {link: int, left: int}
+var _transit: Array[Dictionary] = []  # {link: int, left: int, junk: bool, scrap: bool}
 
 
 func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: float = 1.0) -> void:
@@ -95,7 +97,7 @@ func items_in_transit() -> Array:
 	var out: Array = []
 	for t in _transit:
 		var l: Dictionary = _links[t["link"]]
-		out.append({"from": l["from"].id, "to": l["to"].id, "progress": 1.0 - float(t["left"]) / float(l["ticks"])})
+		out.append({"from": l["from"].id, "to": "scrap" if t["scrap"] else l["to"].id, "via": l["to"].id, "junk": t["junk"], "progress": 1.0 - float(t["left"]) / float(l["ticks"])})
 	return out
 
 
@@ -115,7 +117,15 @@ func _advance_transit() -> void:
 	for t in _transit:
 		t["left"] -= 1
 		if t["left"] <= 0:
-			(_links[t["link"]]["to"] as Machine).input_count += 1
+			if t["scrap"]:
+				scrapped += 1
+			else:
+				var dest: Machine = _links[t["link"]]["to"]
+				dest.input_count += 1
+				if t["junk"]:
+					if dest.junk_count == 0:
+						clog_count += 1
+					dest.junk_count += 1
 		else:
 			remaining.append(t)
 	_transit = remaining
@@ -142,7 +152,10 @@ func request_action(machine_id: String) -> int:
 	if m.is_faulted():
 		_crew_kind = ActionResult.STARTED_REPAIR
 		secs = _config.repair_seconds
-	elif m.overclocked:
+	elif m.state == Machine.State.CLOGGED:
+		_crew_kind = ActionResult.STARTED_CLEAR
+		secs = _config.clear_seconds
+	elif m.overclocked or m.misrouted or m.wrong_recipe:
 		_crew_kind = ActionResult.STARTED_FIX
 		secs = _config.fix_seconds
 	elif m.state == Machine.State.WORKING and m.heat >= _config.vent_min_heat:
@@ -191,8 +204,14 @@ func _step_crew() -> void:
 		m.state = Machine.State.IDLE
 		m.heat = 0.0
 	if _crew_kind == ActionResult.STARTED_FIX:
+		if m.overclocked:
+			m.heat = maxf(0.0, m.heat - 50.0)
 		m.overclocked = false
-		m.heat = maxf(0.0, m.heat - 50.0)
+		m.misrouted = false
+		m.wrong_recipe = false
+	if _crew_kind == ActionResult.STARTED_CLEAR:
+		m.input_count = maxi(0, m.input_count - m.junk_count)
+		m.junk_count = 0
 	m.venting = false
 	_end_job()
 
@@ -219,6 +238,10 @@ func _step_machine(m: Machine) -> void:
 		m.state = Machine.State.IDLE
 		m.heat = maxf(0.0, m.heat - _config.vent_cool_per_sec / _config.tick_rate)
 		return
+	if m.junk_count > 0:
+		m.state = Machine.State.CLOGGED
+		m.heat = maxf(0.0, m.heat - m.cool_per_sec / float(_config.tick_rate))
+		return
 	_advance_machine(m)
 	var rate := float(_config.tick_rate)
 	if m.state == Machine.State.WORKING:
@@ -230,9 +253,16 @@ func _step_machine(m: Machine) -> void:
 		elif _roll(m, "jam"):
 			_mistake(m, "jam")
 			_fault(m, Machine.State.JAMMED)
-		elif not m.overclocked and _roll(m, "overclock"):
-			_mistake(m, "overclock")
-			m.overclocked = true
+		else:
+			if not m.overclocked and _roll(m, "overclock"):
+				_mistake(m, "overclock")
+				m.overclocked = true
+			if not m.misrouted and not _out_links[m].is_empty() and _roll(m, "misroute"):
+				_mistake(m, "misroute")
+				m.misrouted = true
+			if not m.wrong_recipe and (m.type == "processor" or m.type == "assembler") and _roll(m, "wrong_recipe"):
+				_mistake(m, "wrong_recipe")
+				m.wrong_recipe = true
 	else:
 		m.heat = maxf(0.0, m.heat - m.cool_per_sec / rate)
 
@@ -269,6 +299,8 @@ func _advance_machine(m: Machine) -> void:
 				m.progress = 0
 			elif m.output_count < m.output_cap:
 				m.output_count += 1
+				if m.wrong_recipe:
+					m.output_junk += 1
 				m.busy = false
 				m.progress = 0
 			else:
@@ -301,7 +333,10 @@ func _dispatch(m: Machine) -> void:
 		var to: Machine = _links[li]["to"]
 		if to.input_count + _in_flight_to(to) < to.input_cap:
 			m.output_count -= 1
-			_transit.append({"link": li, "left": _links[li]["ticks"]})
+			var junk := m.output_junk > 0
+			if junk:
+				m.output_junk -= 1
+			_transit.append({"link": li, "left": _links[li]["ticks"], "junk": junk, "scrap": m.misrouted})
 			m.next_link = (m.next_link + k + 1) % idxs.size()
 			return
 
