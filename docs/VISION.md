@@ -23,7 +23,7 @@ Changed from "A Living Floor": one screen with factory + desk was sensory overlo
 - **Sprite loader with fallback** (agreed file names, so Jason can draw against them) and **procedural sound** with a mute toggle.
 - Later (M4 candidates): Foreman changes the spec mid-career; a "radio" upgrade to fix one simple fault from the office.
 
-### M4 — Career Depth *(specced as issues #53–#58 at checkpoint M3)*
+### M4 — Career Depth *(done — see `docs/checkpoints/M4.md`; specced as issues #53–#58 at checkpoint M3)*
 Main aim: **player choices matter** (careful ≈ greedy since M2). Target by the end: careful career median ≥ greedy + 2.
 - **M4-01 Floor walking with real travel time** (#53, from Jason): distance between machines costs time; optional queued fix; the order of fixes matters.
 - **M4-02 Shift twists** (#54): one per day from day 3 (heatwave, rush order, inspection day, power flicker), data in `twists.json`.
@@ -32,11 +32,15 @@ Main aim: **player choices matter** (careful ≈ greedy since M2). Target by the
 - **M4-05 New offers + balance** (#57): radio (fix a jam from the office, M3 candidate), supervise, auto-inspector (which errs); full career balance.
 - Deferred to M5 or later: flip-to-check-back products, X-ray lamp.
 
-### M5 — Meta & Prestige
-- **Save system** (`user://save.json`).
-- **Home factory:** a persistent layer between careers. Earn "commendations" to unlock bots, starting perks and cosmetics.
-- **Training your replacement:** if all bots reach a training threshold, the Foreman "automates" you, a win. You're promoted to the next factory **tier** (a new layout with more machines and branches; layouts as data).
-- **Stats screen:** best days, careers, automations, a funniest-bot award.
+### M5 — Meta & Prestige *(specced as issues #84–#89 at checkpoint M4)*
+Main aim: **a lost career still moves you forward**, and long-term training pays off in a win.
+- **M5-01 Save system** (#84): versioned `user://save.json`, atomic write, corrupt fallback, migrates the local stats from #72.
+- **M5-02 Commendations + Home screen** (#85): points earned per career; a Home screen between careers.
+- **M5-03 Perks** (#86): spend commendations on small permanent starting bonuses (`data/perks.json`); sim measures them.
+- **M5-04 Train your replacement** (#87): bots get "trained"; all trained → the Foreman automates you (the win, DECISIONS #22).
+- **M5-05 Factory tiers** (#88): layouts as data; automation unlocks tier 2 (more machines, a second branch).
+- Checkpoint M5 (#89). Stats screen already exists (#72/#80); a funniest-bot award can be added there later.
+- Planning notes (M4 checkpoint): perks must not make `none` viable; automation must be reachable for `human_careful` (5–30%) but rare for `greedy`. Deferred again to M6 with onboarding: flip-to-check-back, X-ray lamp, bigger desk/quick-eye rework.
 
 ### M6 — Night Shift & Daily
 - **Night shift:** offline earnings estimated from bot levels and mistake rates (capped), and a funny Foreman report on return, plus a mess to clean up at the start of the next day.

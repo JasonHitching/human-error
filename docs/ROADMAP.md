@@ -52,12 +52,23 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Phase | Goal | Issues |
 |---|---|---|
-| ☐ 1 Floor walking | Travel time on the floor; fix order matters | #53 |
-| ☐ 2 Shift twists | One twist per day from day 3 | #54 |
-| ☐ 3 QA depth | Spec changes, subtle defects | #55 |
-| ☐ 4 Roster | Rookie bots, bot learning | #56 |
-| ☐ 5 Offers + balance | Radio, supervise, auto-inspector; careful ≥ greedy + 2 | #57 |
-| ☐ Checkpoint M4 | Gates, report, plan M5 | #58 |
+| ☑ 1 Floor walking | Travel time on the floor; fix order matters | #53 |
+| ☑ 2 Shift twists | One twist per day from day 3 | #54 |
+| ☑ 3 QA depth | Spec changes, subtle defects | #55 |
+| ☑ 4 Roster | Rookie bots, bot learning | #56 |
+| ☑ 5 Offers + balance | Radio, supervise, auto-inspector; careful ≥ greedy + 2 | #57 |
+| ☑ Checkpoint M4 | Gates, report, plan M5 | #58 |
 
-## M5–M7
+## M5 — Meta & Prestige
+
+| Phase | Goal | Issues |
+|---|---|---|
+| ☐ 1 Save | Versioned save file, stats migrated | #84 |
+| ☐ 2 Home | Commendations, Home screen | #85 |
+| ☐ 3 Perks | Spend commendations on starting bonuses | #86 |
+| ☐ 4 Automation | Train your replacement = the win | #87 |
+| ☐ 5 Tiers | Layouts as data, tier 2 | #88 |
+| ☐ Checkpoint M5 | Gates, report, plan M6 | #89 |
+
+## M6–M7
 See `docs/VISION.md`. Each is planned by the previous checkpoint (`docs/CHAIN.md`).
