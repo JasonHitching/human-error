@@ -38,6 +38,11 @@
     "complaint": {"pitch": 140, "pitch_end": 140, "length": 0.35, "volume": 0.8},
     "alarm": {"pitch": 880, "pitch_end": 660, "length": 0.3, "volume": 0.8},
     "fix": {"pitch": 400, "pitch_end": 800, "length": 0.3, "volume": 0.9},
+    "thunk": {"pitch": 150, "pitch_end": 60, "length": 0.14, "volume": 1.0},
+    "deflate": {"pitch": 330, "pitch_end": 110, "length": 0.3, "volume": 0.6},
+    "fanfare": {"pitch": 520, "pitch_end": 520, "length": 0.3, "volume": 0.7},
+    "kachunk": {"pitch": 300, "pitch_end": 160, "length": 0.22, "volume": 0.9},
+    "boing": {"pitch": 260, "pitch_end": 260, "length": 0.3, "volume": 0.6},
     "transition": {"pitch": 0, "pitch_end": 0, "length": 0.35, "volume": 0.6}
   }
 }

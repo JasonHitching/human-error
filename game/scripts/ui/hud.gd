@@ -18,6 +18,7 @@ var _banner_label: Label
 var _review_label: Label
 var _review_box: VBoxContainer
 var _fired_label: Label
+var _retry_btn: Button
 
 
 func _ready() -> void:
@@ -40,8 +41,12 @@ func _ready() -> void:
 	var fb := _overlay()
 	fired = fb[0]
 	_fired_label = _big(fb[1])
-	_button(fb[1], "Restart (new career)", restart_pressed.emit)
-	_button(fb[1], "Replay (same career)", replay_pressed.emit)
+	_retry_btn = _button(fb[1], "One more career", restart_pressed.emit)
+	_retry_btn.custom_minimum_size = Vector2(440, 140)
+	_retry_btn.add_theme_font_size_override("font_size", 40)
+	var rp := _button(fb[1], "Replay this seed", replay_pressed.emit)
+	rp.custom_minimum_size = Vector2(440, 80)
+	rp.add_theme_font_size_override("font_size", 22)
 	resized.connect(_layout)
 	_layout()
 
@@ -126,8 +131,10 @@ func show_banner(day: int, line: String, target: int) -> void:
 	_show_only(banner)
 
 
-func show_review(res: Dictionary, line: String, offers: Array[Dictionary]) -> void:
+func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra: String = "") -> void:
 	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), line]
+	if extra != "":
+		_review_label.text += "\n" + extra
 	if res.get("probation", false):
 		_review_label.text = _review_label.text.replace("Strikes %d" % res["strikes"], "Probation: no strike")
 	for n in _review_box.get_children():
@@ -143,8 +150,8 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary]) -> vo
 	_show_only(review)
 
 
-func show_fired(days: int, best_days: int, new_best: bool, line: String) -> void:
-	_fired_label.text = "FIRED\nDays survived: %d\nBest: %d%s\n\n%s" % [days, best_days, "  NEW!" if new_best else "", line]
+func show_fired(days: int, line: String, breakdown: String, teaser: String) -> void:
+	_fired_label.text = "FIRED\nDays survived: %d\n\n%s\n\n%s\n%s" % [days, breakdown, teaser, line]
 	_show_only(fired)
 
 

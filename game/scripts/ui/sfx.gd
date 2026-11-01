@@ -4,7 +4,7 @@ extends Node
 ## Starts on the first user input (browsers need a gesture). Safe with no audio device.
 
 const MIX_RATE := 22050.0
-const KINDS := ["ship", "reject", "complaint", "alarm", "fix", "transition"]
+const KINDS := ["ship", "reject", "complaint", "alarm", "fix", "transition", "thunk", "deflate", "fanfare", "kachunk", "boing"]
 
 var muted: bool = false
 var params: Dictionary = {}
@@ -53,22 +53,27 @@ func start() -> bool:
 
 func set_muted(m: bool) -> void:
 	muted = m
+	if muted and _pb != null and _player != null:
+		_player.stop()  # drop everything queued, immediately
+		_player.play()
+		_pb = _player.get_stream_playback() as AudioStreamGeneratorPlayback
 
 
 func toggle_mute() -> bool:
-	muted = not muted
+	set_muted(not muted)
 	return muted
 
 
 ## Samples for a sound kind (mono floats). Pure; used by play() and by tests.
-func render(kind: String) -> PackedFloat32Array:
+func render(kind: String, steps: int = 0) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	var p: Dictionary = params.get(kind, {})
 	if p.is_empty():
 		return out
 	var n := int(float(p.get("length", 0.1)) * MIX_RATE)
-	var f0 := float(p.get("pitch", 400))
-	var f1 := float(p.get("pitch_end", f0))
+	var mult := pow(2.0, float(clampi(steps, 0, 7)) / 12.0)
+	var f0 := float(p.get("pitch", 400)) * mult
+	var f1 := float(p.get("pitch_end", f0)) * mult
 	var vol := float(p.get("volume", 1.0)) * float(params.get("volume", 0.3))
 	out.resize(n)
 	var phase := 0.0
@@ -89,6 +94,21 @@ func render(kind: String) -> PackedFloat32Array:
 				var step := floorf(t * 4.0)
 				phase += lerpf(f0, f1, step / 3.0) / MIX_RATE
 				s = sin(phase * TAU)
+			"thunk":
+				phase += lerpf(f0, f1, t) / MIX_RATE
+				lp += (_rng.randf_range(-1.0, 1.0) - lp) * 0.2
+				s = sin(phase * TAU) + lp * 0.5 * (1.0 - t)
+			"fanfare":
+				var note := floorf(t * 3.0)
+				phase += f0 * pow(2.0, [0, 4, 7][mini(int(note), 2)] / 12.0) / MIX_RATE
+				s = 1.0 if fposmod(phase, 1.0) < 0.5 else -1.0
+				s *= 0.4
+			"kachunk":
+				phase += (f0 if t < 0.35 else f1) / MIX_RATE
+				s = sin(phase * TAU) * (1.0 if t < 0.3 or t > 0.4 else 0.0)
+			"boing":
+				phase += f0 * (1.0 + 0.5 * sin(t * 30.0) * (1.0 - t)) / MIX_RATE
+				s = sin(phase * TAU)
 			"transition":
 				lp += (_rng.randf_range(-1.0, 1.0) - lp) * lerpf(0.05, 0.4, sin(t * PI))
 				s = lp * 2.0
@@ -99,10 +119,10 @@ func render(kind: String) -> PackedFloat32Array:
 	return out
 
 
-func play(kind: String) -> void:
+func play(kind: String, steps: int = 0) -> void:
 	if muted or not _started or _pb == null:
 		return
-	var samples := render(kind)
+	var samples := render(kind, steps)
 	if samples.is_empty() or _pb.get_frames_available() < samples.size():
 		return
 	var frames := PackedVector2Array()

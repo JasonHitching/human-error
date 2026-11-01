@@ -377,6 +377,19 @@ func _check_sprites_sfx() -> void:
 		_fails.append("mute button missing/too small: %s" % mb.size)
 	if not Rect2(Vector2.ZERO, _main.size).encloses(mb.get_global_rect()):
 		_fails.append("mute button off-screen: %s" % mb.get_global_rect())
+	var hb: Button = _main._haptics_btn
+	if not hb.is_visible_in_tree() or hb.size.x < 120.0 or hb.size.y < 80.0 or mb.size.x < 120.0:
+		_fails.append("sound/haptics toggles missing/too small: %s %s" % [mb.size, hb.size])
+	if not Rect2(Vector2.ZERO, _main.size).encloses(hb.get_global_rect()) or hb.get_global_rect().intersects(mb.get_global_rect()):
+		_fails.append("haptics button off-screen or overlapping: %s" % hb.get_global_rect())
+	hb.pressed.emit()
+	hb.pressed.emit()
+	var feel: Feel = _main._feel  # forced streak then a forced complaint: draw every effect
+	for i in 21:
+		feel.on_call(i % 2 == 0, true, true, false)
+	feel.on_call(true, false, false, true)
+	_main._desk.queue_redraw()
+	await_redraw()
 	var before: bool = sfx.muted
 	mb.pressed.emit()
 	if sfx.muted == before:
@@ -437,6 +450,10 @@ func _process(_delta: float) -> bool:
 			_end_shift(0)  # strike 2 -> fired
 		21:
 			_check_overlay("fired", hud.fired, true)
+			var rb: Button = hud._retry_btn
+			var need := Vector2(200, 100) if _main.size == Vector2(720, 1280) else Vector2(120, 80)
+			if rb.size.x < need.x or rb.size.y < need.y:
+				_fails.append("retry button too small: %s" % rb.size)
 			_check_glyphs()
 			for e in _catcher.errors.slice(0, 5):
 				_fails.append("engine/script error while drawing: " + e)
