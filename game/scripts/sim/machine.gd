@@ -26,6 +26,7 @@ var speed_frac: float = 0.0  # fractional progress carry when overclocked
 var misrouted: bool = false  # output goes to the scrap bin
 var wrong_recipe: bool = false  # output is junk
 var junk_count: int = 0  # junk items in input (counted within input_count)
+var output_products: Array[Dictionary] = []  # assembler: product data, parallel to output_count
 var output_junk: int = 0  # junk items in output (counted within output_count)
 var venting: bool = false  # crew is venting this machine (paused, cooling)
 var next_link: int = 0  # round-robin pointer over outgoing links

@@ -47,6 +47,8 @@ func test_wrong_recipe_clogs_next_and_clear_restores() -> void:
 	for i in 600:
 		if asm.state == Machine.State.CLOGGED and not f.crew_busy:
 			f.request_action("assembler")
+		elif not f.qa_queue().is_empty():
+			f.inspect(String(f.qa_queue()[0]["defect"]) == "")
 		f.step()
 	assert_true(f.shipped > 0, "flow restored")
 
@@ -62,11 +64,11 @@ func test_fix_stops_junk() -> void:
 	assert_true(not a.wrong_recipe and not a.misrouted and not a.overclocked, "one fix clears all")
 
 
-func test_warehouse_clogs_on_junk() -> void:
+func test_qa_desk_clogs_on_junk() -> void:
 	var f := _fac()
 	f.get_machine("assembler").wrong_recipe = true
 	_run(f, 800)
-	assert_eq(f.get_machine("warehouse").state, Machine.State.CLOGGED)
+	assert_eq(f.get_machine("qa_desk").state, Machine.State.CLOGGED)
 	assert_eq(f.shipped, 0)
 
 

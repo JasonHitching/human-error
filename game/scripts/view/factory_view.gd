@@ -135,6 +135,8 @@ func _draw_machine(m: Machine) -> void:
 		_text("WRONG RECIPE", r.position + Vector2(8, 52), 20, Color(0.9, 0.5, 1.0), r.size.x - 16)
 	elif m.state == Machine.State.STARVED or m.state == Machine.State.BLOCKED:
 		_text(m.state_name().to_lower(), r.position + Vector2(8, 50), 16, Color(0.8, 0.85, 0.95), r.size.x - 16)
+	if m.type == "qa":
+		_text("queue %d/%d" % [factory.qa_queue().size(), factory.qa_capacity], r.position + Vector2(8, 52), 22, Color.WHITE, r.size.x - 16)
 	if m.bot != null:
 		var c := r.position + Vector2(18, r.size.y + 18)
 		draw_circle(c, 14.0, m.bot.color)

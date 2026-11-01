@@ -8,7 +8,7 @@ func _factory(seed: int = 1) -> Factory:
 func test_config_valid() -> void:
 	var c := SimConfig.load_default()
 	assert_true(c.is_valid(), str(c.errors))
-	assert_eq(c.machines.size(), 5)
+	assert_eq(c.machines.size(), 6)
 
 
 func test_config_bad_data() -> void:
@@ -20,6 +20,8 @@ func test_config_bad_data() -> void:
 func test_flow_reaches_warehouse() -> void:
 	var f := _factory()
 	for i in 600:
+		if not f.qa_queue().is_empty():
+			f.inspect(String(f.qa_queue()[0]["defect"]) == "")
 		f.step()
 	assert_true(f.shipped > 0, "shipped=%d" % f.shipped)
 
@@ -33,12 +35,10 @@ func test_starved_without_input() -> void:
 
 func test_blocked_when_downstream_full() -> void:
 	var f := _factory()
-	# Fill the warehouse input and keep it from consuming by cutting its throughput.
-	var w := f.get_machine("warehouse")
+	# Fill the QA desk (nothing consumes without the worker).
+	var w := f.get_machine("qa_desk")
 	var a := f.get_machine("assembler")
 	w.input_count = w.input_cap
-	w.busy = true
-	w.progress = -100000
 	a.output_count = a.output_cap
 	a.input_count = 1
 	for i in 5:

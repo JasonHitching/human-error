@@ -1,5 +1,5 @@
 extends SceneTree
-## Usage: godot --headless --path game -s res://tools/sim_runner.gd -- --seed 1 --runs 50 [--shift-seconds 180] [--player none|greedy] (--bot is an alias)
+## Usage: godot --headless --path game -s res://tools/sim_runner.gd -- --seed 1 --runs 50 [--shift-seconds 180] [--player none|greedy|careful] (--bot is an alias)
 
 
 func _init() -> void:
@@ -38,11 +38,13 @@ func _init() -> void:
 	var scrapped := 0
 	var clogs := 0
 	var state_ticks := {}  # machine id -> {state name -> ticks}
+	var qa := QaStats.new()
 	for r in runs:
 		var f := Factory.new(cfg, seed_start + r)
+		var prng := Autoplayers.make_rng(seed_start + r)
 		var multi := false
 		for _t in ticks:
-			Autoplayers.act(bot, f)
+			Autoplayers.act(bot, f, prng)
 			f.step()
 			var n_faulted := 0
 			for m in f.machines:
@@ -60,6 +62,7 @@ func _init() -> void:
 		for ev in f.mistake_log:
 			var d: Dictionary = by_bot.get_or_add(ev["bot"], {})
 			d[ev["mistake"]] = int(d.get(ev["mistake"], 0)) + 1
+		qa.add(f)
 		scrapped += f.scrapped
 		clogs += f.clog_count
 		totals.append(f.shipped)
@@ -76,6 +79,7 @@ func _init() -> void:
 	for k: String in mistakes:
 		parts_m.append("%s %.2f" % [k, float(mistakes[k]) / runs])
 	print("  mistakes/shift: ", ", ".join(parts_m))
+	print("  ", qa.report())
 	print("  scrapped/shift: %.2f, clogs/shift: %.2f" % [float(scrapped) / runs, float(clogs) / runs])
 	for b: String in by_bot:
 		var pb: Array[String] = []
@@ -94,13 +98,16 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	const DAY_CAP := 30
 	var days: Array[int] = []
 	var fail_causes := {}
+	var qa := QaStats.new()
 	for r in runs:
 		var c := Career.new(cfg, seed_start + r)
 		while not c.fired and c.day <= DAY_CAP:
 			var f := c.start_day()
+			var prng := Autoplayers.make_rng(c.seed * 1000 + c.day)
 			for _t in int(cfg.shift_seconds * cfg.tick_rate):
-				Autoplayers.act(player, f)
+				Autoplayers.act(player, f, prng)
 				f.step()
+			qa.add(f)
 			var res := c.end_day(f)
 			if not res["hit"]:
 				var top := ""
@@ -124,6 +131,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 		sum += d
 	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
+	print("  ", qa.report(true))
 	var parts: Array[String] = []
 	for k: String in fail_causes:
 		parts.append("%s %d" % [k, fail_causes[k]])
@@ -135,3 +143,36 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 			top_k = k
 	print("  failed shifts by top mistake: %s; main reason: %s" % [", ".join(parts), top_k if top_k != "" else "none"])
 	quit(0)
+
+
+## QA desk stats summed over shifts (a "run" = one shift; for careers, one day).
+class QaStats:
+	var shifts := 0
+	var ticks := 0
+	var idle := 0
+	var complaints := 0
+	var caught := 0
+	var wasted := 0
+	var shipped := 0
+	var queue_sum := 0
+	var queue_max := 0
+	var full_shifts := 0
+
+	func add(f: Factory) -> void:
+		shifts += 1
+		ticks += f.qa_ticks
+		idle += f.idle_ticks
+		complaints += f.complaints
+		caught += f.caught
+		wasted += f.wasted
+		shipped += f.shipped
+		queue_sum += f.qa_queue_sum
+		queue_max = maxi(queue_max, f.qa_queue_max)
+		full_shifts += 1 if f.qa_full_seen else 0
+
+	func report(per_day: bool = false) -> String:
+		var n := float(maxi(1, shifts))
+		var unit := "day" if per_day else "shift"
+		return "QA: idle %.1f%%, shipped/%s %.1f, complaints/%s %.2f, caught %.2f, wasted %.2f, queue avg %.2f max %d, %s with full queue %.0f%%" % [
+			100.0 * idle / maxf(1.0, ticks), unit, shipped / n, unit, complaints / n, caught / n, wasted / n,
+			queue_sum / maxf(1.0, ticks), queue_max, ("days" if per_day else "runs"), 100.0 * full_shifts / n]

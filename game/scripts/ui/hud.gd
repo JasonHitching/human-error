@@ -108,7 +108,7 @@ func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, best_days: 
 	var marks := ""
 	for i in c.config.max_strikes:
 		marks += "✖" if i < c.strikes else "✕"
-	_top.text = "Day %d · %d:%02d · Shipped %d / %d · Strikes %s\n%s · Best %d days" % [c.day, int(left) / 60, int(left) % 60, f.shipped, f.target, marks, crew, best_days]
+	_top.text = "Day %d · %d:%02d · Shipped %d / %d · Strikes %s\n%s · Best %d days" % [c.day, int(left) / 60, int(left) % 60, f.score(), f.target, marks, crew, best_days]
 	_seed.text = "career %d" % c.seed
 
 

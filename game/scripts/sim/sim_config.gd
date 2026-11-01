@@ -4,7 +4,7 @@ extends RefCounted
 const MACHINES_PATH := "res://data/factory_m0.json"
 const BOTS_PATH := "res://data/bots.json"
 const BALANCE_PATH := "res://data/balance.json"
-const TYPES := ["generator", "processor", "assembler", "warehouse"]
+const TYPES := ["generator", "processor", "assembler", "qa", "warehouse"]
 
 var tick_rate: int = 10
 var shift_seconds: float = 180.0
@@ -25,6 +25,12 @@ var bonus_threshold: float = 1.25
 var crew_speed_upgrade: float = 0.85
 var offers_per_review: int = 3
 var train_factor: float = 0.6
+var qa_capacity: int = 8
+var decoy_chance: float = 0.2
+var inspect_seconds: float = 0.5
+var complaint_penalty: int = 3
+var quick_eye_mult: float = 0.8
+var bigger_desk_bonus: int = 2
 var overclock_speed_mult: float = 1.3
 var overclock_heat_mult: float = 3.0
 var bot_defs: Array[Dictionary] = []
@@ -90,6 +96,12 @@ func _load_balance(b: Dictionary) -> void:
 	bonus_threshold = _opt(b, "bonus_threshold", bonus_threshold, 1.0, 100.0)
 	crew_speed_upgrade = _opt(b, "crew_speed_upgrade", crew_speed_upgrade, 0.1, 1.0)
 	offers_per_review = int(_opt(b, "offers_per_review", offers_per_review, 1.0, 20.0))
+	qa_capacity = int(_opt(b, "qa_capacity", qa_capacity, 1.0, 100.0))
+	decoy_chance = _opt(b, "decoy_chance", decoy_chance, 0.0, 1.0)
+	inspect_seconds = _opt(b, "inspect_seconds", inspect_seconds, 0.1, 100.0)
+	complaint_penalty = int(_opt(b, "complaint_penalty", complaint_penalty, 0.0, 1000.0))
+	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
+	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))
 	repair_mode = String(b.get("repair_mode", ""))
 	if repair_mode != "tap" and repair_mode != "hold":
 		errors.append("balance: repair_mode must be \"tap\" or \"hold\"")
@@ -168,6 +180,9 @@ func _load_bots(b: Dictionary) -> void:
 			var v: Variant = (rates as Dictionary).get(k)
 			if not (v is float or v is int) or float(v) < 0.0:
 				errors.append("bots: '%s' rate '%s' must be a number >= 0" % [n, k])
+		var sl: Variant = d.get("sloppy", 0.0)
+		if not (sl is float or sl is int) or float(sl) < 0.0 or float(sl) > 1.0:
+			errors.append("bots: '%s' sloppy must be a number in [0, 1]" % n)
 		bot_defs.append(d)
 	if bot_defs.is_empty():
 		errors.append("bots: roster is empty")

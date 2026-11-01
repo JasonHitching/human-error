@@ -18,6 +18,8 @@ var _best_days: int = 0
 var _holding: bool = false
 var _flash_left: float = 0.0
 var _offers: Array[Dictionary] = []
+var _ship_btn: Button  # temporary inspect buttons (real desk comes in M2-02)
+var _reject_btn: Button
 
 
 func _ready() -> void:
@@ -35,6 +37,8 @@ func _ready() -> void:
 	_hud.continue_pressed.connect(_next_day)
 	_hud.restart_pressed.connect(func() -> void: _new_career(int(Time.get_ticks_usec())))
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
+	_ship_btn = _inspect_button("✔ Ship", true)
+	_reject_btn = _inspect_button("✖ Reject", false)
 	resized.connect(_fit)
 	_new_career(int(Time.get_ticks_usec()))
 
@@ -60,7 +64,36 @@ func _begin_shift() -> void:
 	_hud.hide_overlays()
 
 
+func _inspect_button(text: String, ship: bool) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.add_theme_font_size_override("font_size", 28)
+	b.pressed.connect(func() -> void: _inspect(ship))
+	add_child(b)
+	return b
+
+
+func _inspect(ship: bool) -> void:
+	if _phase != Phase.PLAYING or _factory == null:
+		return
+	match _factory.inspect(ship):
+		Factory.InspectResult.NOT_AT_DESK:
+			_flash("Worker is away from the desk")
+		Factory.InspectResult.COMPLAINT:
+			_flash("Complaint! Shipped a defect")
+		Factory.InspectResult.WASTED:
+			_flash("Wasted a good product")
+		Factory.InspectResult.CAUGHT:
+			_flash("Caught a defect")
+
+
 func _fit() -> void:
+	if _ship_btn != null:
+		var w := size.x * 0.45
+		_reject_btn.size = Vector2(w, 64)
+		_ship_btn.size = Vector2(w, 64)
+		_reject_btn.position = Vector2(size.x * 0.03, size.y - 84)
+		_ship_btn.position = Vector2(size.x * 0.52, size.y - 84)
 	if _view != null:
 		_view.area = Rect2(0, HUD_TOP, size.x, maxf(100.0, size.y - HUD_TOP - HUD_BOTTOM))
 
@@ -77,6 +110,8 @@ func _process(delta: float) -> void:
 			_acc -= dt
 		if _factory.is_over():
 			_end_shift()
+	_ship_btn.visible = _phase == Phase.PLAYING
+	_reject_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
 	if _flash_left > 0.0:
 		_flash_left -= delta

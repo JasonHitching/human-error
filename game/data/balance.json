@@ -12,10 +12,16 @@
   "clear_seconds": 1.5,
   "target_base": 40,
   "target_per_day": 5,
-  "day_rate_mult": 1.10,
+  "day_rate_mult": 1.1,
   "max_strikes": 2,
   "bonus_threshold": 1.25,
   "crew_speed_upgrade": 0.85,
   "offers_per_review": 3,
-  "repair_mode": "tap"
+  "repair_mode": "tap",
+  "qa_capacity": 8,
+  "decoy_chance": 0.2,
+  "inspect_seconds": 0.5,
+  "complaint_penalty": 3,
+  "quick_eye_mult": 0.8,
+  "bigger_desk_bonus": 2
 }
