@@ -75,12 +75,12 @@ func offers() -> Array[Dictionary]:
 		ms.sort_custom(func(a: String, c: String) -> bool: return _eff(b, a) > _eff(b, c))
 		for k in mini(2, ms.size()):  # each bot's two highest effective rates
 			var m: String = ms[k]
-			cands.append({"kind": "train", "bot": b.name, "mistake": m, "text": "Train %s: %s −%d%%" % [b.name, m, roundi((1.0 - b.train_factor) * 100.0)]})
+			cands.append({"kind": "train", "bot": b.name, "mistake": m, "text": "Train %s: %s -%d%%" % [b.name, m, roundi((1.0 - b.train_factor) * 100.0)]})
 		if b.sloppy > 0.0:
-			cands.append({"kind": "train", "bot": b.name, "mistake": "sloppy", "text": "Train %s: sloppy −%d%%" % [b.name, roundi((1.0 - b.train_factor) * 100.0)]})
+			cands.append({"kind": "train", "bot": b.name, "mistake": "sloppy", "text": "Train %s: sloppy -%d%%" % [b.name, roundi((1.0 - b.train_factor) * 100.0)]})
 	cands.append({"kind": "qa_capacity", "text": "Bigger desk: +%d queue" % config.bigger_desk_bonus})
-	cands.append({"kind": "inspect_speed", "text": "Quick eye: inspect −%d%%" % roundi((1.0 - config.quick_eye_mult) * 100.0)})
-	cands.append({"kind": "crew_speed", "text": "Faster hands: crew jobs −%d%%" % roundi((1.0 - config.crew_speed_upgrade) * 100.0)})
+	cands.append({"kind": "inspect_speed", "text": "Quick eye: inspect -%d%%" % roundi((1.0 - config.quick_eye_mult) * 100.0)})
+	cands.append({"kind": "crew_speed", "text": "Faster hands: crew jobs -%d%%" % roundi((1.0 - config.crew_speed_upgrade) * 100.0)})
 	var r := RandomNumberGenerator.new()
 	r.seed = seed * 7919 + day * 31 + history.size()  # deterministic per career state
 	for i in range(cands.size() - 1, 0, -1):

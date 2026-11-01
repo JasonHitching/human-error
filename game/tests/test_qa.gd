@@ -196,7 +196,7 @@ func test_career_offers_and_score() -> void:
 		c.history.append({})
 		for o in c.offers():
 			texts += o["text"] + "|"
-	assert_true(texts.contains("Bigger desk: +2 queue") and texts.contains("Quick eye: inspect −20%") and texts.contains("sloppy −40%"), texts)
+	assert_true(texts.contains("Bigger desk: +2 queue") and texts.contains("Quick eye: inspect -20%") and texts.contains("sloppy -40%"), texts)
 	var f := c.start_day()
 	f.shipped = f.target
 	f.complaints = 1

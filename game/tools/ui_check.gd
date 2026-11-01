@@ -206,6 +206,129 @@ func _check_floor_chars() -> void:
 	f.worker.place(Worker.Location.FLOOR)
 
 
+const SIZES: Array[Vector2i] = [Vector2i(720, 1280), Vector2i(390, 844), Vector2i(360, 800), Vector2i(430, 932), Vector2i(768, 1024)]
+
+
+## Window size -> logical viewport (project stretch: canvas_items, aspect expand, base 720x1280).
+func _logical(win: Vector2i) -> Vector2:
+	var s := minf(win.x / 720.0, win.y / 1280.0)
+	return Vector2(win) / s
+
+
+func _within(inner: Rect2, outer: Rect2, tag: String, tol: float = 0.5) -> bool:
+	if outer.grow(tol).encloses(inner):
+		return true
+	_fails.append("%s %s outside floor %s" % [tag, inner, outer])
+	return false
+
+
+func _check_layouts() -> void:
+	var f: Factory = _main._factory
+	var v: FactoryView = _main._view
+	var sw: ScreenSwitch = _main._screens
+	var old: Vector2 = _main.size
+	for win in SIZES:
+		var lg := _logical(win)
+		var k := minf(win.x / 720.0, win.y / 1280.0)
+		_main.size = lg
+		_main._fit()
+		sw.sync(0.0)
+		_main._process(0.0)
+		var tag := "%dx%d" % [win.x, win.y]
+		f.worker.place(Worker.Location.OFFICE)  # desk buttons: office page on screen
+		sw.sync(0.0)
+		var vp := Rect2(Vector2.ZERO, lg)
+		for b: Button in [_main._ship_btn, _main._reject_btn, sw.factory_btn]:
+			if not vp.encloses(b.get_global_rect()):
+				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
+			if b.size.x < 120.0 or b.size.y < 80.0:
+				_fails.append("[%s] button '%s' too small %s" % [tag, b.text, b.size])
+		f.worker.place(Worker.Location.FLOOR)
+		sw.sync(0.0)
+		var a: Rect2 = v.area
+		var screen := Rect2(Vector2.ZERO, lg)
+		if not screen.encloses(a) or a.size.x < 100.0 or a.size.y < 400.0:
+			_fails.append("[%s] floor area %s bad in viewport %s" % [tag, a, lg])
+		var rects: Array[Rect2] = []
+		var mh := v.machine_h()
+		for m in f.machines:
+			var r: Rect2 = v.hatch_rect(m) if m.type == "qa" else v.machine_rect(m)
+			_within(r.grow(6.0) if m.type != "qa" else r, a, "[%s] %s" % [tag, m.id])
+			for o in rects:
+				if o.intersects(r):
+					_fails.append("[%s] machine %s overlaps another" % [tag, m.id])
+			rects.append(r)
+			if m.type == "qa":
+				continue
+			var hb := v.heat_rect(m)
+			_within(hb, a, "[%s] %s heat bar" % [tag, m.id])
+			if hb.get_center().distance_to(r.get_center()) > mh:
+				_fails.append("[%s] %s heat bar detached" % [tag, m.id])
+			if m.bot != null:
+				var bp := v.bot_pos(m)
+				_within(Rect2(bp - Vector2(22, 24), Vector2(44, 48)), a, "[%s] %s robot" % [tag, m.id])
+				var bd := v.badge_rect(m)
+				_within(bd, a, "[%s] %s badge" % [tag, m.id])
+				if bd.get_center().distance_to(r.get_center()) > mh * 1.5 or absf(bd.get_center().y - r.get_center().y) > mh * 1.5:
+					_fails.append("[%s] %s badge detached from machine" % [tag, m.id])
+		var sr := v.scrap_rect()
+		_within(sr, a, "[%s] scrap bin" % tag)
+		for o in rects:
+			if o.intersects(sr):
+				_fails.append("[%s] scrap bin overlaps a machine" % tag)
+		var wp := v.worker_pos()
+		_within(Rect2(wp - Vector2(22, 22), Vector2(44, 44)), a, "[%s] worker" % tag)
+		for b: Button in [sw.back_btn, _main._mute_btn]:
+			if not vp.encloses(b.get_global_rect()):
+				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
+			if b.size.x < 80.0 or b.size.y < 80.0 or (b == sw.back_btn and b.size.x < 120.0):
+				_fails.append("[%s] button '%s' too small %s (scale %.2f)" % [tag, b.text, b.size, k])
+		if a.intersects(sw.back_btn.get_global_rect()):
+			_fails.append("[%s] floor overlaps back button" % tag)
+		_check_jitter(tag)
+	_main.size = old
+	_main._fit()
+	f.worker.place(Worker.Location.OFFICE)
+
+
+## No events for 60 frames: machines and badges stay put (<1 px), robots only bob (<=3 px).
+func _check_jitter(tag: String) -> void:
+	var f: Factory = _main._factory
+	var v: FactoryView = _main._view
+	var prev := {}
+	for i in 60:
+		v._process(1.0 / 60.0)
+		for m in f.machines:
+			var cur: Array = [v.machine_rect(m).position, Vector2.ZERO, Vector2.ZERO]
+			if m.bot != null:
+				cur[1] = v.badge_rect(m).position
+				cur[2] = v.bot_pos(m)
+			if prev.has(m.id):
+				var p: Array = prev[m.id]
+				if (cur[0] as Vector2).distance_to(p[0]) >= 1.0 or (cur[1] as Vector2).distance_to(p[1]) >= 1.0:
+					_fails.append("[%s] %s jitters frame to frame" % [tag, m.id])
+				if (cur[2] as Vector2).distance_to(p[2]) > 3.0:
+					_fails.append("[%s] %s robot moves >3 px per frame" % [tag, m.id])
+			prev[m.id] = cur
+
+
+## UI text sticks to basic ASCII plus the middle dot (default web font lacks other symbols).
+func _check_glyphs() -> void:
+	var bad := {}
+	for n in _main.find_children("*", "Control", true, false):
+		var t := ""
+		if n is Label:
+			t = (n as Label).text
+		elif n is Button:
+			t = (n as Button).text
+		for i in t.length():
+			var c := t.unicode_at(i)
+			if (c > 126 or (c < 32 and c != 10)) and c != 0xB7:
+				bad[String.chr(c)] = "U+%04X in '%s'" % [c, t.substr(0, 24)]
+	for k in bad:
+		_fails.append("non-ASCII glyph: " + bad[k])
+
+
 func _check_sprites_sfx() -> void:
 	if Sprites.tex("no_such_sprite") != null:
 		_fails.append("missing sprite should be null")
@@ -252,6 +375,7 @@ func _process(_delta: float) -> bool:
 	var hud: Control = _main._hud
 	match _frames:
 		3:
+			_check_glyphs()
 			if hud.size != _main.size:
 				_fails.append("HUD size %s != screen %s" % [hud.size, _main.size])
 			_check_overlay("banner", hud.banner, true)
@@ -262,6 +386,7 @@ func _process(_delta: float) -> bool:
 			_check_desk()
 			_check_screens()
 			_check_sprites_sfx()
+			_check_layouts()
 		5:
 			Sprites.clear_cache()
 			if _main._phase != _main.Phase.PLAYING:
@@ -288,6 +413,7 @@ func _process(_delta: float) -> bool:
 			_end_shift(0)  # strike 2 -> fired
 		21:
 			_check_overlay("fired", hud.fired, true)
+			_check_glyphs()
 			for f in _fails:
 				print("FAIL ui_check: " + f)
 			print("ui_check: %s" % ("ok" if _fails.is_empty() else "%d failed" % _fails.size()))

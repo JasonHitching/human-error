@@ -27,7 +27,7 @@ func _ready() -> void:
 	_top.position = Vector2(0, 8)
 	_flash = _label(22, HORIZONTAL_ALIGNMENT_CENTER)
 	_flash.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
-	_seed = _label(14, HORIZONTAL_ALIGNMENT_RIGHT)
+	_seed = _label(12, HORIZONTAL_ALIGNMENT_LEFT)
 	_seed.modulate = Color(1, 1, 1, 0.5)
 	var bb := _overlay()
 	banner = bb[0]
@@ -96,8 +96,8 @@ func _layout() -> void:
 	_top.size = Vector2(size.x, 80)
 	_flash.size = Vector2(size.x, 40)
 	_flash.position = Vector2(0, 84)
-	_seed.size = Vector2(size.x - 8, 20)
-	_seed.position = Vector2(0, size.y - 24)
+	_seed.size = Vector2(size.x * 0.2, 20)
+	_seed.position = Vector2(4, size.y - 24)
 
 
 func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, best_days: int) -> void:
@@ -106,13 +106,13 @@ func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, best_days: 
 	if f.crew_busy:
 		crew = "Crew: %s %d%%" % [f.crew_target, roundi(f.crew_progress * 100.0)]
 	elif f.worker_location() == Worker.Location.TRANSIT:
-		crew = "Walking…"
+		crew = "Walking..."
 	elif f.worker_location() == Worker.Location.FLOOR:
 		crew = "On the floor"
 
 	var marks := ""
 	for i in c.config.max_strikes:
-		marks += "✖" if i < c.strikes else "✕"
+		marks += "[X]" if i < c.strikes else "[ ]"
 	_top.text = "Day %d · %d:%02d · Score %d / %d · Strikes %s\nComplaints %d (-%d each) · %s · Best %d" % [c.day, int(left) / 60, int(left) % 60, f.score(), f.target, marks, f.complaints, c.config.complaint_penalty, crew, best_days]
 	_seed.text = "career %d" % c.seed
 
@@ -122,18 +122,18 @@ func set_flash(text: String) -> void:
 
 
 func show_banner(day: int, line: String, target: int) -> void:
-	_banner_label.text = "👷 FOREMAN\nDay %d · target %d\n\n%s" % [day, target, line]
+	_banner_label.text = "FOREMAN\nDay %d · target %d\n\n%s" % [day, target, line]
 	_show_only(banner)
 
 
 func show_review(res: Dictionary, line: String, offers: Array[Dictionary]) -> void:
-	_review_label.text = "Day over\nScore %d / %d — %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), line]
+	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), line]
 	for n in _review_box.get_children():
 		if n != _review_label:
 			_review_box.remove_child(n)
 			n.queue_free()
 	if int(res["points"]) > 0 and not offers.is_empty():
-		_review_label.text += "\nTraining points: %d — pick one:" % res["points"]
+		_review_label.text += "\nTraining points: %d - pick one:" % res["points"]
 		for i in offers.size():
 			var idx := i
 			_button(_review_box, String(offers[i]["text"]), func() -> void: offer_pressed.emit(idx))
@@ -162,5 +162,5 @@ func _missed_line(res: Dictionary) -> String:
 		return ""
 	var parts: Array[String] = []
 	for k in m:
-		parts.append("%s ×%d" % [String(k).replace("_", " "), int(m[k])])
+		parts.append("%s x%d" % [String(k).replace("_", " "), int(m[k])])
 	return "\nMissed: " + ", ".join(parts)
