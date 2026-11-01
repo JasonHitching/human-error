@@ -25,6 +25,8 @@ var _holding: bool = false
 var _decoy_tip_shown: bool = false
 var _flash_left: float = 0.0
 var _offers: Array[Dictionary] = []
+var _pending_tap: String = ""  # machine to act on when the worker reaches the floor
+var _pending_inspect: int = -1  # 0 reject / 1 ship when the worker reaches the desk
 var _ship_btn: Button  # temporary inspect buttons (real desk comes in M2-02)
 var _reject_btn: Button
 
@@ -59,6 +61,8 @@ func _new_career(seed_value: int) -> void:
 
 
 func _show_day() -> void:
+	_pending_tap = ""
+	_pending_inspect = -1
 	_factory = _career.start_day()
 	_view.setup(_factory, _config)
 	_desk.setup(_factory)
@@ -88,6 +92,11 @@ func _inspect_button(text: String, ship: bool) -> Button:
 
 func _inspect(ship: bool) -> void:
 	if _phase != Phase.PLAYING or _factory == null:
+		return
+	if not _factory.worker_at_desk() and not _factory.crew_busy:
+		_pending_tap = ""
+		_pending_inspect = 1 if ship else 0
+		_factory.go_to_office()  # until the two-screen UI (M3-03): walk back, inspect on arrival
 		return
 	var q := _factory.qa_queue()
 	var front: Dictionary = q[0] if not q.is_empty() else {}
@@ -143,6 +152,7 @@ func _process(delta: float) -> void:
 			_factory.step()
 			_view.push_events(_factory.events)
 			_acc -= dt
+			_apply_pending()
 		if _factory.is_over():
 			_end_shift()
 	_desk.visible = _phase == Phase.PLAYING
@@ -213,7 +223,20 @@ func _gui_input(event: InputEvent) -> void:
 			_release()
 
 
+func _apply_pending() -> void:
+	if _pending_tap != "" and _factory.worker_location() == Worker.Location.FLOOR:
+		var id := _pending_tap
+		_pending_tap = ""
+		_apply_tap(id)
+	elif _pending_inspect >= 0 and _factory.worker_at_desk():
+		var ship := _pending_inspect == 1
+		_pending_inspect = -1
+		_inspect(ship)
+
+
 func _release() -> void:
+	if _config.repair_mode == "hold":
+		_pending_tap = ""  # let go before arriving: cancel
 	if _holding:
 		_holding = false
 		_factory.release_action()
@@ -223,10 +246,22 @@ func _tap(p: Vector2) -> void:
 	var m := _view.machine_at(p)
 	if m == null:
 		return
+	if _factory.worker_location() != Worker.Location.FLOOR and not _factory.crew_busy:
+		_pending_inspect = -1
+		_pending_tap = m.id
+		_factory.go_to_floor()  # until the two-screen UI (M3-03): walk over, act on arrival
+		return
+	_apply_tap(m.id)
+
+
+func _apply_tap(id: String) -> void:
+	var m := _factory.get_machine(id)
 	var res := _factory.request_action(m.id)
 	match res:
 		Factory.ActionResult.CREW_BUSY:
 			_flash("Crew busy")
+		Factory.ActionResult.NOT_ON_FLOOR:
+			pass
 		Factory.ActionResult.NOTHING_TO_DO:
 			if m.state == Machine.State.STARVED:
 				_flash("Not broken — look upstream")

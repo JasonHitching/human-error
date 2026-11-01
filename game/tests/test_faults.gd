@@ -24,6 +24,7 @@ func _quiet(f: Factory) -> void:
 
 func test_overheat_at_100() -> void:
 	var f := Factory.new(_cfg(), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	_quiet(f)
 	var m := f.get_machine("proc_a")
 	m.heat_per_sec = 50.0
@@ -33,6 +34,7 @@ func test_overheat_at_100() -> void:
 
 func test_vent_reduces_heat() -> void:
 	var f := Factory.new(_cfg(), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	_quiet(f)
 	var m := f.get_machine("generator")
 	m.heat = 90.0
@@ -46,12 +48,14 @@ func test_vent_reduces_heat() -> void:
 
 func test_nothing_to_do() -> void:
 	var f := Factory.new(_cfg(), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	f.step()
 	assert_eq(f.request_action("generator"), Factory.ActionResult.NOTHING_TO_DO)
 
 
 func test_crew_busy_rejects_second() -> void:
 	var f := Factory.new(_cfg(), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	f.step()
 	f.get_machine("proc_a").state = Machine.State.JAMMED
 	f.get_machine("proc_b").state = Machine.State.JAMMED
@@ -63,6 +67,7 @@ func test_crew_busy_rejects_second() -> void:
 
 func test_repair_clears_fault() -> void:
 	var f := Factory.new(_cfg(), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	_quiet(f)
 	f.step()
 	var m := f.get_machine("proc_a")
@@ -80,6 +85,7 @@ func test_repair_clears_fault() -> void:
 
 func test_hold_release_cancels() -> void:
 	var f := Factory.new(_cfg({"repair_mode": "hold"}), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	f.step()
 	var m := f.get_machine("proc_a")
 	m.state = Machine.State.JAMMED
@@ -98,6 +104,7 @@ func test_hold_release_cancels() -> void:
 func test_jam_ramp_and_determinism() -> void:
 	var cfg := _cfg({"ramp_start": 1.0, "ramp_end": 3.0})
 	var a := Factory.new(cfg, 5)
+	a.go_to_floor()
 	for i in 900:
 		if i % 40 == 0:
 			for m in a.machines:
@@ -114,6 +121,7 @@ func test_jam_ramp_and_determinism() -> void:
 
 func test_shift_over() -> void:
 	var f := Factory.new(_cfg(), 1)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
 	for i in 1799:
 		f.step()
 	assert_true(not f.is_over())

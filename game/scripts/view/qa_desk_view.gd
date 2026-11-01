@@ -38,9 +38,9 @@ func play_inspect(item: Dictionary, shipped: bool) -> void:
 	_anim = {"item": item, "kind": "ship" if shipped else "reject", "t": 0.0}
 
 
-## True while the BRB sign is up (worker is away on a machine job).
+## True while the BRB sign is up (worker is on the floor or walking).
 func brb_visible() -> bool:
-	return factory != null and factory.crew_busy
+	return factory != null and not factory.worker_at_desk()
 
 
 func pad_rect() -> Rect2:

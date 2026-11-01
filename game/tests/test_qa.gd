@@ -40,6 +40,7 @@ func test_not_at_desk_while_crew_busy() -> void:
 	var f := _fac()
 	_put(f, "")
 	f.get_machine("proc_a").overclocked = true
+	f.worker.place(Worker.Location.FLOOR)
 	assert_eq(f.request_action("proc_a"), Factory.ActionResult.STARTED_FIX)
 	assert_eq(f.inspect(true), Factory.InspectResult.NOT_AT_DESK)
 	assert_eq(f.qa_queue().size(), 1)
@@ -208,11 +209,11 @@ func test_careful_stays_at_desk() -> void:
 		_put(f, "")
 	f.get_machine("proc_a").overclocked = true
 	Autoplayers.act("careful", f, Autoplayers.make_rng(1))
-	assert_true(not f.crew_busy, "careful keeps inspecting with a long queue")
+	assert_true(f.worker_at_desk() and f.transit_target() == Worker.Location.OFFICE, "careful keeps inspecting with a long queue")
 	var g := _fac()
 	g.get_machine("proc_a").overclocked = true
 	Autoplayers.act("careful", g, Autoplayers.make_rng(1))
-	assert_true(g.crew_busy, "careful fixes when the queue is short")
+	assert_eq(g.transit_target(), Worker.Location.FLOOR, "careful goes to fix when the queue is short")
 
 
 func test_last_inspected_reports_item() -> void:

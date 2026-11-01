@@ -10,7 +10,7 @@ var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #
 enum InspectResult { SHIPPED, COMPLAINT, CAUGHT, WASTED, NOT_AT_DESK, EMPTY, BUSY }
 const DEFECTS := ["missing_bolt", "crack", "wrong_paint", "flipped_label", "dent"]
 const DECOYS := ["scuff", "sticker_blue", "sticker_green"]
-enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO }
+enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO, NOT_ON_FLOOR }
 
 var target: int = 0
 var scrapped: int = 0
@@ -24,7 +24,8 @@ var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, mac
 var mistake_log: Array[Dictionary] = []  # all mistakes this run (for stats)
 var day_mult: float = 1.0
 var crew_speed: float = 1.0  # multiplies crew job durations (career upgrade < 1)
-var actions: Array[Dictionary] = []  # {tick, machine_id}, {tick, release: true} or {tick, inspect: true, ship}
+var actions: Array[Dictionary] = []  # {tick, machine_id}, {tick, release: true}, {tick, inspect: true, ship} or {tick, go: "floor"|"office"}
+var worker: Worker
 var complaints: int = 0
 var caught: int = 0
 var wasted: int = 0
@@ -67,6 +68,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	_qa_rng.seed = seed * 31 + 17
 	target = config.target
 	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
+	worker = Worker.new(roundi(config.transition_seconds * config.tick_rate))
 	for md in config.machines:
 		var m := Machine.new()
 		m.id = String(md["id"])
@@ -138,6 +140,7 @@ func step() -> void:
 	events.clear()
 	tick += 1
 	_inspect_left = maxi(0, _inspect_left - 1)
+	worker.step()
 	_step_crew()
 	_advance_transit()
 	for m in machines:
@@ -187,7 +190,30 @@ func inspect_busy() -> bool:
 
 
 func worker_at_desk() -> bool:
-	return not crew_busy
+	return worker.location == Worker.Location.OFFICE
+
+
+func worker_location() -> Worker.Location:
+	return worker.location
+
+
+## Where the worker is heading (== worker_location() when not in transit).
+func transit_target() -> Worker.Location:
+	return worker.target
+
+
+## Walk to the factory floor. No-op if there or heading there. Recorded for replay.
+func go_to_floor() -> bool:
+	actions.append({"tick": tick, "go": "floor"})
+	return worker.go(Worker.Location.FLOOR)
+
+
+## Walk back to the QA office. Refused (false) while a crew job runs. Recorded for replay.
+func go_to_office() -> bool:
+	actions.append({"tick": tick, "go": "office"})
+	if crew_busy:
+		return false
+	return worker.go(Worker.Location.OFFICE)
 
 
 ## The product just inspected: {defect, decoy, bot}. Empty before the first inspect.
@@ -198,7 +224,7 @@ func last_inspected() -> Dictionary:
 ## Inspect the front product: ship it or reject it. Recorded for replay.
 func inspect(ship: bool) -> int:
 	actions.append({"tick": tick, "inspect": true, "ship": ship})
-	if _qa == null or crew_busy:
+	if _qa == null or not worker_at_desk():
 		return InspectResult.NOT_AT_DESK
 	if _inspect_left > 0:
 		return InspectResult.BUSY
@@ -245,7 +271,13 @@ func _track_qa() -> void:
 	qa_queue_max = maxi(qa_queue_max, n)
 	if n >= qa_capacity:
 		qa_full_seen = true
-	if not crew_busy and n == 0 and not _has_fixable():
+	if crew_busy:
+		return
+	var fixable := _has_fixable()
+	if worker_at_desk():
+		if n == 0 and not fixable:
+			idle_ticks += 1
+	elif not fixable:  # walking about or standing on the floor with nothing to fix
 		idle_ticks += 1
 
 
@@ -297,6 +329,8 @@ func ramp() -> float:
 ## Ask the crew to act on a machine. Recorded for replay.
 func request_action(machine_id: String) -> int:
 	actions.append({"tick": tick, "machine_id": machine_id})
+	if worker.location != Worker.Location.FLOOR:
+		return ActionResult.NOT_ON_FLOOR
 	if crew_busy:
 		return ActionResult.CREW_BUSY
 	var m := get_machine(machine_id)
@@ -380,6 +414,11 @@ static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ti
 				f.release_action()
 			elif recorded[i].has("inspect"):
 				f.inspect(bool(recorded[i]["ship"]))
+			elif recorded[i].has("go"):
+				if recorded[i]["go"] == "floor":
+					f.go_to_floor()
+				else:
+					f.go_to_office()
 			else:
 				f.request_action(String(recorded[i]["machine_id"]))
 			i += 1

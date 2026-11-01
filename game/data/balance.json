@@ -10,7 +10,7 @@
   "vent_cool_per_sec": 40,
   "fix_seconds": 1.0,
   "clear_seconds": 1.5,
-  "target_base": 40,
+  "target_base": 36,
   "target_per_day": 2,
   "day_rate_mult": 1.0,
   "max_strikes": 2,
@@ -21,6 +21,7 @@
   "qa_capacity": 8,
   "decoy_chance": 0.2,
   "inspect_seconds": 0.5,
+  "transition_seconds": 0.6,
   "complaint_penalty": 3,
   "quick_eye_mult": 0.8,
   "bigger_desk_bonus": 2

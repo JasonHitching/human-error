@@ -2,7 +2,9 @@ extends TestCase
 
 
 func _fac(seed: int = 1) -> Factory:
-	return Factory.new(SimConfig.load_default(), seed)
+	var f := Factory.new(SimConfig.load_default(), seed)
+	f.worker.place(Worker.Location.FLOOR)  # crew jobs need the worker on the floor
+	return f
 
 
 func _names(f: Factory) -> Array:
