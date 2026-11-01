@@ -48,6 +48,8 @@ func _check_desk() -> void:
 			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
 			_fails.append("button '%s' too small: %s" % [b.text, b.size])
+	if not Rect2(desk.rect).encloses(desk.shelf_rect()):
+		_fails.append("shelf not inside desk area: %s" % desk.shelf_rect())
 	var spec := desk.spec_rect()
 	if not screen.encloses(spec):
 		_fails.append("spec card off-screen: %s" % spec)
@@ -129,6 +131,12 @@ func _check_wall(sw: ScreenSwitch, f: Factory) -> void:
 		_fails.append("forced jam showed no call-in/flash: '%s'" % wall.call_text)
 	m.state = Machine.State.IDLE
 	wall.poll()
+	if wall.quiet_left <= 0.0:
+		_fails.append("fixing the last problem did not show the 'All quiet.' cue")
+	else:
+		var w := ThemeDB.fallback_font.get_string_size("All quiet.", HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+		if 16.0 + w > wall.size.x or wall.size.y - 100.0 < 0.0:
+			_fails.append("'All quiet.' cue does not fit inside the monitor %s" % wall.size)
 	var ev := InputEventMouseButton.new()
 	ev.button_index = MOUSE_BUTTON_LEFT
 	ev.pressed = true
@@ -159,6 +167,7 @@ func _check_screens() -> void:
 	if not screen.encloses(_main._view.area):
 		_fails.append("factory view %s not inside viewport" % _main._view.area)
 	_check_button(sw.back_btn, screen)
+	_check_button(sw.worst_btn, screen)
 	if _main._ship_btn.is_visible_in_tree():
 		_fails.append("ship button visible on the floor")
 	var ql: Label = sw.queue_label
@@ -288,13 +297,18 @@ func _check_layouts() -> void:
 				_fails.append("[%s] scrap bin overlaps a machine" % tag)
 		var wp := v.worker_pos()
 		_within(Rect2(wp - Vector2(22, 22), Vector2(44, 44)), a, "[%s] worker" % tag)
-		for b: Button in [sw.back_btn, _main._mute_btn]:
+		for b: Button in [sw.back_btn, sw.worst_btn, _main._mute_btn]:
 			if not vp.encloses(b.get_global_rect()):
 				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
-			if b.size.x < 80.0 or b.size.y < 80.0 or (b == sw.back_btn and b.size.x < 120.0):
+			if b.size.x < 80.0 or b.size.y < 80.0 or ((b == sw.back_btn or b == sw.worst_btn) and b.size.x < 120.0):
 				_fails.append("[%s] button '%s' too small %s (scale %.2f)" % [tag, b.text, b.size, k])
-		if a.intersects(sw.back_btn.get_global_rect()):
-			_fails.append("[%s] floor overlaps back button" % tag)
+		if a.intersects(sw.back_btn.get_global_rect()) or a.intersects(sw.worst_btn.get_global_rect()):
+			_fails.append("[%s] floor overlaps back/worst button" % tag)
+		if sw.worst_btn.get_global_rect().intersects(sw.back_btn.get_global_rect()):
+			_fails.append("[%s] worst-first overlaps back button" % tag)
+		for m in v.factory.machines:
+			if m.type != "qa" and m.type != "warehouse" and not v.machine_rect(m).encloses(v.queue_badge_rect(m)):
+				_fails.append("[%s] %s queue badge outside machine rect" % [tag, m.id])
 		_check_jitter(tag)
 	_main.size = old
 	_main._fit()
@@ -363,6 +377,19 @@ func _check_sprites_sfx() -> void:
 		_fails.append("mute button missing/too small: %s" % mb.size)
 	if not Rect2(Vector2.ZERO, _main.size).encloses(mb.get_global_rect()):
 		_fails.append("mute button off-screen: %s" % mb.get_global_rect())
+	var hb: Button = _main._haptics_btn
+	if not hb.is_visible_in_tree() or hb.size.x < 120.0 or hb.size.y < 80.0 or mb.size.x < 120.0:
+		_fails.append("sound/haptics toggles missing/too small: %s %s" % [mb.size, hb.size])
+	if not Rect2(Vector2.ZERO, _main.size).encloses(hb.get_global_rect()) or hb.get_global_rect().intersects(mb.get_global_rect()):
+		_fails.append("haptics button off-screen or overlapping: %s" % hb.get_global_rect())
+	hb.pressed.emit()
+	hb.pressed.emit()
+	var feel: Feel = _main._feel  # forced streak then a forced complaint: draw every effect
+	for i in 21:
+		feel.on_call(i % 2 == 0, true, true, false)
+	feel.on_call(true, false, false, true)
+	_main._desk.queue_redraw()
+	await_redraw()
 	var before: bool = sfx.muted
 	mb.pressed.emit()
 	if sfx.muted == before:
@@ -378,6 +405,22 @@ func await_redraw() -> void:
 func _end_shift(shipped: int) -> void:
 	_main._factory.shipped = shipped
 	_main._factory.tick = int(_main._config.shift_seconds * _main._config.tick_rate)
+
+
+func _check_stats(hud: Hud) -> void:
+	var sb: Button = hud.stats_btn
+	if sb.size.x < 120 or sb.size.y < 80:
+		_fails.append("stats button too small: %s" % sb.size)
+	hud.stats_pressed.emit()
+	_check_overlay("stats", hud.stats_overlay, true)
+	var lab: Label = hud.stats_overlay.find_children("*", "Label", true, false)[0]
+	if not Rect2(Vector2.ZERO, _main.size).encloses(lab.get_global_rect()):
+		_fails.append("stats text off-screen %s" % lab.get_global_rect())
+	if lab.text.is_empty() or lab.text.contains("%"):
+		_fails.append("stats text bad: " + lab.text)
+	hud.hide_stats()
+	if hud.stats_overlay.visible:
+		_fails.append("stats close did not hide overlay")
 
 
 func _process(_delta: float) -> bool:
@@ -423,6 +466,11 @@ func _process(_delta: float) -> bool:
 			_end_shift(0)  # strike 2 -> fired
 		21:
 			_check_overlay("fired", hud.fired, true)
+			var rb: Button = hud._retry_btn
+			var need := Vector2(200, 100) if _main.size == Vector2(720, 1280) else Vector2(120, 80)
+			if rb.size.x < need.x or rb.size.y < need.y:
+				_fails.append("retry button too small: %s" % rb.size)
+			_check_stats(hud)
 			_check_glyphs()
 			_main._career.day = 3  # first twist day
 			_main._show_day()

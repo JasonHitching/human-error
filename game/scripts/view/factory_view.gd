@@ -68,6 +68,12 @@ func badge_rect(m: Machine) -> Rect2:
 	return Rect2(o + Vector2(24, -10), Vector2(w + 4.0, 20))
 
 
+## Queue-position badge (1/2/3) of a queued fix, inside the machine rect (beside the status light).
+func queue_badge_rect(m: Machine) -> Rect2:
+	var r := machine_rect(m)
+	return Rect2(r.position + Vector2(r.size.x - 70, 8), Vector2(28, 28))
+
+
 func machine_at(p: Vector2) -> Machine:
 	for m in factory.machines:
 		if m.type != "qa" and machine_rect(m).has_point(p):
@@ -83,6 +89,10 @@ func scrap_rect() -> Rect2:
 ## Show a speech bubble for each mistake event. Line pick is by event index (deterministic).
 func push_events(events: Array[Dictionary]) -> void:
 	for e in events:
+		if e.get("type") == "self_clear":
+			_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["id"] != e["machine_id"])
+			_bubbles.append({"id": e["machine_id"], "text": "Fixed itself. Probably.", "left": 2.0})
+			continue
 		if e.get("type") != "mistake":
 			continue
 		if e.get("mistake") == "misroute":
@@ -285,6 +295,11 @@ func _draw_machine(m: Machine) -> void:
 		BotView.draw(self, c, m.bot.color, mood, _time, hit, sin(_time * 3.0) if m.state == Machine.State.WORKING else 0.0, m.bot.name.to_lower())
 		var bd := badge_rect(m)
 		_text(m.bot.name, bd.position + Vector2(0, 16), 16, Color(0.85, 0.87, 0.92), r.size.x - 40)
+	var qi := factory.crew_queue.find(m.id)
+	if qi >= 0:
+		var qb := queue_badge_rect(m)
+		draw_circle(qb.get_center(), qb.size.x * 0.5, Color(0.95, 0.95, 1.0))
+		_text(str(qi + 1), qb.position + Vector2(8, 22), 22, Color(0.1, 0.1, 0.15), qb.size.x)
 	# heat bar
 	var bar := heat_rect(m)
 	draw_rect(bar, Color(0, 0, 0, 0.45))

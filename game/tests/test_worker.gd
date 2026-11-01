@@ -208,7 +208,7 @@ func test_queued_fix_runs_next_and_can_be_cancelled() -> void:
 	f.request_action("proc_a")
 	assert_eq(f.request_action("proc_b"), Factory.ActionResult.QUEUED)
 	assert_eq(f.request_action("proc_b"), Factory.ActionResult.UNQUEUED, "tap again cancels")
-	assert_eq(f.crew_queued, "")
+	assert_eq(f.crew_queue.size(), 0)
 	assert_eq(f.request_action("proc_b"), Factory.ActionResult.QUEUED)
 	var first := f.worker.walk_ticks_to(a.pos) + roundi(cfg.fix_seconds * cfg.tick_rate)
 	for i in first:
@@ -216,7 +216,7 @@ func test_queued_fix_runs_next_and_can_be_cancelled() -> void:
 	assert_true(not a.misrouted)
 	assert_eq(f.crew_target, "proc_b", "queued fix runs next")
 	assert_true(f.crew_walking())
-	assert_eq(f.crew_queued, "")
+	assert_eq(f.crew_queue.size(), 0)
 	var second := f.worker.walk_ticks_to(b.pos) + roundi(cfg.fix_seconds * cfg.tick_rate)
 	assert_eq(f.worker.walk_ticks_to(b.pos), ceili(a.pos.distance_to(b.pos) / (0.5 / cfg.tick_rate)), "walks from proc_a")
 	for i in second:
@@ -270,7 +270,7 @@ func test_replay_with_walks_and_queued_fixes() -> void:
 	var queued := 0
 	for i in 1200:
 		Autoplayers.act("careful", a, rng, mem)
-		if a.crew_queued != "":
+		if not a.crew_queue.is_empty():
 			queued += 1
 		a.step()
 	assert_true(a.worker.walk_ticks > 0, "walked")

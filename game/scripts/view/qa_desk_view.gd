@@ -8,6 +8,7 @@ const COL_PAINT := Color(0.9, 0.3, 0.7)
 const COL_LABEL := Color(0.97, 0.92, 0.75)
 
 var factory: Factory
+var feel: Feel
 var rect := Rect2(0, 0, 100, 100)  # strip rect in screen space
 var hint: String = ""
 var caption: String = ""  # spec card caption (day 1 only), lines split by " · "
@@ -72,6 +73,8 @@ func _draw_spec() -> void:
 
 func _process(d: float) -> void:
 	_time += d
+	if feel != null:
+		position = feel.shake_offset()
 	for fl in _flashes:
 		fl["left"] -= d
 	_flashes = _flashes.filter(func(fl: Dictionary) -> bool: return fl["left"] > 0.0)
@@ -101,6 +104,7 @@ func _draw() -> void:
 		_slide = 1.0
 	_last_q = q.size()
 	_draw_queue(q)
+	_draw_shelf()
 	var pad := pad_rect()
 	_draw_pad(pad)
 	_draw_spec()
@@ -110,12 +114,42 @@ func _draw() -> void:
 	if not q.is_empty() and _anim.is_empty():
 		draw_product(q[0], pad.get_center() + Vector2(shake, 0), pad.size * 0.8)
 	_draw_anim(pad)
+	_draw_feel(pad, q)
 	if brb_visible():
 		_draw_brb(pad)
-	_text("Streak %d" % factory.streak, rect.position + Vector2(rect.size.x - 150, 62), 24, Color(1.0, 0.85, 0.3), 140.0)
+	var pop := 1.0 + (feel.pop_t / 0.25 * 0.35 if feel != null else 0.0)
+	var sp := rect.position + Vector2(rect.size.x - 150, 62)
+	draw_set_transform(sp, 0.0, Vector2(pop, pop))
+	_text("Streak %d" % (feel.streak if feel != null else factory.streak), Vector2.ZERO, 24, Color(1.0, 0.85, 0.3), 140.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_flashes(pad)
 	if hint != "":
 		_draw_hint()
+
+
+## Strip under the queue boxes holding the overflow shelf (inside the desk rect).
+func shelf_rect() -> Rect2:
+	return Rect2(rect.position.x + 12.0, rect.position.y + 48.0, rect.size.x - 24.0, 18.0)
+
+
+func _draw_shelf() -> void:
+	var slots: int = factory.shelf_slots
+	if slots <= 0:
+		return
+	var n: int = factory.qa_shelf().size()
+	var col := Color(0.55, 0.57, 0.65)
+	if n >= slots:
+		col = Color(0.95, 0.25, 0.2)
+	elif n > 0:
+		col = Color(1.0, 0.6, 0.15)
+	var r := shelf_rect()
+	for i in slots:
+		var b := Rect2(r.position.x + float(i) * 24.0, r.position.y + 2.0, 20.0, 14.0)
+		if i < n:
+			draw_rect(b, col)
+		else:
+			draw_rect(b, col, false, 1.5)
+	_text("shelf %d/%d" % [n, slots], Vector2(r.position.x + float(slots) * 24.0 + 6.0, r.position.y + 15.0), 18, col, 120.0)
 
 
 func _draw_queue(q: Array) -> void:
@@ -159,7 +193,7 @@ func _draw_anim(pad: Rect2) -> void:
 	var t: float = _anim["t"]
 	var c := pad.get_center()
 	if _anim["kind"] == "ship":
-		draw_product(_anim["item"], c + Vector2(t * (rect.size.x * 0.6), 0), pad.size * 0.8)
+		draw_product(_anim["item"], c + Vector2(t * (rect.size.x * 0.6), 0), pad.size * 0.8 * (1.0 - 0.15 * maxf(0.0, 1.0 - t * 6.0)))
 		var ck := Color(0.3, 1.0, 0.4, 1.0 - t)
 		draw_line(c + Vector2(-26, 0), c + Vector2(-8, 20), ck, 8.0)
 		draw_line(c + Vector2(-8, 20), c + Vector2(28, -24), ck, 8.0)
@@ -168,6 +202,30 @@ func _draw_anim(pad: Rect2) -> void:
 		draw_product(_anim["item"], c.lerp(bin, t) + Vector2(0, t * t * 40.0), pad.size * 0.8 * (1.0 - 0.5 * t))
 		if not Sprites.draw_named(self, "reject_bin", Rect2(bin + Vector2(-34, 30), Vector2(68, 50)).grow(8.0)):
 			draw_rect(Rect2(bin + Vector2(-34, 30), Vector2(68, 50)), Color(0.3, 0.2, 0.2))
+
+
+func _draw_feel(pad: Rect2, q: Array) -> void:
+	if feel == null:
+		return
+	var c := pad.get_center()
+	if feel.flash_t > 0.0:
+		var col := feel.flash_color
+		col.a = clampf(feel.flash_t / 0.35, 0.0, 1.0) * 0.45
+		draw_rect(pad, col)
+	if feel.gold_t > 0.0 and not q.is_empty():
+		var g := Color(1.0, 0.82, 0.2, clampf(feel.gold_t / 0.9, 0.0, 1.0))
+		draw_rect(Rect2(c - pad.size * 0.4, pad.size * 0.8), g, false, 5.0)
+	if feel.stamp_t > 0.0:
+		var k := feel.stamp_t / 0.3
+		var ink := Color(0.2, 0.8, 0.35, k) if feel.stamp_ship else Color(0.9, 0.2, 0.2, k)
+		var r := pad.size.x * (0.18 + 0.12 * k)
+		draw_arc(c, r, 0.0, TAU, 32, ink, 5.0)
+		_text("SHIP" if feel.stamp_ship else "REJECT", c + Vector2(-r * 0.7, 8.0), 22, ink, r * 1.4)
+	if feel.caught_t > 0.0:
+		var pk := 1.0 + feel.caught_t / 0.7 * 0.4
+		draw_set_transform(pad.position + Vector2(pad.size.x * 0.5 - 60.0, -6.0), 0.0, Vector2(pk, pk))
+		_text("CAUGHT", Vector2.ZERO, 34, Color(1.0, 0.9, 0.3, clampf(feel.caught_t / 0.3, 0.0, 1.0)), 140.0)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _draw_flashes(pad: Rect2) -> void:

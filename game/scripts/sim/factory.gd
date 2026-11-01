@@ -18,7 +18,8 @@ var clog_count: int = 0  # times a machine became clogged
 var crew_busy: bool = false
 var crew_target: String = ""
 var crew_progress: float = 0.0  # 0..1 (0 while walking to the machine)
-var crew_queued: String = ""  # next machine to fix (max 1), tap mode only
+var crew_queue: Array[String] = []  # next machines to fix, in order (max fix_queue_max), tap mode only
+var _jam_left: Dictionary = {}  # machine id -> ticks until an untouched jam clears itself
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
 var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0, "sloppy": 0}
 var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
@@ -46,11 +47,12 @@ var twist_id: String = ""
 var flicker_every: int = 0  # ticks between power flickers (0 = none)
 var flicker_ticks: int = 0
 var inspect_speed: float = 1.0  # multiplies inspect time (career upgrade < 1)
+var shelf_slots: int = 0  # overflow shelf behind the queue; set before qa_capacity
 var qa_capacity: int = 8:
 	set(v):
 		qa_capacity = v
 		if _qa != null:
-			_qa.input_cap = v
+			_qa.input_cap = v + shelf_slots
 
 var _config: SimConfig
 var _qa: Machine = null
@@ -61,6 +63,7 @@ var _inspect_left: int = 0
 var _power_rng := RandomNumberGenerator.new()
 var _next_flicker: int = 0
 var _power_left: int = 0
+var pacing: Pacing
 var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from rng
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
@@ -79,6 +82,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	day_mult = p_day_mult
 	rng.seed = seed
 	_qa_rng.seed = seed * 31 + 17
+	pacing = Pacing.new(config, rng)
 	_power_rng.seed = seed * 53 + 11
 	complaint_penalty = config.complaint_penalty
 	decoy_chance = config.decoy_chance
@@ -105,6 +109,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	for m in machines:
 		if m.type == "qa":
 			_qa = m
+	shelf_slots = config.shelf_slots
 	qa_capacity = config.qa_capacity
 	for ld in config.links:
 		var from: Machine = _by_id[ld["from"]]
@@ -158,6 +163,9 @@ func step() -> void:
 	_inspect_left = maxi(0, _inspect_left - 1)
 	worker.step()
 	_step_crew()
+	pacing.step(_problem_count())
+	if pacing.calm_started:
+		events.append({"type": "calm"})
 	_advance_transit()
 	_step_power()
 	if _power_left <= 0:
@@ -229,7 +237,12 @@ func score() -> int:
 
 ## Products waiting at the QA desk, front first: [{defect, decoy, bot}].
 func qa_queue() -> Array:
-	return _qa_items.duplicate()
+	return _qa_items.slice(0, qa_capacity)
+
+
+## Overflow products waiting for a queue slot, in feeding order (FIFO).
+func qa_shelf() -> Array:
+	return _qa_items.slice(qa_capacity)
 
 
 func inspect_busy() -> bool:
@@ -310,11 +323,11 @@ func _has_fixable() -> bool:
 func _track_qa() -> void:
 	if _qa == null:
 		return
-	var n := _qa_items.size()
+	var n := mini(_qa_items.size(), qa_capacity)
 	qa_ticks += 1
 	qa_queue_sum += n
 	qa_queue_max = maxi(qa_queue_max, n)
-	if n >= qa_capacity:
+	if _qa_items.size() >= qa_capacity + shelf_slots:  # queue AND shelf full: the line blocks
 		qa_full_seen = true
 	if crew_busy:
 		return
@@ -372,7 +385,7 @@ func ramp() -> float:
 
 
 ## Ask the crew to act on a machine: the worker walks there, then the job runs. Recorded for replay.
-## While busy, tapping another machine queues it (max 1); tapping the queued one again cancels it.
+## While busy, tapping another machine appends it to the fix queue (max fix_queue_max); tapping a queued one again cancels it.
 func request_action(machine_id: String) -> int:
 	actions.append({"tick": tick, "machine_id": machine_id})
 	if worker.location != Worker.Location.FLOOR:
@@ -380,18 +393,40 @@ func request_action(machine_id: String) -> int:
 	var m := get_machine(machine_id)
 	var kind := _job_kind(m)
 	if crew_busy:
-		if crew_queued == machine_id:
-			crew_queued = ""
+		if crew_queue.has(machine_id):
+			crew_queue.erase(machine_id)
 			return ActionResult.UNQUEUED
-		if crew_queued != "" or machine_id == crew_target or _config.repair_mode != "tap":
+		if crew_queue.size() >= _config.fix_queue_max or machine_id == crew_target or _config.repair_mode != "tap":
 			return ActionResult.CREW_BUSY
 		if kind != ActionResult.NOTHING_TO_DO:
-			crew_queued = machine_id
+			crew_queue.append(machine_id)
 			return ActionResult.QUEUED
 	if kind != ActionResult.NOTHING_TO_DO:
 		worker.go(Worker.Location.FLOOR)  # stop leaving, if on the way to the stairs
 		_start_walk(m)
 	return kind
+
+
+## Worst-first: queue (or start) the most urgent problem not already queued. Recorded as a normal tap.
+## Order: OVERHEATED > JAMMED > CLOGGED > wrong recipe/misrouted/overclocked > hot; ties: nearest to the worker.
+func request_worst() -> int:
+	var best: Machine = null
+	var best_key := Vector2(99.0, 0.0)
+	for m in machines:
+		if m.id == crew_target or crew_queue.has(m.id) or _job_kind(m) == ActionResult.NOTHING_TO_DO:
+			continue
+		var rank := 4.0
+		if m.state == Machine.State.OVERHEATED: rank = 0.0
+		elif m.state == Machine.State.JAMMED: rank = 1.0
+		elif m.state == Machine.State.CLOGGED: rank = 2.0
+		elif m.overclocked or m.misrouted or m.wrong_recipe: rank = 3.0
+		var key := Vector2(rank, worker.floor_pos.distance_squared_to(m.pos))
+		if key.x < best_key.x or (key.x == best_key.x and key.y < best_key.y):
+			best = m
+			best_key = key
+	if best == null or worker.location != Worker.Location.FLOOR:
+		return ActionResult.NOTHING_TO_DO
+	return request_action(best.id)
 
 
 func _job_kind(m: Machine) -> int:
@@ -439,10 +474,12 @@ func _end_job() -> void:
 	crew_progress = 0.0
 	_held = false
 	_crew_walking = false
-	var next := get_machine(crew_queued)
-	crew_queued = ""
-	if _job_kind(next) != ActionResult.NOTHING_TO_DO and worker.location == Worker.Location.FLOOR:
-		_start_walk(next)
+	while not crew_queue.is_empty() and worker.location == Worker.Location.FLOOR:
+		var next := get_machine(crew_queue.pop_front())
+		if _job_kind(next) != ActionResult.NOTHING_TO_DO:
+			_start_walk(next)
+			return
+	crew_queue.clear()
 
 
 func _step_crew() -> void:
@@ -492,7 +529,9 @@ func _step_machine(m: Machine) -> void:
 		m.state = Machine.State.CLOGGED if m.junk_count > 0 else Machine.State.IDLE
 		return
 	if m.is_faulted():
+		_step_jam(m)
 		return
+	_jam_left.erase(m.id)
 	if m.venting:
 		m.state = Machine.State.IDLE
 		m.heat = maxf(0.0, m.heat - _config.vent_cool_per_sec / _config.tick_rate)
@@ -526,16 +565,46 @@ func _step_machine(m: Machine) -> void:
 		m.heat = maxf(0.0, m.heat - m.cool_per_sec / rate)
 
 
+## An untouched JAMMED machine clears itself after jam_self_clear_seconds; OVERHEATED never does.
+func _step_jam(m: Machine) -> void:
+	if m.state != Machine.State.JAMMED or _config.jam_self_clear_seconds <= 0.0:
+		return
+	if crew_busy and crew_target == m.id:  # a crew job on it cancels the timer
+		_jam_left.erase(m.id)
+		return
+	var left: int = _jam_left.get(m.id, maxi(1, roundi(_config.jam_self_clear_seconds * _config.tick_rate))) - 1
+	if left > 0:
+		_jam_left[m.id] = left
+		return
+	_jam_left.erase(m.id)
+	m.state = Machine.State.IDLE
+	events.append({"type": "self_clear", "machine_id": m.id})
+
+
 func _roll(m: Machine, mistake: String) -> bool:
 	if m.bot == null:
 		return false
-	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult)
+	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult) * pacing.rate_mult()
+	if p <= 0.0 or not pacing.allows():  # blocked by the pacing director: re-rolled next tick
+		return false
 	if mistake == "overclock":
 		p *= overclock_mult
-	return p > 0.0 and rng.randf() < p
+	return rng.randf() < p
+
+
+## Machines that currently need the crew (fault, clog, overclock, misroute, wrong recipe).
+func _problem_count() -> int:
+	var n := 0
+	for m in machines:
+		if m.type == "qa":
+			continue
+		if m.is_faulted() or m.state == Machine.State.CLOGGED or m.overclocked or m.misrouted or m.wrong_recipe:
+			n += 1
+	return n
 
 
 func _mistake(m: Machine, mistake: String) -> void:
+	pacing.note_mistake()
 	mistake_counts[mistake] += 1
 	var ev := {"type": "mistake", "mistake": mistake, "machine_id": m.id, "bot": m.bot.name}
 	events.append(ev)

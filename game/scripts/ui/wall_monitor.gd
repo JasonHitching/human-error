@@ -5,6 +5,7 @@ extends Control
 ## Reads the sim via StatusBoard only. Tapping anywhere on it asks to go to the floor.
 
 const FLASH_SECS := 2.0
+const QUIET_SECS := 2.0
 const COL := {
 	StatusBoard.Light.GREEN: Color(0.25, 0.8, 0.35),
 	StatusBoard.Light.AMBER: Color(1.0, 0.75, 0.15),
@@ -18,6 +19,7 @@ var call_text: String = ""
 var call_color: Color = Color.WHITE
 var flash_id: String = ""
 var flash_left: float = 0.0
+var quiet_left: float = 0.0  # "All quiet." cue time left (a calm window just began)
 var _count: int = 0
 var _font: Font = ThemeDB.fallback_font
 var _time: float = 0.0
@@ -28,6 +30,7 @@ func setup(b: StatusBoard) -> void:
 	call_text = ""
 	flash_id = ""
 	flash_left = 0.0
+	quiet_left = 0.0
 	_count = 0
 	queue_redraw()
 
@@ -50,6 +53,10 @@ func poll() -> void:
 	if board == null:
 		return
 	var alarms := board.new_alarms()
+	var calm := board.calm_began()
+	if alarms.is_empty() and calm:
+		quiet_left = QUIET_SECS
+		call_text = ""
 	if not alarms.is_empty():
 		var m: Machine = alarms.back()
 		flash_id = m.id
@@ -61,12 +68,14 @@ func poll() -> void:
 			call_text = "%s needs you!" % m.id
 			call_color = Color.WHITE
 		_count += 1
+		quiet_left = 0.0
 
 
 func _process(d: float) -> void:
 	_time += d
 	if flash_left > 0.0:
 		flash_left = maxf(0.0, flash_left - d)
+	quiet_left = maxf(0.0, quiet_left - d)
 	if is_visible_in_tree():
 		queue_redraw()
 
@@ -94,5 +103,7 @@ func _draw() -> void:
 		var name := m.bot.name if m.bot != null else m.id
 		var bc := m.bot.color if m.bot != null else Color(0.85, 0.87, 0.92)
 		draw_string(_font, Vector2(r.position.x - 20, r.end.y + 30), name, HORIZONTAL_ALIGNMENT_CENTER, r.size.x + 40, 24, bc)
-	if call_text != "":
+	if quiet_left > 0.0:
+		draw_string(_font, Vector2(16, size.y - 100), "All quiet.", HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, 26, Color(0.6, 0.9, 0.7))
+	elif call_text != "":
 		draw_string(_font, Vector2(16, size.y - 100), call_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32, 26, call_color)

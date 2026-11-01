@@ -3,11 +3,17 @@ extends RefCounted
 ## Scripted players for sim_runner (not in-game bots). They act as if holding (never release).
 ## none: never acts or moves. greedy: fixes first, else inspects. careful: stays at the desk while the queue is long.
 
-const NAMES := ["none", "greedy", "careful"]
+const NAMES := ["none", "greedy", "careful", "human", "human_careful"]
 const VENT_HEAT := 80.0
 const ACCURACY := 0.95
 const CAREFUL_QUEUE := 4
 const CAREFUL_VENT_HEAT := 55.0
+## human / human_careful: greedy / careful, but paced like a person: notices a problem after REACT ticks, one move per GAP ticks,
+## one inspection per INSPECT_GAP ticks, a bit less accurate. Used to check the game is fair for people.
+const HUMAN_REACT := 15
+const HUMAN_GAP := 8
+const HUMAN_INSPECT_GAP := 12
+const HUMAN_ACCURACY := 0.9
 
 
 ## Own RNG for inspection mistakes (never the factory's). Seed it per run.
@@ -21,17 +27,29 @@ static func make_rng(seed: int) -> RandomNumberGenerator:
 ## Trips: greedy walks to the floor as soon as anything needs fixing and back when all is fixed;
 ## it fixes in the order problems appeared. careful stays in the office while the queue is long
 ## (unless a machine is red), walks to the nearest fix next, queues the one after and batches.
-static func act(player: String, f: Factory, rng: RandomNumberGenerator = null, mem: Dictionary = {}) -> void:
-	if player == "none":
+static func act(who: String, f: Factory, rng: RandomNumberGenerator = null, mem: Dictionary = {}) -> void:
+	if who == "none":
 		return
+	var paced := who.begins_with("human")  # human pacing on top of the policy
+	var player := "careful" if who.ends_with("careful") else "greedy"  # the policy
 	var order: Array = mem.get_or_add("order", [])
+	var seen: Dictionary = mem.get_or_add("seen", {})
 	for m in f.machines:  # remember when problems appeared
-		if _needs(m, VENT_HEAT) and not order.has(m.id):
-			order.append(m.id)
-		elif not _needs(m, VENT_HEAT):
+		if _needs(m, VENT_HEAT):
+			if paced:
+				if not seen.has(m.id):
+					seen[m.id] = f.tick
+				if f.tick - int(seen[m.id]) >= HUMAN_REACT and not order.has(m.id):
+					order.append(m.id)  # noticed
+			elif not order.has(m.id):
+				order.append(m.id)
+		else:
 			order.erase(m.id)
+			seen.erase(m.id)
+	if paced and f.tick < int(mem.get("next", 0)):
+		return
 	if f.crew_busy:
-		if player == "careful" and f.crew_queued == "":
+		if player == "careful" and f.crew_queue.is_empty():
 			var nxt := _nearest(f, f.get_machine(f.crew_target).pos, CAREFUL_VENT_HEAT, f.crew_target)
 			if nxt != null:
 				f.request_action(nxt.id)
@@ -43,16 +61,19 @@ static func act(player: String, f: Factory, rng: RandomNumberGenerator = null, m
 			job = _pick(player, f, CAREFUL_VENT_HEAT, order)  # batch: vent warm machines while already here
 		if job != null:
 			f.request_action(job.id)
+			mem["next"] = f.tick + HUMAN_GAP
 		elif f.transit_target() != Worker.Location.OFFICE:
 			f.go_to_office()
+			mem["next"] = f.tick + HUMAN_GAP
 		return
-	var want_floor := job != null and (player == "greedy" or f.qa_queue().size() < CAREFUL_QUEUE or _red(f))
+	var want_floor := job != null and (player != "careful" or f.qa_queue().size() < CAREFUL_QUEUE or _red(f))
 	if loc == Worker.Location.TRANSIT:
 		if want_floor:
 			f.go_to_floor()  # no-op if already heading there; else turn back
 		return
 	if want_floor:
 		f.go_to_floor()
+		mem["next"] = f.tick + HUMAN_GAP
 		return
 	if f.inspect_busy() or rng == null:
 		return
@@ -60,8 +81,10 @@ static func act(player: String, f: Factory, rng: RandomNumberGenerator = null, m
 	if q.is_empty():
 		return
 	var good := String((q[0] as Dictionary)["defect"]) == ""
-	var right := rng.randf() < ACCURACY
+	var right := rng.randf() < (HUMAN_ACCURACY if paced else ACCURACY)
 	f.inspect(good == right)  # ship good / reject bad when right; the opposite when wrong
+	if paced:
+		mem["next"] = f.tick + HUMAN_INSPECT_GAP
 
 
 static func _red(f: Factory) -> bool:
