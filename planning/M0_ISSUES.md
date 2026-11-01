@@ -84,12 +84,13 @@ Read `docs/GAME_DESIGN.md` § M0 (Root faults, Player actions, The shift).
   - Repair a faulted machine: takes `repair_seconds`; then clears fault, heat → 0.
   - Vent a WORKING machine with heat ≥ `vent_min_heat`: machine pauses `vent_seconds`, heat drops at `vent_cool_per_sec`.
   - Expose `crew_busy: bool`, `crew_target: String`, `crew_progress: float`.
+  - `repair_mode` in `balance.json`: `"tap"` (default — action runs to completion) or `"hold"` (action progresses only while held; `func release_action() -> void` cancels it and progress resets). Bots act as if holding.
 - Shift: `func is_over() -> bool` after `shift_seconds`; `var target: int` from balance.
 - Faulted machines don't process; knock-on states propagate naturally from M0-03 logic.
 - Record actions as `(tick, machine_id)` so a run can be replayed exactly: `func replay(actions: Array) ` or constructor option.
 - Bots in `game/tools/bots.gd`: `none` (never acts), `greedy` (repairs any fault immediately, else vents hottest machine ≥ 80 heat). `sim_runner --bot none|greedy` reports shipped stats, faults per shift by type, mean seconds machines spent faulted, % of runs with 2+ simultaneous faults.
 - All new numbers in `balance.json` / `factory_m0.json`.
-- Tests: overheat triggers at 100; vent reduces heat; crew busy rejects second action; repair clears fault; same seed + same actions ⇒ same result.
+- Tests: overheat triggers at 100; vent reduces heat; crew busy rejects second action; repair clears fault; hold mode: release cancels and resets progress; same seed + same actions ⇒ same result.
 
 **Accept:** tests pass; `sim_runner` output for both bots (seed 1, 50 runs) in PR body. Values don't need to be balanced yet.
 
@@ -106,7 +107,7 @@ Read `docs/GAME_DESIGN.md` § M0 (Player actions, Visuals).
 **Do**
 - `scripts/view/factory_view.gd` (Node2D, `_draw`): machines as rounded rects at their position hints; colour by state (faults bright red/orange with text "JAMMED"/"OVERHEAT"; STARVED/BLOCKED muted grey-blue with small text; WORKING green; IDLE neutral); heat bar on each; links as lines; moving dots from `items_in_transit()`; crew progress ring/bar on the target machine.
 - `main.gd`: owns the `Factory`, steps it at fixed `tick_rate` using an accumulator in `_process`; view interpolates between ticks for smooth motion.
-- Tap/click on a machine → `request_action`. Feedback: brief flash/text for `CREW_BUSY` ("Crew busy") and `NOTHING_TO_DO` on a knock-on machine ("Not broken — look upstream/downstream").
+- Tap/click on a machine → `request_action`. In `hold` repair mode, call `release_action()` when the finger/mouse is released or leaves the machine. Feedback: brief flash/text for `CREW_BUSY` ("Crew busy") and `NOTHING_TO_DO` on a knock-on machine ("Not broken — look upstream/downstream").
 - `scripts/ui/hud.gd`: time left, shipped / target, best (saved to `user://best.json`), crew status.
 - End-of-shift overlay: shipped / target, best, **Restart** (new seed) and **Replay** (same seed). Show seed small in a corner.
 - All built in code; `main.tscn` stays minimal. Works with mouse and touch.

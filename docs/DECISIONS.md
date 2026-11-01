@@ -18,3 +18,4 @@ One line each. Newest at the bottom. Don't re-argue settled decisions without ne
 | 12 | Playtest via web build on GitHub Pages | Works on PC and phone without installing Godot |
 | 13 | One GitHub issue → one cloud session → one PR | Small contexts, small reviews, cheap retries |
 | 14 | Opus plans and writes issues; Sonnet implements; Haiku tunes data | Token cost |
+| 15 | `repair_mode` tap vs hold is a data setting | Cheap A/B in playtest |

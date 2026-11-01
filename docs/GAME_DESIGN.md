@@ -72,6 +72,8 @@ The player has **one repair crew**. The crew does one job at a time.
 
 - Repair = reactive. Vent = predictive (this is where "Predict" in the loop gets a verb).
 - The crew is the scarce resource. Two problems at once means a decision.
+- **Experiment:** `repair_mode` setting — `tap` (crew finishes the job on its own) vs `hold` (you hold your finger on the machine; you *are* the crew). Playtest both.
+- Depth comes from decisions, not controls. If the playtest says "not enough to do", next inputs in order: **throttle** (slower, cooler), **reroute** a link, **shut down** a machine. These are also the building blocks for M4 "teach the factory" rules.
 
 ### Visuals (M0)
 Ugly but readable, and **must have motion**:
@@ -108,6 +110,7 @@ Ugly but readable, and **must have motion**:
 - **M2 Intervention economy:** more crew/tools, upgrades between shifts.
 - **M3 Factory intelligence:** the factory detects or handles some faults itself.
 - **M4 Reverse loop:** after you fix the same fault pattern N times, the factory offers "Automate this response?" — the factory learns from you.
+- **Shift variety:** career of shifts at a growing factory, shift types (rush order, heatwave).
 - **Later:** daily seeded shift, shareable factory configs ("keep my terrible factory alive"), presentation pass (cute, miniature, slightly chaotic).
 
 ## Constraints that always apply
