@@ -6,10 +6,8 @@ extends RefCounted
 const NAMES := ["none", "greedy", "careful"]
 const VENT_HEAT := 80.0
 const ACCURACY := 0.95
-static var CAREFUL_QUEUE := int(OS.get_environment("CQ")) if OS.has_environment("CQ") else 4  # TMPX
-static var CAREFUL_VENT_HEAT := float(OS.get_environment("CV")) if OS.has_environment("CV") else 55.0  # TMPX
-static var PRI := OS.has_environment("PRI")  # TMPX
-static var NOQ := OS.has_environment("NOQ")  # TMPX
+const CAREFUL_QUEUE := 4
+const CAREFUL_VENT_HEAT := 55.0
 
 
 ## Own RNG for inspection mistakes (never the factory's). Seed it per run.
@@ -33,7 +31,7 @@ static func act(player: String, f: Factory, rng: RandomNumberGenerator = null, m
 		elif not _needs(m, VENT_HEAT):
 			order.erase(m.id)
 	if f.crew_busy:
-		if player == "careful" and f.crew_queued == "" and not NOQ:
+		if player == "careful" and f.crew_queued == "":
 			var nxt := _nearest(f, f.get_machine(f.crew_target).pos, CAREFUL_VENT_HEAT, f.crew_target)
 			if nxt != null:
 				f.request_action(nxt.id)
@@ -94,12 +92,6 @@ static func _pick(player: String, f: Factory, vent_heat: float, order: Array) ->
 
 static func _nearest(f: Factory, from: Vector2, vent_heat: float, skip: String) -> Machine:
 	var best: Machine = null
-	if PRI:  # TMPX
-		for m in f.machines:
-			if m.id != skip and (m.is_faulted() or m.state == Machine.State.CLOGGED) and (best == null or from.distance_to(m.pos) < from.distance_to(best.pos)):
-				best = m
-		if best != null:
-			return best
 	for m in f.machines:
 		if m.id != skip and _needs(m, vent_heat) and (best == null or from.distance_to(m.pos) < from.distance_to(best.pos)):
 			best = m

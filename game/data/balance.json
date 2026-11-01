@@ -22,7 +22,7 @@
   "decoy_chance": 0.2,
   "inspect_seconds": 0.5,
   "transition_seconds": 0.6,
-  "walk_speed": 1.5,
+  "walk_speed": 1.0,
   "complaint_penalty": 3,
   "quick_eye_mult": 0.8,
   "bigger_desk_bonus": 2,
