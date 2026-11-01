@@ -11,6 +11,7 @@ enum InspectResult { SHIPPED, COMPLAINT, CAUGHT, WASTED, NOT_AT_DESK, EMPTY, BUS
 const DEFECTS := ["missing_bolt", "crack", "wrong_paint", "flipped_label", "dent"]
 const DECOYS := ["scuff", "sticker_blue", "sticker_green"]
 enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO, NOT_ON_FLOOR, QUEUED, UNQUEUED }
+enum RadioResult { FIXED, NO_RADIO, NOT_IN_OFFICE, COOLDOWN, NOT_ALLOWED }
 
 var target: int = 0
 var scrapped: int = 0
@@ -78,6 +79,15 @@ var subtle_caught: int = 0  # ... of which rejected
 var subtle_shipped: int = 0  # subtle defects shipped (complaints)
 var scans: int = 0
 var scan_queue_max: int = 5  # autoplayer hint: scan only while the queue is shorter than this
+var radio_enabled: bool = false  # career offer: fix a jam from the office
+var supervise_bot: String = ""  # career offer: this bot errs less while the worker is near its machine
+var auto_inspect: bool = false  # career offer: a bot at the desk inspects while the worker is away
+var auto_inspected: int = 0
+var auto_wrong: int = 0
+var radio_fixes: int = 0
+var _radio_left: int = 0
+var _auto_left: int = 0
+var _auto_rng := RandomNumberGenerator.new()
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
 var _crew_left: int = 0
@@ -97,6 +107,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	_qa_rng.seed = seed * 31 + 17
 	_subtle_rng.seed = seed * 37 + 5
 	_learn_rng.seed = seed * 59 + 7
+	_auto_rng.seed = seed * 61 + 3
 	scan_queue_max = config.scan_queue_max
 	scan_ticks = maxi(1, roundi(config.scan_seconds * config.tick_rate))
 	pacing = Pacing.new(config, rng)
@@ -179,6 +190,8 @@ func step() -> void:
 	tick += 1
 	_inspect_left = maxi(0, _inspect_left - 1)
 	worker.step()
+	_radio_left = maxi(0, _radio_left - 1)
+	_step_auto_inspect()
 	_step_crew()
 	pacing.step(_problem_count())
 	if pacing.calm_started:
@@ -334,6 +347,11 @@ func inspect(ship: bool) -> int:
 	_last_inspected = {"defect": item["defect"], "decoy": item.get("decoy", ""), "bot": item.get("bot", "")}
 	_qa.input_count = maxi(0, _qa.input_count - 1)
 	_inspect_left = maxi(1, roundi(_config.inspect_seconds * inspect_speed * _config.tick_rate))
+	return _resolve(item, ship)
+
+
+## Ship or reject one product (shared by the worker and the auto-inspector).
+func _resolve(item: Dictionary, ship: bool) -> int:
 	var bad := item_bad(item)
 	var subtle := bad and bool(item.get("subtle", false))
 	if ship:
@@ -357,6 +375,66 @@ func inspect(ship: bool) -> int:
 	wasted += 1
 	streak = 0
 	return InspectResult.WASTED
+
+
+## Career perks (see Career.perks): radio, supervise (bot name), auto_inspect.
+func apply_perks(p: Dictionary) -> void:
+	radio_enabled = bool(p.get("radio", false))
+	supervise_bot = String(p.get("supervise", ""))
+	auto_inspect = bool(p.get("auto_inspect", false))
+
+
+func radio_ready() -> bool:
+	return radio_enabled and _radio_left <= 0 and worker.location == Worker.Location.OFFICE
+
+
+## Radio: clear a JAMMED machine from the office (not overheats). Cooldown radio_cooldown. Recorded for replay.
+func radio_fix(machine_id: String) -> int:
+	actions.append({"tick": tick, "radio": machine_id})
+	if not radio_enabled:
+		return RadioResult.NO_RADIO
+	if worker.location != Worker.Location.OFFICE:
+		return RadioResult.NOT_IN_OFFICE
+	if _radio_left > 0:
+		return RadioResult.COOLDOWN
+	var m := get_machine(machine_id)
+	if m == null or m.state != Machine.State.JAMMED:
+		return RadioResult.NOT_ALLOWED
+	if crew_busy and crew_target == machine_id:
+		return RadioResult.NOT_ALLOWED
+	_note_fixed(m, ActionResult.STARTED_REPAIR)
+	m.state = Machine.State.IDLE
+	_jam_left.erase(m.id)
+	_radio_left = maxi(1, roundi(_config.radio_cooldown * _config.tick_rate))
+	radio_fixes += 1
+	events.append({"type": "radio_fix", "machine_id": m.id})
+	return RadioResult.FIXED
+
+
+func radio_cooldown_left() -> float:
+	return float(_radio_left) / float(_config.tick_rate)
+
+
+## While the worker is away from the desk, the auto-inspector handles one product every auto_inspect_seconds, and sometimes gets it wrong.
+func _step_auto_inspect() -> void:
+	if not auto_inspect or _qa == null or worker_at_desk():
+		_auto_left = 0
+		return
+	if _auto_left <= 0:
+		_auto_left = maxi(1, roundi(_config.auto_inspect_seconds * _config.tick_rate))
+	_auto_left -= 1
+	if _auto_left > 0 or _qa_items.is_empty():
+		return
+	_auto_left = maxi(1, roundi(_config.auto_inspect_seconds * _config.tick_rate))
+	var item: Dictionary = _qa_items.pop_front()
+	_qa.input_count = maxi(0, _qa.input_count - 1)
+	var right := _auto_rng.randf() >= _config.auto_inspect_error
+	var ship := (not item_visible_bad(item)) == right
+	auto_inspected += 1
+	if not right:
+		auto_wrong += 1
+	_resolve(item, ship)
+	events.append({"type": "auto_inspect"})
 
 
 ## Scan the front product: reveals a subtle defect. Busy for scan_seconds. Recorded for replay.
@@ -592,8 +670,9 @@ func _note_fixed(m: Machine, kind: int) -> void:
 
 
 ## Replay a recorded run: same seed + same action list => same result.
-static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ticks: int) -> Factory:
+static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ticks: int, perks: Dictionary = {}) -> Factory:
 	var f := Factory.new(config, seed)
+	f.apply_perks(perks)
 	var i := 0
 	for _t in ticks:
 		while i < recorded.size() and int(recorded[i]["tick"]) <= f.tick:
@@ -601,6 +680,8 @@ static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ti
 				f.release_action()
 			elif recorded[i].has("scan"):
 				f.scan()
+			elif recorded[i].has("radio"):
+				f.radio_fix(String(recorded[i]["radio"]))
 			elif recorded[i].has("inspect"):
 				f.inspect(bool(recorded[i]["ship"]))
 			elif recorded[i].has("go"):
@@ -678,6 +759,9 @@ func _roll(m: Machine, mistake: String) -> bool:
 	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult) * pacing.rate_mult()
 	if p <= 0.0 or not pacing.allows():  # blocked by the pacing director: re-rolled next tick
 		return false
+	if supervise_bot != "" and m.bot.name == supervise_bot and worker.location == Worker.Location.FLOOR \
+			and worker.floor_pos.distance_to(m.pos) <= _config.supervise_radius:
+		p *= _config.supervise_mult  # the worker is watching this bot
 	if mistake == "overclock":
 		p *= overclock_mult
 	return rng.randf() < p

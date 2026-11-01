@@ -65,6 +65,11 @@ var rookie_days: Array[int] = [4, 7, 10]
 var learn_after: int = 3
 var learn_chance: float = 0.5
 var learn_mult: float = 0.5
+var radio_cooldown: float = 12.0
+var supervise_mult: float = 0.5
+var supervise_radius: float = 0.35
+var auto_inspect_seconds: float = 3.0
+var auto_inspect_error: float = 0.25
 var repair_mode: String = "tap"  # "tap" or "hold"
 var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
@@ -144,6 +149,11 @@ func _load_balance(b: Dictionary) -> void:
 	learn_after = int(_opt(b, "learn_after", learn_after, 1.0, 1000.0))
 	learn_chance = _opt(b, "learn_chance", learn_chance, 0.0, 1.0)
 	learn_mult = _opt(b, "learn_mult", learn_mult, 0.0, 1.0)
+	radio_cooldown = _opt(b, "radio_cooldown", radio_cooldown, 0.0, 1.0e4)
+	supervise_mult = _opt(b, "supervise_mult", supervise_mult, 0.0, 1.0)
+	supervise_radius = _opt(b, "supervise_radius", supervise_radius, 0.0, 10.0)
+	auto_inspect_seconds = _opt(b, "auto_inspect_seconds", auto_inspect_seconds, 0.1, 1.0e4)
+	auto_inspect_error = _opt(b, "auto_inspect_error", auto_inspect_error, 0.0, 1.0)
 	if b.has("rookie_days"):
 		rookie_days.clear()
 		for v: Variant in b["rookie_days"]:

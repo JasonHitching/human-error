@@ -98,6 +98,7 @@ func _show_day() -> void:
 	_screens.factory = _factory
 	var board := StatusBoard.new(_factory.machines, _config.monitor_amber_heat)
 	_screens.wall.setup(board)
+	_screens.wall.radio = _factory.radio_enabled
 	_view.setup(_factory, _config)
 	_view.board = board
 	_feel.reset()
