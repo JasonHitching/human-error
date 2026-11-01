@@ -14,7 +14,7 @@ You're the one human on a factory floor of cheerful, incompetent robots. Your jo
 ### M2 — The QA Desk *(done — see `docs/checkpoints/M2.md`)*
 The worker's own job, so there's no idle time. Every product queues at your desk; swipe to ship or reject; defects come from sloppy bots; a backlog builds while you fix machines; a full queue backs up the line. Only defects you ship reach customers (complaints). **Gate:** idle time < 30% for the greedy autoplayer; career targets still hold.
 
-### M3 — Two Rooms *(specced as issues; replanned at checkpoint M2 from playtests #35, #36)*
+### M3 — Two Rooms *(done — see `docs/checkpoints/M3.md`; replanned at checkpoint M2 from playtests #35, #36)*
 Changed from "A Living Floor": one screen with factory + desk was sensory overload (#36), and players couldn't tell what a good product looks like (#35).
 - **Spec card:** a reference picture of the perfect product next to the pad; on a wrong call, flash why ("Missed: CRACK" / "That was fine — just a scuff"); the review lists missed defect types.
 - **Two screens instead of a walking worker:** the calm **QA office** (default: desk, spec card, queue, ✖/✔) and the **factory floor** (full screen, fix machines). Going between them costs `transition_seconds` (~0.8 s); the worker is "away from desk" on the floor and in transit. Sim gains worker location `office|floor|transit`.
@@ -23,13 +23,14 @@ Changed from "A Living Floor": one screen with factory + desk was sensory overlo
 - **Sprite loader with fallback** (agreed file names, so Jason can draw against them) and **procedural sound** with a mute toggle.
 - Later (M4 candidates): Foreman changes the spec mid-career; a "radio" upgrade to fix one simple fault from the office.
 
-### M4 — Career Depth
-- **Floor walking with real travel time (candidate, from Jason):** on the floor screen, walking distance between machines adds time, so the order of fixes matters. Consider it if the M3 checkpoint still shows careful ≈ greedy (player choices not mattering). The worker is already visible and walking cosmetically from M3-05 (#42).
-- **Shift twists:** one per day from day 3 (heatwave, rush order, inspection day, power flicker).
-- **Rookie bots** join mid-career (untrained, new personalities); roster grows to about 8 bots.
-- **Bot learning:** fix the same mistake on a bot N times and it may learn ("Noted. Will not do that again.").
-- **QA depth:** subtle defects and decoys in later days; flip-to-check-back products; X-ray lamp upgrade.
-- **More offers:** bigger desk, quick eye, supervise (a watched bot errs less), auto-inspector bot (which errs).
+### M4 — Career Depth *(specced as issues #53–#58 at checkpoint M3)*
+Main aim: **player choices matter** (careful ≈ greedy since M2). Target by the end: careful career median ≥ greedy + 2.
+- **M4-01 Floor walking with real travel time** (#53, from Jason): distance between machines costs time; optional queued fix; the order of fixes matters.
+- **M4-02 Shift twists** (#54): one per day from day 3 (heatwave, rush order, inspection day, power flicker), data in `twists.json`.
+- **M4-03 QA depth** (#55): the Foreman changes the spec mid-career (M3 candidate); subtle defects in later days. Aim: careers stop ending almost only on `sloppy`.
+- **M4-04 Rookie bots + bot learning** (#56): rookies join mid-career (roster ~8); fixing the same mistake N times may teach a bot.
+- **M4-05 New offers + balance** (#57): radio (fix a jam from the office, M3 candidate), supervise, auto-inspector (which errs); full career balance.
+- Deferred to M5 or later: flip-to-check-back products, X-ray lamp.
 
 ### M5 — Meta & Prestige
 - **Save system** (`user://save.json`).
