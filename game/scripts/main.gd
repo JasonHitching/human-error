@@ -5,7 +5,7 @@ const BEST_PATH := "user://best.json"
 const HUD_TOP := 110.0
 const SWIPE_MIN := 80.0
 const COLOUR_NAME := "blue"  # matches QaDeskView.COL_BODY
-const HINT := "Swipe → ship good ones, ← reject defects.\nBots call for help. Go down to fix, come back up to inspect."
+const HINT := "Swipe right: ship good ones. Swipe left: reject defects.\nBots call for help. Go down to fix, come back up to inspect."
 
 enum Phase { BANNER, PLAYING, REVIEW, FIRED }
 
@@ -57,8 +57,8 @@ func _ready() -> void:
 	_hud.continue_pressed.connect(_next_day)
 	_hud.restart_pressed.connect(func() -> void: _new_career(int(Time.get_ticks_usec())))
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
-	_ship_btn = _inspect_button("✔ Ship", true)
-	_reject_btn = _inspect_button("✖ Reject", false)
+	_ship_btn = _inspect_button("Ship", true)
+	_reject_btn = _inspect_button("Reject", false)
 	_mute_btn = Button.new()
 	_mute_btn.add_theme_font_size_override("font_size", 28)
 	_mute_btn.pressed.connect(_toggle_mute)
@@ -101,7 +101,7 @@ func _toggle_mute() -> void:
 func _refresh_mute() -> void:
 	var icon := Sprites.tex("icon_mute" if _muted else "icon_sound")
 	_mute_btn.icon = icon
-	_mute_btn.text = "" if icon != null else ("🔇" if _muted else "🔊")
+	_mute_btn.text = "" if icon != null else ("Muted" if _muted else "Sound")
 	_mute_btn.expand_icon = icon != null
 
 
@@ -139,7 +139,7 @@ func _inspect(ship: bool) -> void:
 		_sfx.play("ship" if ship else "reject")
 	match res:
 		Factory.InspectResult.NOT_AT_DESK:
-			_desk.flash("BRB — busy at a machine", Color(0.8, 0.8, 0.85))
+			_desk.flash("BRB - busy at a machine", Color(0.8, 0.8, 0.85))
 		Factory.InspectResult.COMPLAINT:
 			_sfx.play("complaint")
 			_desk.flash("COMPLAINT!", Color(1.0, 0.25, 0.2), 1.6)
@@ -148,7 +148,7 @@ func _inspect(ship: bool) -> void:
 		Factory.InspectResult.WASTED:
 			var decoy := String(_factory.last_inspected()["decoy"])
 			var why := "no defect" if decoy == "" else "just a " + ("sticker" if decoy.begins_with("sticker") else decoy)
-			_desk.flash("That was fine — " + why, Color(1.0, 0.75, 0.3), 2.0)
+			_desk.flash("That was fine - " + why, Color(1.0, 0.75, 0.3), 2.0)
 		Factory.InspectResult.CAUGHT:
 			_desk.flash("Caught it!", Color(0.4, 1.0, 0.5))
 
@@ -169,7 +169,7 @@ func _fit() -> void:
 	var strip := _screens.desk_rect()
 	if _mute_btn != null:
 		_mute_btn.size = Vector2(80, 80)
-		_mute_btn.position = Vector2(size.x - 88.0, size.y - 168.0)
+		_mute_btn.position = Vector2(size.x - _mute_btn.size.x - 8.0, size.y - 168.0)
 	if _ship_btn != null:
 		var w := size.x * 0.45
 		var y := strip.end.y - 104.0
@@ -195,6 +195,8 @@ func _process(delta: float) -> void:
 			_acc -= dt
 		if _factory.is_over():
 			_end_shift()
+	if _view != null and _screens != null and _view.area != _screens.floor_rect():
+		_fit()  # never draw the floor from a stale rect
 	_desk.visible = _phase == Phase.PLAYING
 	if _phase == Phase.PLAYING and _career.day == 1 and not _decoy_tip_shown:
 		var q := _factory.qa_queue()
@@ -305,9 +307,9 @@ func _apply_tap(id: String) -> void:
 			pass
 		Factory.ActionResult.NOTHING_TO_DO:
 			if m.state == Machine.State.STARVED:
-				_flash("Not broken — look upstream")
+				_flash("Not broken - look upstream")
 			elif m.state == Machine.State.BLOCKED:
-				_flash("Not broken — look downstream")
+				_flash("Not broken - look downstream")
 		_:
 			_holding = true
 

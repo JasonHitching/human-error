@@ -160,7 +160,9 @@ func _draw_anim(pad: Rect2) -> void:
 	var c := pad.get_center()
 	if _anim["kind"] == "ship":
 		draw_product(_anim["item"], c + Vector2(t * (rect.size.x * 0.6), 0), pad.size * 0.8)
-		_text("✔", c + Vector2(-20, 20), 70, Color(0.3, 1.0, 0.4, 1.0 - t), 60.0)
+		var ck := Color(0.3, 1.0, 0.4, 1.0 - t)
+		draw_line(c + Vector2(-26, 0), c + Vector2(-8, 20), ck, 8.0)
+		draw_line(c + Vector2(-8, 20), c + Vector2(28, -24), ck, 8.0)
 	else:
 		var bin := Vector2(rect.position.x + 50, rect.end.y - 120)
 		draw_product(_anim["item"], c.lerp(bin, t) + Vector2(0, t * t * 40.0), pad.size * 0.8 * (1.0 - 0.5 * t))

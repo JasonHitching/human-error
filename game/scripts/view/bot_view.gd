@@ -23,7 +23,7 @@ static func draw(ci: CanvasItem, pos: Vector2, col: Color, mood: int, t: float, 
 	ci.draw_rect(Rect2(-9, -18, 18, 12), dark, false, 2.0)
 	ci.draw_line(Vector2(0, -18), Vector2(0, -23), dark, 2.0)  # antenna
 	if mood == 1:
-		var shake := sin(t * 40.0) * 1.2
+		var shake := 0.0  # static: no continuous jitter
 		ci.draw_circle(Vector2(shake, -12), 5.0, Color.WHITE)
 		ci.draw_circle(Vector2(shake, -12), 2.5, Color(0.9, 0.1, 0.1))
 	else:
