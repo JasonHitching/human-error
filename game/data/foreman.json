@@ -20,6 +20,11 @@
   "Not enough widgets. Not enough anything.",
   "Missed it. The strike board gets another mark."
  ],
+ "probation": [
+  "Probation. I'll pretend this didn't happen.",
+  "Short, but it's your first week. No strike. Yet.",
+  "Probation day. I didn't see that."
+ ],
  "fired": [
   "You're fired. Hand back your hard hat.",
   "That's strikes. Security will show you out.",

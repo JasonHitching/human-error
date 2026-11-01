@@ -101,6 +101,7 @@ func _draw() -> void:
 		_slide = 1.0
 	_last_q = q.size()
 	_draw_queue(q)
+	_draw_shelf()
 	var pad := pad_rect()
 	_draw_pad(pad)
 	_draw_spec()
@@ -116,6 +117,31 @@ func _draw() -> void:
 	_draw_flashes(pad)
 	if hint != "":
 		_draw_hint()
+
+
+## Strip under the queue boxes holding the overflow shelf (inside the desk rect).
+func shelf_rect() -> Rect2:
+	return Rect2(rect.position.x + 12.0, rect.position.y + 48.0, rect.size.x - 24.0, 18.0)
+
+
+func _draw_shelf() -> void:
+	var slots: int = factory.shelf_slots
+	if slots <= 0:
+		return
+	var n: int = factory.qa_shelf().size()
+	var col := Color(0.55, 0.57, 0.65)
+	if n >= slots:
+		col = Color(0.95, 0.25, 0.2)
+	elif n > 0:
+		col = Color(1.0, 0.6, 0.15)
+	var r := shelf_rect()
+	for i in slots:
+		var b := Rect2(r.position.x + float(i) * 24.0, r.position.y + 2.0, 20.0, 14.0)
+		if i < n:
+			draw_rect(b, col)
+		else:
+			draw_rect(b, col, false, 1.5)
+	_text("shelf %d/%d" % [n, slots], Vector2(r.position.x + float(slots) * 24.0 + 6.0, r.position.y + 15.0), 18, col, 120.0)
 
 
 func _draw_queue(q: Array) -> void:

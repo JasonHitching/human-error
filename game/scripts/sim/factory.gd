@@ -38,11 +38,12 @@ var qa_queue_sum: int = 0  # sum of queue length over ticks (for the average)
 var qa_queue_max: int = 0
 var qa_full_seen: bool = false
 var inspect_speed: float = 1.0  # multiplies inspect time (career upgrade < 1)
+var shelf_slots: int = 0  # overflow shelf behind the queue; set before qa_capacity
 var qa_capacity: int = 8:
 	set(v):
 		qa_capacity = v
 		if _qa != null:
-			_qa.input_cap = v
+			_qa.input_cap = v + shelf_slots
 
 var _config: SimConfig
 var _qa: Machine = null
@@ -91,6 +92,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	for m in machines:
 		if m.type == "qa":
 			_qa = m
+	shelf_slots = config.shelf_slots
 	qa_capacity = config.qa_capacity
 	for ld in config.links:
 		var from: Machine = _by_id[ld["from"]]
@@ -184,7 +186,12 @@ func score() -> int:
 
 ## Products waiting at the QA desk, front first: [{defect, decoy, bot}].
 func qa_queue() -> Array:
-	return _qa_items.duplicate()
+	return _qa_items.slice(0, qa_capacity)
+
+
+## Overflow products waiting for a queue slot, in feeding order (FIFO).
+func qa_shelf() -> Array:
+	return _qa_items.slice(qa_capacity)
 
 
 func inspect_busy() -> bool:
@@ -265,11 +272,11 @@ func _has_fixable() -> bool:
 func _track_qa() -> void:
 	if _qa == null:
 		return
-	var n := _qa_items.size()
+	var n := mini(_qa_items.size(), qa_capacity)
 	qa_ticks += 1
 	qa_queue_sum += n
 	qa_queue_max = maxi(qa_queue_max, n)
-	if n >= qa_capacity:
+	if _qa_items.size() >= qa_capacity + shelf_slots:  # queue AND shelf full: the line blocks
 		qa_full_seen = true
 	if crew_busy:
 		return
