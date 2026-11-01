@@ -31,10 +31,22 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Phase | Goal | Issues |
 |---|---|---|
-| ☐ 1 QA in the sim | Queue, defects, ship/reject, complaints, idle metric | #27 |
-| ☐ 2 QA desk screen | Desk strip, product drawing, swipe, BRB, streak | #28 |
-| ☐ 3 Balance | Idle < 30%, careers still 6–10 days | #29 |
-| ☐ Checkpoint M2 | Gates, report, plan M3 | #30 |
+| ☑ 1 QA in the sim | Queue, defects, ship/reject, complaints, idle metric | #27 |
+| ☑ 2 QA desk screen | Desk strip, product drawing, swipe, BRB, streak | #28 |
+| ☑ 3 Balance | Idle < 30%, careers still 6–10 days | #29, #34 |
+| ☑ Checkpoint M2 | Gates, report, plan M3 | #30 → `docs/checkpoints/M2.md` |
 
-## M3–M7
+## M3 — Two Rooms
+
+| Phase | Goal | Issues |
+|---|---|---|
+| ☐ 1 Spec card | Reference product, "why was that wrong", missed list | #38 |
+| ☐ 2 Worker location | Office / floor / transit in the sim, autoplayers, balance | #39 |
+| ☐ 3 Two screens | QA office + factory floor, transitions | #40 |
+| ☐ 4 Wall monitor | Machine lights, bots calling in | #41 |
+| ☐ 5 Living floor | Wheeled robots, juice | #42 |
+| ☐ 6 Art & sound ready | Sprite loader + naming, procedural sfx, mute | #43 |
+| ☐ Checkpoint M3 | Gates, report, plan M4 | #44 |
+
+## M4–M7
 See `docs/VISION.md`. Each is planned by the previous checkpoint (`docs/CHAIN.md`).

@@ -11,15 +11,17 @@ You're the one human on a factory floor of cheerful, incompetent robots. Your jo
 
 ## Milestones
 
-### M2 — The QA Desk *(specced as issues)*
+### M2 — The QA Desk *(done — see `docs/checkpoints/M2.md`)*
 The worker's own job, so there's no idle time. Every product queues at your desk; swipe to ship or reject; defects come from sloppy bots; a backlog builds while you fix machines; a full queue backs up the line. Only defects you ship reach customers (complaints). **Gate:** idle time < 30% for the greedy autoplayer; career targets still hold.
 
-### M3 — A Living Floor
-- Bots become **wheeled robots** that roll around their machine, to the scrap bin, and to each other (cosmetic; code-drawn bob/tilt/squash, no walk cycles).
-- **The worker is visible and walks:** travel time to a machine depends on distance (gameplay: route choices). A "BRB" sign at the desk.
-- **Juice:** tweens, stamp thunk, shake on rejects, pulses, streak counter, simple particles (code-drawn).
-- **Sprite loader with fallback:** any PNG in `game/assets/` with an agreed name replaces its code drawing. This makes the game art-ready for Jason.
-- **Procedural sound:** simple generated blips for stamp, reject, mistake and alarm (no audio files), with a mute toggle.
+### M3 — Two Rooms *(specced as issues; replanned at checkpoint M2 from playtests #35, #36)*
+Changed from "A Living Floor": one screen with factory + desk was sensory overload (#36), and players couldn't tell what a good product looks like (#35).
+- **Spec card:** a reference picture of the perfect product next to the pad; on a wrong call, flash why ("Missed: CRACK" / "That was fine — just a scuff"); the review lists missed defect types.
+- **Two screens instead of a walking worker:** the calm **QA office** (default: desk, spec card, queue, ✖/✔) and the **factory floor** (full screen, fix machines). Going between them costs `transition_seconds` (~0.8 s); the worker is "away from desk" on the floor and in transit. Sim gains worker location `office|floor|transit`.
+- **Wall monitor** in the office: one light per machine (green / amber / red) with the bot's name; tap → floor. A new red problem flashes and the bot "calls in" with a line.
+- **Wheeled robots + juice** on the floor: bots roll around their machine and to the scrap bin (cosmetic; bob/tilt/squash), fix particles, pulses, screen-slide transition.
+- **Sprite loader with fallback** (agreed file names, so Jason can draw against them) and **procedural sound** with a mute toggle.
+- Later (M4 candidates): Foreman changes the spec mid-career; a "radio" upgrade to fix one simple fault from the office.
 
 ### M4 — Career Depth
 - **Shift twists:** one per day from day 3 (heatwave, rush order, inspection day, power flicker).
