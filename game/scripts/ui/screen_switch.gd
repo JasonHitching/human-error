@@ -134,6 +134,8 @@ func sync(alpha: float) -> void:
 		col = COL_FULL
 	elif float(q) / float(cap) >= 0.75:
 		col = COL_WARN
+	if q >= cap:  # full desk queue: the meter pulses red
+		col = col.lerp(Color.WHITE, 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.01))
 	queue_label.add_theme_color_override("font_color", col)
 	_place()
 
@@ -145,7 +147,7 @@ func add_view(page: Control, view: Node) -> void:
 
 
 func _place() -> void:
-	var e := offset * offset * (3.0 - 2.0 * offset)  # smoothstep ease
+	var e := -(cos(PI * offset) - 1.0) * 0.5  # sine ease-in-out
 	office_page.position = Vector2(0, -e * size.y)
 	floor_page.position = Vector2(0, (1.0 - e) * size.y)
 	office_page.visible = e < 1.0

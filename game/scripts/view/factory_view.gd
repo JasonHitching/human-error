@@ -15,6 +15,17 @@ var _font: Font = ThemeDB.fallback_font
 var _bubbles: Array[Dictionary] = []  # {id, text, left}
 var _event_idx: int = 0
 var _time: float = 0.0
+var _scrap_runs: Dictionary = {}  # machine id -> seconds into the scrap-bin roll
+var _pulse: Dictionary = {}  # machine id -> seconds left of the fix pulse
+var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
+var _worker_pos := Vector2.ZERO
+var _worker_start := Vector2.ZERO
+var _was_crew: String = ""
+var _qa_seen: int = 0
+var _bounce: float = 0.0
+const SCRAP_RUN := 2.4
+const PULSE_TIME := 0.4
+const SPARK_N := 12
 
 
 func setup(f: Factory, config: SimConfig) -> void:
@@ -23,6 +34,13 @@ func setup(f: Factory, config: SimConfig) -> void:
 	_link_ticks.clear()
 	_bubbles.clear()
 	_event_idx = 0
+	_scrap_runs.clear()
+	_pulse.clear()
+	_sparks.clear()
+	_was_crew = ""
+	_qa_seen = 0
+	_bounce = 0.0
+	_worker_pos = stairs_pos()
 	for l in config.links:
 		_link_ticks["%s>%s" % [l["from"], l["to"]]] = maxf(1.0, float(l["transit_time"]) * config.tick_rate)
 	queue_redraw()
@@ -51,6 +69,8 @@ func push_events(events: Array[Dictionary]) -> void:
 	for e in events:
 		if e.get("type") != "mistake":
 			continue
+		if e.get("mistake") == "misroute":
+			_scrap_runs[String(e["machine_id"])] = 0.0
 		var m := factory.get_machine(String(e["machine_id"]))
 		var text := "!"
 		if m != null and m.bot != null and not m.bot.lines.is_empty():
@@ -65,7 +85,100 @@ func _process(d: float) -> void:
 	for b in _bubbles:
 		b["left"] -= d
 	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["left"] > 0.0)
+	if factory != null:
+		_update_juice(d)
 	queue_redraw()
+
+
+func _update_juice(d: float) -> void:
+	for id: String in _scrap_runs.keys():
+		_scrap_runs[id] += d
+		if _scrap_runs[id] >= SCRAP_RUN:
+			_scrap_runs.erase(id)
+	for id: String in _pulse.keys():
+		_pulse[id] -= d
+		if _pulse[id] <= 0.0:
+			_pulse.erase(id)
+	_bounce = maxf(0.0, _bounce - d)
+	var q := factory.qa_queue().size()
+	if q > _qa_seen:
+		_bounce = 0.3
+	_qa_seen = q
+	if _was_crew != "" and not factory.crew_busy:  # a crew job just ended
+		var m := factory.get_machine(_was_crew)
+		if m != null and not m.is_faulted():
+			_pulse[m.id] = PULSE_TIME
+			_spawn_sparks(machine_rect(m).get_center())
+	if factory.crew_busy and _was_crew == "":
+		_worker_start = _worker_pos
+	_was_crew = factory.crew_target if factory.crew_busy else ""
+	for s in _sparks:
+		s["life"] -= d
+		s["p"] += s["v"] * d
+	_move_worker(d)
+
+
+func _spawn_sparks(c: Vector2) -> void:
+	_sparks.clear()
+	for i in SPARK_N:
+		var a := float(i) / SPARK_N * TAU
+		_sparks.append({"p": c, "v": Vector2(cos(a), sin(a)) * (70.0 + 30.0 * float(i % 3)), "life": 0.5})
+
+
+## Where the stairs/lift are: top-left of the floor area.
+func stairs_pos() -> Vector2:
+	return area.position + Vector2(34, 40)
+
+
+func worker_visible() -> bool:
+	return factory != null and factory.worker_location() != Worker.Location.OFFICE
+
+
+## Cosmetic worker position, always inside the floor area.
+func worker_pos() -> Vector2:
+	return _clamp_in(_worker_pos, WorkerView.HALF)
+
+
+func _move_worker(d: float) -> void:
+	var loc := factory.worker_location()
+	if loc == Worker.Location.OFFICE or (loc == Worker.Location.TRANSIT and factory.transit_target() == Worker.Location.FLOOR):
+		_worker_pos = stairs_pos()  # appears at the stairs
+		return
+	if factory.crew_busy:
+		var m := factory.get_machine(factory.crew_target)
+		if m != null:
+			var goal := machine_rect(m).get_center() + Vector2(-machine_rect(m).size.x * 0.5 - 20.0, 0)
+			var t := clampf(factory.crew_progress / 0.4, 0.0, 1.0)
+			t = t * t * (3.0 - 2.0 * t)
+			_worker_pos = _worker_start.lerp(goal, t)
+			return
+	_worker_pos = _worker_pos.move_toward(stairs_pos(), 320.0 * d)  # head back to the stairs
+
+
+func _worker_walking() -> bool:
+	if factory.crew_busy:
+		return factory.crew_progress < 0.4
+	return _worker_pos.distance_to(stairs_pos()) > 1.0
+
+
+func _clamp_in(p: Vector2, margin: float) -> Vector2:
+	return Vector2(clampf(p.x, area.position.x + margin, area.end.x - margin), clampf(p.y, area.position.y + margin, area.end.y - margin))
+
+
+## Cosmetic bot position for a machine's bot, always inside the floor area.
+func bot_pos(m: Machine) -> Vector2:
+	var r := machine_rect(m)
+	var p := r.position + Vector2(24, r.size.y + 26)
+	if _scrap_runs.has(m.id):
+		var u := float(_scrap_runs[m.id]) / SCRAP_RUN
+		var k := 1.0 - absf(2.0 * u - 1.0)
+		k = k * k * (3.0 - 2.0 * k)
+		p = p.lerp(scrap_rect().get_center(), k)
+	elif m.state == Machine.State.WORKING:
+		p.x += sin(_time * 3.0 + float(m.id.hash() % 7)) * 10.0
+	else:
+		p.y += sin(_time * 2.0 + float(m.id.hash() % 7)) * 2.0
+	return _clamp_in(p, BotView.HALF + 4.0)
 
 
 func _state_color(m: Machine) -> Color:
@@ -94,6 +207,11 @@ func _draw() -> void:
 			_draw_machine(m)
 	for b in _bubbles:
 		_draw_bubble(b)
+	for sp in _sparks:
+		if sp["life"] > 0.0:
+			draw_circle(sp["p"], 3.0, Color(1.0, 0.9, 0.3, clampf(sp["life"] * 2.0, 0.0, 1.0)))
+	if worker_visible():
+		WorkerView.draw(self, worker_pos(), _time, _worker_walking(), factory.crew_busy and not _worker_walking())
 
 
 func _draw_links() -> void:
@@ -123,6 +241,8 @@ func _draw_machine(m: Machine) -> void:
 	if m.venting or factory.crew_target == m.id:
 		sb.border_color = Color.WHITE
 		sb.set_border_width_all(4)
+	if _pulse.has(m.id):
+		r = r.grow(sin(float(_pulse[m.id]) / PULSE_TIME * PI) * 6.0)
 	draw_style_box(sb, r)
 	if board != null and StatusBoard.is_monitored(m):
 		var lc: Color = WallMonitor.COL[board.machine_light(m)]
@@ -145,9 +265,13 @@ func _draw_machine(m: Machine) -> void:
 	if m.type == "qa":
 		_text("queue %d/%d" % [factory.qa_queue().size(), factory.qa_capacity], r.position + Vector2(8, 52), 22, Color.WHITE, r.size.x - 16)
 	if m.bot != null:
-		var c := r.position + Vector2(18, r.size.y + 18)
-		draw_circle(c, 14.0, m.bot.color)
-		_text(m.bot.name.substr(0, 1), c + Vector2(-6, 7), 20, Color.BLACK, 20.0)
+		var c := bot_pos(m)
+		var mood := 1 if (board != null and StatusBoard.is_monitored(m) and board.machine_light(m) == StatusBoard.Light.RED) else 0
+		var hit := 0.0
+		for b in _bubbles:
+			if b["id"] == m.id:
+				hit = clampf(float(b["left"]) / 2.0, 0.0, 1.0)
+		BotView.draw(self, c, m.bot.color, mood, _time, hit, sin(_time * 3.0) if m.state == Machine.State.WORKING else 0.0)
 		_text(m.bot.name, c + Vector2(24, 6), 16, Color(0.85, 0.87, 0.92), r.size.x - 40)
 	# heat bar
 	var bar := Rect2(r.position + Vector2(8, r.size.y - 18), Vector2(r.size.x - 16, 8))
@@ -169,6 +293,8 @@ func hatch_rect(m: Machine) -> Rect2:
 
 func _draw_hatch(m: Machine) -> void:
 	var r := hatch_rect(m)
+	if _bounce > 0.0:
+		r.position.y += sin(_bounce / 0.3 * PI) * 5.0
 	draw_rect(r, Color(0.05, 0.05, 0.07))
 	for i in 5:
 		var x := r.position.x + 14.0 + float(i) * 28.0
