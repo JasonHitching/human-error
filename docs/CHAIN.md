@@ -36,3 +36,9 @@ Checkpoint sessions keep context small: read the checkpoint reports and issue su
 - **Give feedback:** open an issue labelled `playtest` with bullets. The next checkpoint reads it.
 - **Pause:** open an issue titled `PAUSE`. Chain sessions stop. To resume: close it and start a session with "Resume the chain: implement the lowest open chain issue. Follow CLAUDE.md and docs/CHAIN.md."
 - **Roll back:** every checkpoint has a branch `checkpoint/<mx>` (tags can't be pushed from cloud sessions).
+
+## Balance standard (applies to every issue; overrides older text)
+Judge balance on the human-paced players `human` / `human_careful` (`sim_runner --player human|human_careful`), not only the instant `greedy`/`careful`. Where an issue gives career-median ranges for greedy/careful, apply them to the human players: `human` median 5-15 and p10 >= 3; `human_careful` median >= `human` and <= 24; instant `greedy` max < 30; `none` fired by day 3 in >= 90%. After `git pull` always run `godot --headless --path game --import` once (stale class cache otherwise).
+
+## Autopilot
+If `docs/AUTOPILOT.md` says autopilot is running, a conductor session starts and resumes work; the rules there (models, credit guard, attempts) apply on top of this file.
