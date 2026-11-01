@@ -1,0 +1,24 @@
+# Sprites
+
+Drop transparent PNGs here with these exact names. Any missing file falls back to the
+code drawing. Wrong-size files are scaled to fit (aspect kept, centred), not rejected.
+
+| File | Replaces | Size (px) |
+|---|---|---|
+| `bot_<name>.png` (`bot_sparky`, `bot_dozer`, `bot_clank`, `bot_rusty`, `bot_loopy`) | wheeled robot body | 96×96 |
+| `bot_<name>_panic.png` (optional) | robot while its machine is RED | 96×96 |
+| `machine_<type>.png` (`generator`, `processor`, `assembler`, `warehouse`) | machine box | 160×160 |
+| `machine_<type>_<state>.png` (optional; `jammed`, `overheated`, `clogged`, `blocked`, `starved`) | machine in that state | 160×160 |
+| `desk_hatch.png` | qa_desk on the floor | 160×160 |
+| `product.png` | good product body (label + bolts drawn on top unless `product_full.png` exists) | 256×192 |
+| `defect_<type>.png` (`missing_bolt`, `crack`, `wrong_paint`, `flipped_label`, `dent`) | defect overlay on the product | 256×192 |
+| `decoy_<type>.png` (`scuff`, `sticker_blue`, `sticker_green`) | decoy overlay | 256×192 |
+| `bg_office.png`, `bg_floor.png` | screen backgrounds | 720×1280 |
+| `monitor.png` | wall-monitor frame | 640×300 |
+| `scrap_bin.png`, `reject_bin.png`, `lamp.png` | props | 128×128 |
+| `icon_ship.png`, `icon_reject.png`, `icon_mute.png`, `icon_sound.png` | button icons | 96×96 |
+
+Overlays are drawn at the same rect as `product.png`, so draw them on a 256×192
+transparent canvas aligned to the product.
+
+Loader: `Sprites.tex(name)` (cached; null if missing). `lamp.png` is reserved: there is no lamp in the game yet.

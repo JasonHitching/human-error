@@ -79,6 +79,7 @@ func _gui_input(event: InputEvent) -> void:
 func _draw() -> void:
 	if board == null:
 		return
+	Sprites.draw_fit(self, Sprites.tex("monitor"), Rect2(Vector2.ZERO, size))
 	var ms := board.monitored()
 	var rects := light_rects()
 	for i in ms.size():
