@@ -7,7 +7,6 @@ const COL_BG := Color(0.1, 0.11, 0.14)
 
 var factory: Factory
 var area := Rect2(0, 0, 100, 100)  # screen rect the unit layout maps into
-var desk_anchor := Vector2.ZERO  # strip's left edge; the qa_desk machine is drawn there instead
 var alpha: float = 0.0  # 0..1 progress between ticks
 var _link_ticks: Dictionary = {}  # "from>to" -> ticks
 var _tick_rate: int = 10
@@ -88,7 +87,9 @@ func _draw() -> void:
 	draw_rect(sr, Color(0.5, 0.35, 0.35), false, 2.0)
 	_text("SCRAP", sr.position + Vector2(-2, -6), 13, Color(0.7, 0.6, 0.6), 60.0)
 	for m in factory.machines:
-		if m.type != "qa":
+		if m.type == "qa":
+			_draw_hatch(m)
+		else:
 			_draw_machine(m)
 	for b in _bubbles:
 		_draw_bubble(b)
@@ -97,7 +98,7 @@ func _draw() -> void:
 func _draw_links() -> void:
 	var pts := {}
 	for m in factory.machines:
-		pts[m.id] = desk_anchor if m.type == "qa" else machine_rect(m).get_center()
+		pts[m.id] = hatch_rect(m).get_center() if m.type == "qa" else machine_rect(m).get_center()
 	for key: String in _link_ticks:
 		var ids := key.split(">")
 		draw_line(pts[ids[0]], pts[ids[1]], Color(0.35, 0.37, 0.42), 3.0)
@@ -154,6 +155,22 @@ func _draw_machine(m: Machine) -> void:
 		var cb := Rect2(r.position + Vector2(8, r.size.y - 32), Vector2(r.size.x - 16, 8))
 		draw_rect(cb, Color(0, 0, 0, 0.45))
 		draw_rect(Rect2(cb.position, Vector2(cb.size.x * factory.crew_progress, cb.size.y)), Color.WHITE)
+
+
+## The QA desk is upstairs: on the floor it is a hatch in the line that products go up through.
+func hatch_rect(m: Machine) -> Rect2:
+	var c := area.position + Vector2(m.pos.x * area.size.x, m.pos.y * area.size.y)
+	return Rect2(c - Vector2(70, 26), Vector2(140, 52))
+
+
+func _draw_hatch(m: Machine) -> void:
+	var r := hatch_rect(m)
+	draw_rect(r, Color(0.05, 0.05, 0.07))
+	for i in 5:
+		var x := r.position.x + 14.0 + float(i) * 28.0
+		draw_line(Vector2(x, r.position.y + 4), Vector2(x - 12, r.end.y - 4), Color(0.9, 0.75, 0.2, 0.7), 4.0)
+	draw_rect(r, Color(0.9, 0.75, 0.2), false, 3.0)
+	_text("▲ QA DESK", r.position + Vector2(r.size.x + 8, 34), 18, Color(0.85, 0.87, 0.92), 120.0)
 
 
 func _text(s: String, pos: Vector2, size: int, col: Color, width: float) -> void:

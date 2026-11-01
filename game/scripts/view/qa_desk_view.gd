@@ -179,7 +179,10 @@ func _draw_flashes(pad: Rect2) -> void:
 func _draw_hint() -> void:
 	var r := Rect2(rect.position + Vector2(10, rect.size.y * 0.3), Vector2(rect.size.x - 20, 90))
 	draw_rect(r, Color(0, 0, 0, 0.8))
-	_text(hint, r.position + Vector2(10, 34), 22, Color.WHITE, r.size.x - 20)
+	var y := r.position.y + 34.0
+	for line in hint.split("\n"):
+		_text(line, Vector2(r.position.x + 10, y), 22, Color.WHITE, r.size.x - 20)
+		y += 30.0
 
 
 ## Draw one product centred at c, fitting in a square of size s. Used for the pad and animations.
