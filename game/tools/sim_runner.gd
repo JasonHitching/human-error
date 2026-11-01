@@ -133,6 +133,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	const DAY_CAP := 30
 	var days: Array[int] = []
 	var fail_causes := {}
+	var lessons_total := 0
+	var rookies_total := 0
 	var twist_days := {}  # twist id ("none" when no twist) -> [days, failed]
 	var qa := QaStats.new()
 	for r in runs:
@@ -166,6 +168,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 				c.apply(offs[0])
 				offs = c.offers()
 			c.next_day()
+		lessons_total += c.lessons_learned
+		rookies_total += c.rookies_joined
 		days.append(mini(c.day, DAY_CAP))
 	days.sort()
 	var sum := 0
@@ -174,6 +178,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
 	print("  days p10=%d" % days[days.size() / 10])
+	print("  lessons learned/career %.2f, rookies joined/career %.2f" % [float(lessons_total) / runs, float(rookies_total) / runs])
 	print("  day-1 queue full %.0f%% of shifts" % (100.0 * qa.day1_full / maxf(1.0, qa.day1_shifts)))
 	print("  ", qa.report(true))
 	print("  ", qa.worker_report())

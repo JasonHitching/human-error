@@ -22,6 +22,8 @@ var crew_queue: Array[String] = []  # next machines to fix, in order (max fix_qu
 var _jam_left: Dictionary = {}  # machine id -> ticks until an untouched jam clears itself
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
 var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0, "sloppy": 0}
+var lessons: Array[Dictionary] = []  # this shift's {bot, mistake}: a bot learned from the worker's fixes
+var _learn_rng := RandomNumberGenerator.new()
 var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
 var mistake_log: Array[Dictionary] = []  # all mistakes this run (for stats)
 var day_mult: float = 1.0
@@ -94,6 +96,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	rng.seed = seed
 	_qa_rng.seed = seed * 31 + 17
 	_subtle_rng.seed = seed * 37 + 5
+	_learn_rng.seed = seed * 59 + 7
 	scan_queue_max = config.scan_queue_max
 	scan_ticks = maxi(1, roundi(config.scan_seconds * config.tick_rate))
 	pacing = Pacing.new(config, rng)
@@ -143,7 +146,7 @@ func _assign_bots(roster: Array[Bot]) -> void:
 			defs[i] = defs[j]
 			defs[j] = t
 		for d: Dictionary in defs:
-			pool.append(Bot.from_dict(d, _config.train_factor))
+			pool.append(Bot.from_dict(d, _config.train_factor, _config.learn_mult))
 	if pool.is_empty():
 		return
 	var n := 0
@@ -561,8 +564,31 @@ func _step_crew() -> void:
 	crew_progress = 1.0 - float(_crew_left) / float(_crew_ticks)
 	if _crew_left > 0:
 		return
+	_note_fixed(m, _crew_kind)
 	CrewJob.finish(m, _crew_kind)
 	_end_job()
+
+
+## The worker is about to fix a bot's mistake: count it, and maybe the bot learns (seeded roll).
+func _note_fixed(m: Machine, kind: int) -> void:
+	if m.bot == null:
+		return
+	var fixed: Array[String] = []
+	if kind == ActionResult.STARTED_REPAIR and m.state == Machine.State.JAMMED:
+		fixed.append("jam")
+	elif kind == ActionResult.STARTED_FIX:
+		if m.overclocked:
+			fixed.append("overclock")
+		if m.misrouted:
+			fixed.append("misroute")
+		if m.wrong_recipe:
+			fixed.append("wrong_recipe")
+	for k in fixed:
+		if m.bot.learned.has(k):
+			continue
+		if m.bot.note_fix(k, _config.learn_after, _config.learn_chance, _learn_rng.randf()):
+			lessons.append({"bot": m.bot.name, "mistake": k})
+			events.append({"type": "lesson", "machine_id": m.id, "bot": m.bot.name, "mistake": k})
 
 
 ## Replay a recorded run: same seed + same action list => same result.

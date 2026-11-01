@@ -105,5 +105,67 @@
     "I touched nothing. Help."
    ]
   }
+ ],
+ "rookies": [
+  {
+   "name": "Pip",
+   "color": "#ff9f1c",
+   "rates": {
+    "jam": 0.6,
+    "overclock": 0.5,
+    "misroute": 0.4,
+    "wrong_recipe": 0.5
+   },
+   "lines": [
+    "First day! Pressing everything!",
+    "Is this button important?"
+   ],
+   "sloppy": 0.25,
+   "call_in": [
+    "I pressed a button. Many things stopped.",
+    "Is it supposed to smoke? Asking for me.",
+    "Hello? Is anyone senior here?"
+   ]
+  },
+  {
+   "name": "Nudge",
+   "color": "#06d6a0",
+   "rates": {
+    "jam": 0.5,
+    "overclock": 0.4,
+    "misroute": 0.9,
+    "wrong_recipe": 0.5
+   },
+   "lines": [
+    "Left. Or right. Left.",
+    "Scenic route!"
+   ],
+   "sloppy": 0.22,
+   "call_in": [
+    "I took the scenic route. So did the parts.",
+    "The conveyor and I disagree.",
+    "Which way is out?"
+   ]
+  },
+  {
+   "name": "Bolt",
+   "color": "#ef476f",
+   "rates": {
+    "jam": 0.5,
+    "overclock": 0.9,
+    "misroute": 0.5,
+    "wrong_recipe": 0.4
+   },
+   "lines": [
+    "Faster is better, right?",
+    "Dial goes to eleven!"
+   ],
+   "sloppy": 0.28,
+   "call_in": [
+    "Eleven was too many.",
+    "It is very warm. Very very.",
+    "I may have hugged the dial."
+   ]
+  }
  ]
 }
