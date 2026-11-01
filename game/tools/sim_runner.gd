@@ -133,6 +133,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	const DAY_CAP := 30
 	var days: Array[int] = []
 	var fail_causes := {}
+	var twist_days := {}  # twist id ("none" when no twist) -> [days, failed]
 	var qa := QaStats.new()
 	for r in runs:
 		var c := Career.new(cfg, seed_start + r)
@@ -145,6 +146,11 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 				f.step()
 			qa.add(f, c.day)
 			var res := c.end_day(f)
+			var tid: String = f.twist_id if f.twist_id != "" else "none"
+			var td: Array = twist_days.get(tid, [0, 0])
+			td[0] += 1
+			td[1] += 0 if res["hit"] else 1
+			twist_days[tid] = td
 			if not res["hit"]:
 				var top := ""
 				var best := -1
@@ -171,6 +177,11 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	print("  day-1 queue full %.0f%% of shifts" % (100.0 * qa.day1_full / maxf(1.0, qa.day1_shifts)))
 	print("  ", qa.report(true))
 	print("  ", qa.worker_report())
+	var keys: Array = twist_days.keys()
+	keys.sort()
+	for k: String in keys:
+		var td: Array = twist_days[k]
+		print("  twists: %-14s days %4d failed-days %.1f%%" % [k, td[0], 100.0 * td[1] / td[0]])
 	var parts: Array[String] = []
 	for k: String in fail_causes:
 		parts.append("%s %d" % [k, fail_causes[k]])

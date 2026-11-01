@@ -41,6 +41,7 @@ var bigger_desk_bonus: int = 2
 var overclock_speed_mult: float = 1.3
 var overclock_heat_mult: float = 3.0
 var monitor_amber_heat: float = 60.0
+var twist_start_day: int = 3
 var max_active_problems: int = 2
 var breather_seconds: float = 7.0
 var breather_shrink_per_day: float = 0.3
@@ -125,6 +126,7 @@ func _load_balance(b: Dictionary) -> void:
 	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))
 	monitor_amber_heat = _opt(b, "monitor_amber_heat", monitor_amber_heat, 0.0, 100.0)
+	twist_start_day = int(_opt(b, "twist_start_day", twist_start_day, 1.0, 1000.0))
 	max_active_problems = int(_opt(b, "max_active_problems", max_active_problems, 1.0, 20.0))
 	breather_seconds = _opt(b, "breather_seconds", breather_seconds, 0.0, 1000.0)
 	breather_shrink_per_day = _opt(b, "breather_shrink_per_day", breather_shrink_per_day, 0.0, 100.0)

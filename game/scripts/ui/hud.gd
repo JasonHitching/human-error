@@ -15,6 +15,7 @@ var fired: Control
 var _top: Label
 var _flash: Label
 var _seed: Label
+var _twist: Label
 var _banner_label: Label
 var _review_label: Label
 var _review_box: VBoxContainer
@@ -32,6 +33,8 @@ func _ready() -> void:
 	_top.position = Vector2(0, 8)
 	_flash = _label(22, HORIZONTAL_ALIGNMENT_CENTER)
 	_flash.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
+	_twist = _label(18, HORIZONTAL_ALIGNMENT_CENTER)
+	_twist.add_theme_color_override("font_color", Color(1, 0.7, 0.3))
 	_seed = _label(12, HORIZONTAL_ALIGNMENT_LEFT)
 	_seed.modulate = Color(1, 1, 1, 0.5)
 	var bb := _overlay()
@@ -112,6 +115,8 @@ func _layout() -> void:
 	_top.size = Vector2(size.x, 80)
 	_flash.size = Vector2(size.x, 40)
 	_flash.position = Vector2(0, 84)
+	_twist.size = Vector2(size.x, 26)
+	_twist.position = Vector2(0, 60)
 	_seed.size = Vector2(size.x * 0.2, 20)
 	_seed.position = Vector2(4, size.y - 24)
 
@@ -129,16 +134,21 @@ func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, best_days: 
 	var marks := ""
 	for i in c.config.max_strikes:
 		marks += "[X]" if i < c.strikes else "[ ]"
-	_top.text = "Day %d · %d:%02d · Score %d / %d · Strikes %s\nComplaints %d (-%d each) · %s · Best %d" % [c.day, int(left) / 60, int(left) % 60, f.score(), f.target, marks, f.complaints, c.config.complaint_penalty, crew, best_days]
+	_top.text = "Day %d · %d:%02d · Score %d / %d · Strikes %s\nComplaints %d (-%d each) · %s · Best %d" % [c.day, int(left) / 60, int(left) % 60, f.score(), f.target, marks, f.complaints, f.complaint_penalty, crew, best_days]
 	_seed.text = "career %d" % c.seed
+	var tw := c.twist()
+	_twist.text = "%s %s%s" % [tw.get("icon", ""), tw.get("name", ""), " - POWER OUT" if f.power_out() else ""] if not tw.is_empty() else ""
 
 
 func set_flash(text: String) -> void:
 	_flash.text = text
 
 
-func show_banner(day: int, line: String, target: int) -> void:
-	_banner_label.text = "FOREMAN\nDay %d · target %d\n\n%s" % [day, target, line]
+func show_banner(day: int, line: String, target: int, twist: Dictionary = {}) -> void:
+	var tw := ""
+	if not twist.is_empty():
+		tw = "\n\nTWIST: %s %s\n%s" % [twist.get("icon", ""), twist.get("name", ""), twist.get("line", "")]
+	_banner_label.text = "FOREMAN\nDay %d · target %d\n\n%s%s" % [day, target, line, tw]
 	_show_only(banner)
 
 
