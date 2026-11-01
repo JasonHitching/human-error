@@ -31,10 +31,10 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Phase | Goal | Issues |
 |---|---|---|
-| ☐ 1 QA in the sim | Queue, defects, ship/reject, complaints, idle metric | #26 |
-| ☐ 2 QA desk screen | Desk strip, product drawing, swipe, BRB, streak | #27 |
-| ☐ 3 Balance | Idle < 30%, careers still 6–10 days | #28 |
-| ☐ Checkpoint M2 | Gates, report, plan M3 | #29 |
+| ☐ 1 QA in the sim | Queue, defects, ship/reject, complaints, idle metric | #27 |
+| ☐ 2 QA desk screen | Desk strip, product drawing, swipe, BRB, streak | #28 |
+| ☐ 3 Balance | Idle < 30%, careers still 6–10 days | #29 |
+| ☐ Checkpoint M2 | Gates, report, plan M3 | #30 |
 
 ## M3–M7
 See `docs/VISION.md`. Each is planned by the previous checkpoint (`docs/CHAIN.md`).

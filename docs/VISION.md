@@ -4,7 +4,7 @@
 
 The goal: a complete, polished-feeling **mobile prototype** that proves the game is fun and sticky, built by an automated chain with minimal input from Jason.
 
-Each milestone ends with a **checkpoint** (see `docs/CHAIN.md`): quality gates, a report in `docs/checkpoints/`, a git tag, and planning of the next milestone. Milestones after the next one are **intentions, not specs**. The checkpoint that plans them may adjust them based on metrics and playtest notes.
+Each milestone ends with a **checkpoint** (see `docs/CHAIN.md`): quality gates, a report in `docs/checkpoints/`, a git tag, and planning of the next milestone. Milestones after the next one are **intentions, not specs**. The checkpoint that plans them may adjust them based on metrics and playtest notes, recording changes here.
 
 ## The game at the end of the prototype
 You're the one human on a factory floor of cheerful, incompetent robots. Your job is **quality control**: every product crosses your desk. Bots keep making mistakes (jams, overclocks, misroutes, junk, sloppy work), and each one pulls you away from the desk while the queue piles up. The Foreman sets daily targets; miss twice and you're fired. Between days you train bots. Train them well enough and you're "automated" (promoted to a harder factory). While you're away, the bots run a night shift, badly.
