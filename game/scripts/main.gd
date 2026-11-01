@@ -29,6 +29,10 @@ var _reject_btn: Button
 var _sfx: Sfx
 var _mute_btn: Button
 var _muted: bool = false
+var _haptics_btn: Button
+var _feel := Feel.new()
+var _front_since: float = 0.0
+var _last_qn: int = 0
 var _was_crew_busy: bool = false
 var _last_flash_id: String = ""
 
@@ -49,6 +53,7 @@ func _ready() -> void:
 	_view = FactoryView.new()
 	_screens.add_view(_screens.floor_page, _view)
 	_desk = QaDeskView.new()
+	_desk.feel = _feel
 	_screens.add_view(_screens.office_page, _desk)
 	_hud = Hud.new()
 	add_child(_hud)
@@ -63,6 +68,10 @@ func _ready() -> void:
 	_mute_btn.add_theme_font_size_override("font_size", 28)
 	_mute_btn.pressed.connect(_toggle_mute)
 	add_child(_mute_btn)
+	_haptics_btn = Button.new()
+	_haptics_btn.add_theme_font_size_override("font_size", 22)
+	_haptics_btn.pressed.connect(_toggle_haptics)
+	add_child(_haptics_btn)
 	_refresh_mute()
 	resized.connect(_fit)
 	_new_career(int(Time.get_ticks_usec()))
@@ -81,6 +90,8 @@ func _show_day() -> void:
 	_screens.wall.setup(board)
 	_view.setup(_factory, _config)
 	_view.board = board
+	_feel.reset()
+	_front_since = _feel.clock
 	_desk.setup(_factory)
 	_desk.hint = HINT if _career.day == 1 else ""
 	_desk.caption = "6 bolts · label on top · %s body" % COLOUR_NAME if _career.day == 1 else ""
@@ -98,11 +109,18 @@ func _toggle_mute() -> void:
 	_save_best()
 
 
+func _toggle_haptics() -> void:
+	Haptics.enabled = not Haptics.enabled
+	_refresh_mute()
+	_save_best()
+
+
 func _refresh_mute() -> void:
 	var icon := Sprites.tex("icon_mute" if _muted else "icon_sound")
 	_mute_btn.icon = icon
-	_mute_btn.text = "" if icon != null else ("Muted" if _muted else "Sound")
-	_mute_btn.expand_icon = icon != null
+	_mute_btn.text = "Muted" if _muted else "Sound"
+	_mute_btn.expand_icon = false
+	_haptics_btn.text = "Haptics on" if Haptics.enabled else "Haptics off"
 
 
 func _begin_shift() -> void:
@@ -136,12 +154,24 @@ func _inspect(ship: bool) -> void:
 	if res in [Factory.InspectResult.SHIPPED, Factory.InspectResult.COMPLAINT, Factory.InspectResult.CAUGHT, Factory.InspectResult.WASTED]:
 		_desk.hint = ""
 		_desk.play_inspect(front, ship)
-		_sfx.play("ship" if ship else "reject")
+		var bad := String(front.get("defect", "")) != ""
+		var correct := ship != bad
+		var quick := _feel.clock - _front_since < Feel.QUICK_SECONDS
+		var perfect := correct and bad and (bool(front.get("subtle", false)) or quick)
+		var steps := _feel.pitch_steps()
+		_sfx.play("thunk")
+		for snd in _feel.on_call(ship, correct, perfect, res == Factory.InspectResult.COMPLAINT):
+			if snd == "ship" or snd == "reject":
+				_sfx.play(snd, steps)
+			elif snd != "complaint":
+				_sfx.play(snd)
+		_front_since = _feel.clock
+		Haptics.pulse(30)
 	match res:
 		Factory.InspectResult.NOT_AT_DESK:
 			_desk.flash("BRB - busy at a machine", Color(0.8, 0.8, 0.85))
 		Factory.InspectResult.COMPLAINT:
-			_sfx.play("complaint")
+			Haptics.pulse(80)
 			_desk.flash("COMPLAINT!", Color(1.0, 0.25, 0.2), 1.6)
 			_desk.flash("Missed: " + String(_factory.last_inspected()["defect"]).replace("_", " ").to_upper(), Color(1.0, 0.5, 0.3), 2.0)
 			_desk.flash(_career.foreman_line_at("complaint", _factory.complaints), Color(1.0, 0.7, 0.6), 2.0)
@@ -168,8 +198,10 @@ func _fit() -> void:
 	_screens.layout()
 	var strip := _screens.desk_rect()
 	if _mute_btn != null:
-		_mute_btn.size = Vector2(80, 80)
+		_mute_btn.size = Vector2(120, 80)
 		_mute_btn.position = Vector2(size.x - _mute_btn.size.x - 8.0, size.y - 168.0)
+		_haptics_btn.size = Vector2(150, 80)
+		_haptics_btn.position = _mute_btn.position - Vector2(_haptics_btn.size.x + 8.0, 0.0)
 	if _ship_btn != null:
 		var w := size.x * 0.45
 		var y := strip.end.y - 104.0
@@ -186,12 +218,21 @@ func _fit() -> void:
 func _process(delta: float) -> void:
 	if _factory == null:
 		return
+	_feel.update(delta)
+	var qn := _factory.qa_queue().size()
+	if _last_qn == 0 and qn > 0:
+		_front_since = _feel.clock
+	_last_qn = qn
 	var dt := 1.0 / _config.tick_rate
 	if _phase == Phase.PLAYING:
 		_acc += delta
 		while _acc >= dt and not _factory.is_over():
 			_factory.step()
 			_view.push_events(_factory.events)
+			for e in _factory.events:
+				if e.get("type") == "mistake":
+					_sfx.play("boing")
+					break
 			_acc -= dt
 		if _factory.is_over():
 			_end_shift()
@@ -218,11 +259,12 @@ func _process(delta: float) -> void:
 
 func _sfx_events() -> void:
 	var w := _screens.wall
-	if w.flash_left > 0.0 and w.flash_id != _last_flash_id:
+	if w.flash_left > 0.0 and w.flash_id != _last_flash_id and _feel.allow_alert():
 		_sfx.play("alarm")
 	_last_flash_id = w.flash_id if w.flash_left > 0.0 else ""
 	if _was_crew_busy and not _factory.crew_busy and _phase == Phase.PLAYING:
-		_sfx.play("fix")
+		_sfx.play("kachunk")
+		Haptics.pulse(40)
 	_was_crew_busy = _factory.crew_busy
 
 
@@ -326,9 +368,10 @@ func _load_save() -> void:
 	if parsed is Dictionary:
 		_best_days = int((parsed as Dictionary).get("best_days", 0))
 		_muted = bool((parsed as Dictionary).get("muted", false))
+		Haptics.enabled = bool((parsed as Dictionary).get("haptics", true))
 
 
 func _save_best() -> void:
 	var f := FileAccess.open(BEST_PATH, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify({"best_days": _best_days, "muted": _muted}))
+		f.store_string(JSON.stringify({"best_days": _best_days, "muted": _muted, "haptics": Haptics.enabled}))
