@@ -10,6 +10,7 @@ const COL_LABEL := Color(0.97, 0.92, 0.75)
 var factory: Factory
 var rect := Rect2(0, 0, 100, 100)  # strip rect in screen space
 var hint: String = ""
+var caption: String = ""  # spec card caption (day 1 only), lines split by " · "
 var _font: Font = ThemeDB.fallback_font
 var _time: float = 0.0
 var _last_q: int = 0
@@ -49,6 +50,26 @@ func pad_rect() -> Rect2:
 	return Rect2(rect.position.x + rect.size.x * 0.5 - s * 0.5, top + (h - s) * 0.5, s, s)
 
 
+## Spec card: right of the pad, above the ship/reject buttons (pad rows end 110px above strip bottom).
+func spec_rect() -> Rect2:
+	var pad := pad_rect()
+	var w := clampf(rect.end.x - pad.end.x - 20.0, 60.0, 170.0)
+	return Rect2(pad.end.x + 10.0, pad.position.y, w, minf(pad.size.y, w * 0.75 + 100.0))
+
+
+func _draw_spec() -> void:
+	var r := spec_rect()
+	draw_rect(r, Color(0.2, 0.22, 0.28))
+	draw_rect(r, Color(0.5, 0.55, 0.65), false, 2.0)
+	_text("SPEC", r.position + Vector2(8, 22), 18, Color(0.8, 0.85, 1.0), r.size.x - 16)
+	draw_product({"defect": "", "decoy": "", "bot": ""}, r.position + Vector2(r.size.x * 0.5, 30.0 + r.size.x * 0.4), Vector2(r.size.x - 8.0, r.size.x - 8.0))
+	if caption != "":
+		var y := r.position.y + 36.0 + r.size.x * 0.75
+		for line in caption.split(" · "):
+			_text(line, Vector2(r.position.x + 8, y), 16, Color.WHITE, r.size.x - 16)
+			y += 20.0
+
+
 func _process(d: float) -> void:
 	_time += d
 	for fl in _flashes:
@@ -81,6 +102,7 @@ func _draw() -> void:
 	_draw_queue(q)
 	var pad := pad_rect()
 	_draw_pad(pad)
+	_draw_spec()
 	var shake := 0.0
 	if not _anim.is_empty() and _anim["kind"] == "reject":
 		shake = sin(float(_anim["t"]) * 40.0) * 6.0 * (1.0 - float(_anim["t"]))

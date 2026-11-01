@@ -65,7 +65,7 @@ func end_day(f: Factory) -> Dictionary:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted}
+	return {"hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate()}
 
 
 func offers() -> Array[Dictionary]:

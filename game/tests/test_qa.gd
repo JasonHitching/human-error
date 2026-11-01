@@ -213,3 +213,33 @@ func test_careful_stays_at_desk() -> void:
 	g.get_machine("proc_a").overclocked = true
 	Autoplayers.act("careful", g, Autoplayers.make_rng(1))
 	assert_true(g.crew_busy, "careful fixes when the queue is short")
+
+
+func test_last_inspected_reports_item() -> void:
+	var f := _fac()
+	assert_eq(f.last_inspected().size(), 0, "empty before first inspect")
+	f._qa_items.append({"defect": "", "decoy": "scuff", "bot": "Sparky"})
+	f.get_machine("qa_desk").input_count += 1
+	f.inspect(false)
+	var li := f.last_inspected()
+	assert_eq(li["defect"], "")
+	assert_eq(li["decoy"], "scuff")
+	assert_eq(li["bot"], "Sparky")
+
+
+func test_missed_by_type_counts_shipped_defects_only() -> void:
+	var f := _fac()
+	_put(f, "crack")
+	f.inspect(true)
+	_run(f, 40)
+	_put(f, "crack")
+	f.inspect(true)
+	_run(f, 40)
+	_put(f, "dent")
+	f.inspect(false)  # caught, not missed
+	_run(f, 40)
+	_put(f, "dent")
+	f.inspect(true)
+	assert_eq(f.missed_by_type.get("crack", 0), 2)
+	assert_eq(f.missed_by_type.get("dent", 0), 1)
+	assert_eq(f.last_inspected()["defect"], "dent")

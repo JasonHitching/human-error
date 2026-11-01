@@ -6,6 +6,7 @@ const HUD_TOP := 110.0
 const FACTORY_FRAC := 0.62  # factory view: top 62% (below the HUD)
 const STRIP_FRAC := 0.67  # desk strip: bottom 33%
 const SWIPE_MIN := 80.0
+const COLOUR_NAME := "blue"  # matches QaDeskView.COL_BODY
 const HINT := "Swipe → ship good ones. Swipe ← reject defects. Bots will interrupt you."
 
 enum Phase { BANNER, PLAYING, REVIEW, FIRED }
@@ -21,6 +22,7 @@ var _phase: Phase = Phase.BANNER
 var _acc: float = 0.0
 var _best_days: int = 0
 var _holding: bool = false
+var _decoy_tip_shown: bool = false
 var _flash_left: float = 0.0
 var _offers: Array[Dictionary] = []
 var _ship_btn: Button  # temporary inspect buttons (real desk comes in M2-02)
@@ -51,6 +53,7 @@ func _ready() -> void:
 
 
 func _new_career(seed_value: int) -> void:
+	_decoy_tip_shown = false
 	_career = Career.new(_config, seed_value)
 	_show_day()
 
@@ -60,6 +63,7 @@ func _show_day() -> void:
 	_view.setup(_factory, _config)
 	_desk.setup(_factory)
 	_desk.hint = HINT if _career.day == 1 else ""
+	_desk.caption = "6 bolts · label on top · %s body" % COLOUR_NAME if _career.day == 1 else ""
 	_acc = 0.0
 	_holding = false
 	_phase = Phase.BANNER
@@ -96,9 +100,12 @@ func _inspect(ship: bool) -> void:
 			_desk.flash("BRB — busy at a machine", Color(0.8, 0.8, 0.85))
 		Factory.InspectResult.COMPLAINT:
 			_desk.flash("COMPLAINT!", Color(1.0, 0.25, 0.2), 1.6)
+			_desk.flash("Missed: " + String(_factory.last_inspected()["defect"]).replace("_", " ").to_upper(), Color(1.0, 0.5, 0.3), 2.0)
 			_desk.flash(_career.foreman_line_at("complaint", _factory.complaints), Color(1.0, 0.7, 0.6), 2.0)
 		Factory.InspectResult.WASTED:
-			_desk.flash("Wasted", Color(1.0, 0.75, 0.3))
+			var decoy := String(_factory.last_inspected()["decoy"])
+			var why := "no defect" if decoy == "" else "just a " + ("sticker" if decoy.begins_with("sticker") else decoy)
+			_desk.flash("That was fine — " + why, Color(1.0, 0.75, 0.3), 2.0)
 		Factory.InspectResult.CAUGHT:
 			_desk.flash("Caught it!", Color(0.4, 1.0, 0.5))
 
@@ -139,6 +146,11 @@ func _process(delta: float) -> void:
 		if _factory.is_over():
 			_end_shift()
 	_desk.visible = _phase == Phase.PLAYING
+	if _phase == Phase.PLAYING and _career.day == 1 and not _decoy_tip_shown:
+		var q := _factory.qa_queue()
+		if not q.is_empty() and String(q[0].get("decoy", "")) != "":
+			_decoy_tip_shown = true
+			_desk.flash("Scuffs and stickers are fine.", Color(0.6, 0.9, 1.0), 3.0)
 	_ship_btn.visible = _phase == Phase.PLAYING
 	_reject_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
