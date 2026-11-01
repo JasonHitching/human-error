@@ -12,7 +12,9 @@ func _init() -> void:
 		return
 	var shift := cfg.shift_seconds
 	var bot := "none"
+	var career := false
 	var args := OS.get_cmdline_user_args()
+	career = args.has("--career")
 	for i in args.size() - 1:
 		match args[i]:
 			"--seed": seed_start = int(args[i + 1])
@@ -23,6 +25,9 @@ func _init() -> void:
 	if not Autoplayers.NAMES.has(bot):
 		print("unknown player: ", bot)
 		quit(1)
+		return
+	if career:
+		_run_career(cfg, bot, seed_start, runs)
 		return
 	var totals: Array[int] = []
 	var faults := {"OVERHEATED": 0, "JAMMED": 0}
@@ -82,4 +87,51 @@ func _init() -> void:
 		for s: String in state_ticks[id]:
 			parts.append("%s %.0f%%" % [s, 100.0 * state_ticks[id][s] / (runs * ticks)])
 		print("  %-10s %s" % [id, ", ".join(parts)])
+	quit(0)
+
+
+func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> void:
+	const DAY_CAP := 30
+	var days: Array[int] = []
+	var fail_causes := {}
+	for r in runs:
+		var c := Career.new(cfg, seed_start + r)
+		while not c.fired and c.day <= DAY_CAP:
+			var f := c.start_day()
+			for _t in int(cfg.shift_seconds * cfg.tick_rate):
+				Autoplayers.act(player, f)
+				f.step()
+			var res := c.end_day(f)
+			if not res["hit"]:
+				var top := ""
+				var best := -1
+				for k: String in f.mistake_counts:
+					if int(f.mistake_counts[k]) > best:
+						best = int(f.mistake_counts[k])
+						top = k
+				fail_causes[top] = int(fail_causes.get(top, 0)) + 1
+			if c.fired:
+				break
+			var offs := c.offers()
+			while c.points > 0 and not offs.is_empty():
+				c.apply(offs[0])
+				offs = c.offers()
+			c.next_day()
+		days.append(mini(c.day, DAY_CAP))
+	days.sort()
+	var sum := 0
+	for d in days:
+		sum += d
+	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
+	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
+	var parts: Array[String] = []
+	for k: String in fail_causes:
+		parts.append("%s %d" % [k, fail_causes[k]])
+	var top_k := ""
+	var top_n := -1
+	for k: String in fail_causes:
+		if int(fail_causes[k]) > top_n:
+			top_n = int(fail_causes[k])
+			top_k = k
+	print("  failed shifts by top mistake: %s; main reason: %s" % [", ".join(parts), top_k if top_k != "" else "none"])
 	quit(0)

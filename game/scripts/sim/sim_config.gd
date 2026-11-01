@@ -17,6 +17,13 @@ var vent_min_heat: float = 50.0
 var vent_cool_per_sec: float = 40.0
 var fix_seconds: float = 1.0
 var clear_seconds: float = 1.5
+var target_base: int = 40
+var target_per_day: int = 8
+var day_rate_mult: float = 1.15
+var max_strikes: int = 2
+var bonus_threshold: float = 1.25
+var crew_speed_upgrade: float = 0.85
+var offers_per_review: int = 3
 var train_factor: float = 0.6
 var overclock_speed_mult: float = 1.3
 var overclock_heat_mult: float = 3.0
@@ -76,9 +83,20 @@ func _load_balance(b: Dictionary) -> void:
 	vent_cool_per_sec = _num(b, "vent_cool_per_sec", 0.0, 1.0e4)
 	fix_seconds = _num(b, "fix_seconds", 0.1, 1.0e4) if b.has("fix_seconds") else 1.0
 	clear_seconds = _num(b, "clear_seconds", 0.1, 1.0e4) if b.has("clear_seconds") else 1.5
+	target_base = int(_opt(b, "target_base", target_base, 0.0, 1.0e9))
+	target_per_day = int(_opt(b, "target_per_day", target_per_day, 0.0, 1.0e9))
+	day_rate_mult = _opt(b, "day_rate_mult", day_rate_mult, 0.1, 10.0)
+	max_strikes = int(_opt(b, "max_strikes", max_strikes, 1.0, 100.0))
+	bonus_threshold = _opt(b, "bonus_threshold", bonus_threshold, 1.0, 100.0)
+	crew_speed_upgrade = _opt(b, "crew_speed_upgrade", crew_speed_upgrade, 0.1, 1.0)
+	offers_per_review = int(_opt(b, "offers_per_review", offers_per_review, 1.0, 20.0))
 	repair_mode = String(b.get("repair_mode", ""))
 	if repair_mode != "tap" and repair_mode != "hold":
 		errors.append("balance: repair_mode must be \"tap\" or \"hold\"")
+
+
+func _opt(d: Dictionary, key: String, dflt: Variant, lo: float, hi: float) -> float:
+	return _num(d, key, lo, hi) if d.has(key) else float(dflt)
 
 
 func _num(d: Dictionary, key: String, lo: float, hi: float) -> float:

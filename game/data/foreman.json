@@ -1,0 +1,30 @@
+{
+ "start": [
+  "Day {day}. Ship {target} widgets. Try not to supervise the bots.",
+  "Day {day}: quota is {target}. The bots promised to behave.",
+  "Welcome to day {day}. {target} widgets, or we need to talk.",
+  "Day {day}, quota {target}. Coffee is for people who hit quota.",
+  "Quota today: {target}. Day {day}. Smile, the cameras are on."
+ ],
+ "hit": [
+  "Quota met. I'm only mildly suspicious.",
+  "Good work. Don't let it go to your head.",
+  "You hit the number. The bots take full credit.",
+  "Acceptable. I wrote 'acceptable' in the book.",
+  "Adequate. Have a sticker."
+ ],
+ "miss": [
+  "Short again. That's a strike.",
+  "Quota missed. I'm not angry, just disappointed. And angry.",
+  "A strike. The bots send their thoughts and prayers.",
+  "Not enough widgets. Not enough anything.",
+  "Missed it. The strike board gets another mark."
+ ],
+ "fired": [
+  "You're fired. Hand back your hard hat.",
+  "That's strikes. Security will show you out.",
+  "Out. Take the bots' resignation letters with you.",
+  "Fired. Please don't touch anything on your way out.",
+  "Your services are no longer required. The bots will miss you."
+ ]
+}

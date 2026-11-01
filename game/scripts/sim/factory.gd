@@ -20,6 +20,7 @@ var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wron
 var events: Array[Dictionary] = []  # this tick's {type: "mistake", mistake, machine_id, bot}; cleared each step()
 var mistake_log: Array[Dictionary] = []  # all mistakes this run (for stats)
 var day_mult: float = 1.0
+var crew_speed: float = 1.0  # multiplies crew job durations (career upgrade < 1)
 var actions: Array[Dictionary] = []  # {tick, machine_id} or {tick, release: true}
 
 var _config: SimConfig
@@ -166,7 +167,7 @@ func request_action(machine_id: String) -> int:
 	crew_busy = true
 	crew_target = machine_id
 	crew_progress = 0.0
-	_crew_ticks = maxi(1, roundi(secs * _config.tick_rate))
+	_crew_ticks = maxi(1, roundi(secs * crew_speed * _config.tick_rate))
 	_crew_left = _crew_ticks
 	_held = true
 	return _crew_kind
