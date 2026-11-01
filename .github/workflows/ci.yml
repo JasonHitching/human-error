@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot
+        run: bash tools/cloud_setup.sh
+      - name: Import project
+        run: godot --headless --path game --import || true
+      - name: Run tests
+        run: godot --headless --path game -s res://tests/run_tests.gd
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Godot
+        run: bash tools/cloud_setup.sh
+      - name: Cache export templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}
+      - name: Download export templates
+        run: |
+          d=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          if [ ! -f "$d/web_nothreads_release.zip" ]; then
+            t=$(mktemp -d)
+            curl -sSL -o "$t/t.tpz" "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+            unzip -q "$t/t.tpz" -d "$t"
+            mkdir -p "$d"
+            cp "$t"/templates/* "$d/"
+          fi
+      - name: Export Web build
+        run: |
+          mkdir -p build/web
+          godot --headless --path game --import || true
+          godot --headless --path game --export-release Web ../build/web/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+      - id: deployment
+        uses: actions/deploy-pages@v4
