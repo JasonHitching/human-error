@@ -52,6 +52,7 @@ var _last_inspected: Dictionary = {}
 var _qa_items: Array[Dictionary] = []  # products waiting for inspection, front first
 var _qa_link: int = -1  # link index qa -> warehouse
 var _inspect_left: int = 0
+var pacing: Pacing
 var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from rng
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
@@ -70,6 +71,7 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	day_mult = p_day_mult
 	rng.seed = seed
 	_qa_rng.seed = seed * 31 + 17
+	pacing = Pacing.new(config, rng)
 	target = config.target
 	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
 	worker = Worker.new(roundi(config.transition_seconds * config.tick_rate), config.stairs, config.walk_speed / config.tick_rate)
@@ -147,6 +149,9 @@ func step() -> void:
 	_inspect_left = maxi(0, _inspect_left - 1)
 	worker.step()
 	_step_crew()
+	pacing.step(_problem_count())
+	if pacing.calm_started:
+		events.append({"type": "calm"})
 	_advance_transit()
 	for m in machines:
 		_step_machine(m)
@@ -534,11 +539,25 @@ func _step_jam(m: Machine) -> void:
 func _roll(m: Machine, mistake: String) -> bool:
 	if m.bot == null:
 		return false
-	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult)
-	return p > 0.0 and rng.randf() < p
+	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult) * pacing.rate_mult()
+	if p <= 0.0 or not pacing.allows():  # blocked by the pacing director: re-rolled next tick
+		return false
+	return rng.randf() < p
+
+
+## Machines that currently need the crew (fault, clog, overclock, misroute, wrong recipe).
+func _problem_count() -> int:
+	var n := 0
+	for m in machines:
+		if m.type == "qa":
+			continue
+		if m.is_faulted() or m.state == Machine.State.CLOGGED or m.overclocked or m.misrouted or m.wrong_recipe:
+			n += 1
+	return n
 
 
 func _mistake(m: Machine, mistake: String) -> void:
+	pacing.note_mistake()
 	mistake_counts[mistake] += 1
 	var ev := {"type": "mistake", "mistake": mistake, "machine_id": m.id, "bot": m.bot.name}
 	events.append(ev)

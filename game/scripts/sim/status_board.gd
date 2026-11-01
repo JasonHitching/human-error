@@ -8,6 +8,7 @@ enum Light { GREEN, AMBER, RED }
 var amber_heat: float = 60.0
 var _red: Dictionary = {}  # machine id -> was RED at the last new_alarms() call
 var _machines: Array[Machine] = []
+var _had_problem: bool = false
 
 
 func _init(machines: Array[Machine], p_amber_heat: float = 60.0) -> void:
@@ -46,3 +47,15 @@ func new_alarms() -> Array[Machine]:
 			out.append(m)
 		_red[m.id] = red
 	return out
+
+
+## True once when the last problem on the board was just fixed (a calm window begins).
+func calm_began() -> bool:
+	var any := false
+	for m in monitored():
+		if machine_light(m) == Light.RED or m.overclocked:
+			any = true
+			break
+	var began := _had_problem and not any
+	_had_problem = any
+	return began

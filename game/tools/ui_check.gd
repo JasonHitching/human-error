@@ -131,6 +131,12 @@ func _check_wall(sw: ScreenSwitch, f: Factory) -> void:
 		_fails.append("forced jam showed no call-in/flash: '%s'" % wall.call_text)
 	m.state = Machine.State.IDLE
 	wall.poll()
+	if wall.quiet_left <= 0.0:
+		_fails.append("fixing the last problem did not show the 'All quiet.' cue")
+	else:
+		var w := ThemeDB.fallback_font.get_string_size("All quiet.", HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
+		if 16.0 + w > wall.size.x or wall.size.y - 100.0 < 0.0:
+			_fails.append("'All quiet.' cue does not fit inside the monitor %s" % wall.size)
 	var ev := InputEventMouseButton.new()
 	ev.button_index = MOUSE_BUTTON_LEFT
 	ev.pressed = true

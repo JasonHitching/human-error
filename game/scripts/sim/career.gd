@@ -47,6 +47,7 @@ func day_mult() -> float:
 func start_day() -> Factory:
 	var f := Factory.new(config, seed * 1000 + day, roster, day_mult())
 	f.target = day_target()
+	f.pacing.day = day
 	f.crew_speed = crew_speed
 	f.qa_capacity += qa_bonus
 	f.inspect_speed = inspect_speed

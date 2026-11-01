@@ -41,11 +41,22 @@ func _init() -> void:
 	var clogs := 0
 	var state_ticks := {}  # machine id -> {state name -> ticks}
 	var qa := QaStats.new()
+	var calm_ticks_sum := 0
+	var calm_win_sum := 0
+	var runs_2win := 0
+	var runs_stretch_ok := 0
+	var runs_multi_prob := 0
+	var longest_sum := 0.0
 	for r in runs:
 		var f := Factory.new(cfg, seed_start + r)
 		var prng := Autoplayers.make_rng(seed_start + r)
 		var mem := {}
 		var multi := false
+		var calm_run := 0
+		var prob_run := 0
+		var longest := 0
+		var wins := 0
+		var multi_prob := false
 		for _t in ticks:
 			Autoplayers.act(bot, f, prng, mem)
 			f.step()
@@ -57,7 +68,24 @@ func _init() -> void:
 				d[m.state_name()] = int(d.get(m.state_name(), 0)) + 1
 			faulted_machine_ticks += n_faulted
 			multi = multi or n_faulted >= 2
+			var np := f._problem_count()
+			multi_prob = multi_prob or np >= 2
+			if np == 0:
+				calm_ticks_sum += 1
+				calm_run += 1
+				if calm_run == int(8 * cfg.tick_rate):
+					wins += 1
+				prob_run = 0
+			else:
+				calm_run = 0
+				prob_run += 1
+				longest = maxi(longest, prob_run)
 		multi_fault_runs += 1 if multi else 0
+		calm_win_sum += wins
+		runs_2win += 1 if wins >= 2 else 0
+		runs_stretch_ok += 1 if longest <= 30 * cfg.tick_rate else 0
+		runs_multi_prob += 1 if multi_prob else 0
+		longest_sum += float(longest) / cfg.tick_rate
 		for k: String in faults:
 			faults[k] += f.fault_counts[k]
 		for k: String in f.mistake_counts:
@@ -78,6 +106,9 @@ func _init() -> void:
 	var total_faults: int = faults["OVERHEATED"] + faults["JAMMED"]
 	var secs := float(faulted_machine_ticks) / cfg.tick_rate / maxf(1.0, total_faults)
 	print("  mean seconds faulted per fault: %.1f; runs with 2+ simultaneous faults: %.0f%%" % [secs, 100.0 * multi_fault_runs / runs])
+	print("  calm: %.1f%% of shift with no active problem" % (100.0 * calm_ticks_sum / (runs * ticks)))
+	print("  calm windows >= 8 s: %.2f/shift (>=2 in %.0f%% of runs); longest problem stretch: %.1f s avg (<=30 s in %.0f%% of runs); 2+ simultaneous problems in %.0f%% of runs" % [
+		float(calm_win_sum) / runs, 100.0 * runs_2win / runs, longest_sum / runs, 100.0 * runs_stretch_ok / runs, 100.0 * runs_multi_prob / runs])
 	var parts_m: Array[String] = []
 	for k: String in mistakes:
 		parts_m.append("%s %.2f" % [k, float(mistakes[k]) / runs])
