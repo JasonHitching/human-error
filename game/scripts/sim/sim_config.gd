@@ -41,6 +41,14 @@ var bigger_desk_bonus: int = 2
 var overclock_speed_mult: float = 1.3
 var overclock_heat_mult: float = 3.0
 var monitor_amber_heat: float = 60.0
+var max_active_problems: int = 2
+var breather_seconds: float = 7.0
+var breather_shrink_per_day: float = 0.3
+var breather_floor: float = 3.0
+var wave_seconds: float = 35.0
+var burst_seconds: float = 8.0
+var burst_mult: float = 1.4
+var mistake_rate_mult: float = 1.0
 var bot_defs: Array[Dictionary] = []
 var repair_mode: String = "tap"  # "tap" or "hold"
 var machines: Array[Dictionary] = []
@@ -117,6 +125,14 @@ func _load_balance(b: Dictionary) -> void:
 	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))
 	monitor_amber_heat = _opt(b, "monitor_amber_heat", monitor_amber_heat, 0.0, 100.0)
+	max_active_problems = int(_opt(b, "max_active_problems", max_active_problems, 1.0, 20.0))
+	breather_seconds = _opt(b, "breather_seconds", breather_seconds, 0.0, 1000.0)
+	breather_shrink_per_day = _opt(b, "breather_shrink_per_day", breather_shrink_per_day, 0.0, 100.0)
+	breather_floor = _opt(b, "breather_floor", breather_floor, 0.0, 1000.0)
+	wave_seconds = _opt(b, "wave_seconds", wave_seconds, 0.0, 1000.0)
+	burst_seconds = _opt(b, "burst_seconds", burst_seconds, 0.0, 1000.0)
+	burst_mult = _opt(b, "burst_mult", burst_mult, 1.0, 100.0)
+	mistake_rate_mult = _opt(b, "mistake_rate_mult", mistake_rate_mult, 0.1, 100.0)
 	repair_mode = String(b.get("repair_mode", ""))
 	if repair_mode != "tap" and repair_mode != "hold":
 		errors.append("balance: repair_mode must be \"tap\" or \"hold\"")
