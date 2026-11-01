@@ -444,6 +444,10 @@ func _process(_delta: float) -> bool:
 			_end_shift(0)  # strike 2 -> fired
 		21:
 			_check_overlay("fired", hud.fired, true)
+			var rb: Button = hud._retry_btn
+			var need := Vector2(200, 100) if _main.size == Vector2(720, 1280) else Vector2(120, 80)
+			if rb.size.x < need.x or rb.size.y < need.y:
+				_fails.append("retry button too small: %s" % rb.size)
 			_check_glyphs()
 			for e in _catcher.errors.slice(0, 5):
 				_fails.append("engine/script error while drawing: " + e)

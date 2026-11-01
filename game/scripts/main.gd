@@ -281,11 +281,15 @@ func _end_shift() -> void:
 		if new_best:
 			_best_days = days
 			_save_best()
-		_hud.show_fired(days, _best_days, new_best, _career.foreman_line("fired"))
+		var bd := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty))
+		var praise := _career.foreman_line("new_best") if new_best else ""
+		_hud.show_fired(days, _career.foreman_line("fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise))
 		return
 	_phase = Phase.REVIEW
 	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])
-	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers)
+	var extra := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty)) if not res["hit"] else "Streak: %d days on target" % RunEnd.hit_streak(_career.history)
+	extra += "\n" + RunEnd.progress_line(res, _config.bonus_threshold)
+	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers, extra)
 
 
 func _pick_offer(index: int) -> void:
