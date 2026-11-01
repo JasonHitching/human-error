@@ -1,0 +1,12 @@
+{
+ "twists": [
+  {"id": "heatwave", "name": "Heatwave", "icon": "~", "heat_mult": 1.2, "overclock_mult": 1.25,
+   "line": "Heatwave. The machines are sweating. So am I. Mostly because of you."},
+  {"id": "rush_order", "name": "Rush order", "icon": ">>", "target_mult": 1.05, "line_speed": 1.1,
+   "line": "Rush order from upstairs. Bigger quota, faster line. What could go wrong?"},
+  {"id": "inspection_day", "name": "Inspection day", "icon": "?", "complaint_mult": 1.34, "decoy_mult": 1.4,
+   "line": "Inspection day. Complaints hurt more, and everything looks suspicious."},
+  {"id": "power_flicker", "name": "Power flicker", "icon": "!", "flicker_every": 30.0, "flicker_seconds": 1.0,
+   "line": "The power is flickering. Everything will stop for a moment. Don't panic. Panic a bit."}
+ ]
+}

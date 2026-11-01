@@ -14,6 +14,7 @@ func _fake(c: Career, shipped: int) -> Dictionary:
 func test_target_and_rate_scale_by_day() -> void:
 	var c := _c()
 	var cfg := c.config
+	cfg.twist_start_day = 99  # no twist: the base scaling is what is tested here
 	var f1 := c.start_day()
 	assert_eq(f1.target, cfg.target_base)
 	assert_near(f1.day_mult, 1.0)
@@ -105,3 +106,66 @@ func test_foreman_lines() -> void:
 	for k in ["start", "hit", "miss", "fired"]:
 		assert_true(c.foreman_line(k) != "", k)
 	assert_true(not c.foreman_line("start").contains("{"))
+
+
+func test_no_twist_on_days_1_and_2() -> void:
+	var c := _c()
+	for d in [1, 2]:
+		c.day = d
+		assert_true(c.twist().is_empty())
+		assert_eq(c.start_day().twist_id, "")
+	c.day = 3
+	assert_true(not c.twist().is_empty())
+	assert_eq(c.start_day().twist_id, c.twist()["id"])
+
+
+func test_twists_deterministic_and_never_repeat() -> void:
+	for s in 20:
+		var a := _c(s)
+		var b := _c(s)
+		var prev := ""
+		for d in range(1, 30):
+			a.day = d
+			b.day = d
+			var id: String = a.twist().get("id", "")
+			assert_eq(id, b.twist().get("id", ""))
+			if d >= 3:
+				assert_true(id != "" and id != prev, "seed %d day %d repeats %s" % [s, d, prev])
+			prev = id
+
+
+func test_each_twist_applies_and_reverts() -> void:
+	var c := _c()
+	var cfg := c.config
+	var plain := Factory.new(cfg, 1)
+	for t in c.twists.defs:
+		var f := Factory.new(cfg, 1)
+		f.apply_twist(t)
+		assert_eq(f.twist_id, t["id"])
+		match t["id"]:
+			"heatwave":
+				assert_near(f.heat_mult, 1.2)
+				assert_near(f.overclock_mult, 1.25)
+			"rush_order":
+				assert_near(f.line_speed, 1.1)
+			"inspection_day":
+				assert_true(f.complaint_penalty > cfg.complaint_penalty)
+				assert_true(f.decoy_chance > cfg.decoy_chance)
+			"power_flicker":
+				assert_true(f.flicker_every > 0)
+				var out := 0
+				for _i in 600:
+					f.step()
+					out += 1 if f.power_out() else 0
+				assert_true(out > 0, "power never flickered")
+	# rush order raises the quota, then the next twist-free day is back to normal
+	c.day = 3
+	var rush: Dictionary = c.twists.get_def("rush_order")
+	assert_true(roundi(float(c.day_target()) * float(rush["target_mult"])) > c.day_target())
+	assert_near(plain.heat_mult, 1.0)
+	assert_eq(plain.complaint_penalty, cfg.complaint_penalty)
+	c.day = 2
+	var f2 := c.start_day()
+	assert_eq(f2.target, c.day_target())
+	assert_near(f2.line_speed, 1.0)
+	assert_eq(f2.complaint_penalty, cfg.complaint_penalty)

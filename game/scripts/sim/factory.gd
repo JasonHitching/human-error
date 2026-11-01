@@ -37,6 +37,14 @@ var qa_ticks: int = 0
 var qa_queue_sum: int = 0  # sum of queue length over ticks (for the average)
 var qa_queue_max: int = 0
 var qa_full_seen: bool = false
+var heat_mult: float = 1.0  # shift twists (see Twists): scale heat gain and overclock chance
+var overclock_mult: float = 1.0
+var line_speed: float = 1.0  # scales machine processing speed
+var complaint_penalty: int = 0
+var decoy_chance: float = 0.0
+var twist_id: String = ""
+var flicker_every: int = 0  # ticks between power flickers (0 = none)
+var flicker_ticks: int = 0
 var inspect_speed: float = 1.0  # multiplies inspect time (career upgrade < 1)
 var qa_capacity: int = 8:
 	set(v):
@@ -50,6 +58,9 @@ var _last_inspected: Dictionary = {}
 var _qa_items: Array[Dictionary] = []  # products waiting for inspection, front first
 var _qa_link: int = -1  # link index qa -> warehouse
 var _inspect_left: int = 0
+var _power_rng := RandomNumberGenerator.new()
+var _next_flicker: int = 0
+var _power_left: int = 0
 var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from rng
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
@@ -68,6 +79,9 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	day_mult = p_day_mult
 	rng.seed = seed
 	_qa_rng.seed = seed * 31 + 17
+	_power_rng.seed = seed * 53 + 11
+	complaint_penalty = config.complaint_penalty
+	decoy_chance = config.decoy_chance
 	target = config.target
 	_shift_ticks = maxi(1, roundi(config.shift_seconds * config.tick_rate))
 	worker = Worker.new(roundi(config.transition_seconds * config.tick_rate), config.stairs, config.walk_speed / config.tick_rate)
@@ -145,11 +159,42 @@ func step() -> void:
 	worker.step()
 	_step_crew()
 	_advance_transit()
-	for m in machines:
-		_step_machine(m)
-	for m in machines:
-		_dispatch(m)
+	_step_power()
+	if _power_left <= 0:
+		for m in machines:
+			_step_machine(m)
+		for m in machines:
+			_dispatch(m)
 	_track_qa()
+
+
+## Apply a twist (see Twists) to this shift. Multipliers only; the base config is untouched.
+func apply_twist(t: Dictionary) -> void:
+	twist_id = String(t.get("id", ""))
+	heat_mult = float(t.get("heat_mult", 1.0))
+	overclock_mult = float(t.get("overclock_mult", 1.0))
+	line_speed = float(t.get("line_speed", 1.0))
+	complaint_penalty = roundi(_config.complaint_penalty * float(t.get("complaint_mult", 1.0)))
+	decoy_chance = clampf(_config.decoy_chance * float(t.get("decoy_mult", 1.0)), 0.0, 1.0)
+	flicker_every = roundi(float(t.get("flicker_every", 0.0)) * _config.tick_rate)
+	flicker_ticks = roundi(float(t.get("flicker_seconds", 0.0)) * _config.tick_rate)
+	_next_flicker = _flicker_gap()
+
+
+func power_out() -> bool:
+	return _power_left > 0
+
+
+func _flicker_gap() -> int:
+	return maxi(1, flicker_every + _power_rng.randi_range(-flicker_every / 4, flicker_every / 4))
+
+
+func _step_power() -> void:
+	if _power_left > 0:
+		_power_left -= 1
+	elif flicker_every > 0 and tick >= _next_flicker:
+		_power_left = flicker_ticks
+		_next_flicker = tick + flicker_ticks + _flicker_gap()
 
 
 func _advance_transit() -> void:
@@ -179,7 +224,7 @@ func is_over() -> bool:
 
 ## Score for the Foreman: shipped minus complaint penalties, never below 0.
 func score() -> int:
-	return maxi(0, shipped - complaints * _config.complaint_penalty)
+	return maxi(0, shipped - complaints * complaint_penalty)
 
 
 ## Products waiting at the QA desk, front first: [{defect, decoy, bot}].
@@ -316,7 +361,7 @@ func _make_product(asm: Machine) -> Dictionary:
 		var ev := {"type": "mistake", "mistake": "sloppy", "machine_id": culprit.id, "bot": culprit.bot.name}
 		events.append(ev)
 		mistake_log.append(ev)
-	elif decoy_roll < _config.decoy_chance:
+	elif decoy_roll < decoy_chance:
 		prod["decoy"] = DECOYS[decoy_kind]
 	return prod
 
@@ -459,7 +504,7 @@ func _step_machine(m: Machine) -> void:
 	_advance_machine(m)
 	var rate := float(_config.tick_rate)
 	if m.state == Machine.State.WORKING:
-		m.heat += m.heat_per_sec * (_config.overclock_heat_mult if m.overclocked else 1.0) / rate
+		m.heat += m.heat_per_sec * heat_mult * (_config.overclock_heat_mult if m.overclocked else 1.0) / rate
 		if m.heat >= 100.0:
 			m.heat = 100.0
 			m.overclocked = false
@@ -485,6 +530,8 @@ func _roll(m: Machine, mistake: String) -> bool:
 	if m.bot == null:
 		return false
 	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult)
+	if mistake == "overclock":
+		p *= overclock_mult
 	return p > 0.0 and rng.randf() < p
 
 
@@ -502,7 +549,7 @@ func _fault(m: Machine, s: Machine.State) -> void:
 
 func _advance_machine(m: Machine) -> void:
 	if m.busy:
-		m.speed_frac += _config.overclock_speed_mult if m.overclocked else 1.0
+		m.speed_frac += (_config.overclock_speed_mult if m.overclocked else 1.0) * line_speed
 		var add := int(m.speed_frac)
 		m.speed_frac -= add
 		m.progress = mini(m.progress + add, m.process_ticks)

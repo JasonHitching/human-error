@@ -16,6 +16,7 @@ var crew_speed: float = 1.0
 var qa_bonus: int = 0  # extra queue slots (Bigger desk)
 var inspect_speed: float = 1.0  # Quick eye multiplies inspect time
 var history: Array = []  # {day, shipped, target, hit}
+var twists: Twists
 var _lines: Dictionary = {}
 
 
@@ -23,6 +24,7 @@ func _init(p_config: SimConfig, p_seed: int) -> void:
 	config = p_config
 	seed = p_seed
 	rng.seed = p_seed
+	twists = Twists.new(p_seed, config.twist_start_day)
 	var defs := config.bot_defs.duplicate()
 	for i in range(defs.size() - 1, 0, -1):  # seeded Fisher-Yates
 		var j := rng.randi_range(0, i)
@@ -40,13 +42,24 @@ func day_target() -> int:
 	return config.target_base + config.target_per_day * (day - 1)
 
 
+## Today's twist ({} = none): days before twist_start_day have none.
+func twist() -> Dictionary:
+	return twists.for_day(day)
+
+
+## Quota including the twist's target multiplier.
+func shift_target() -> int:
+	return roundi(float(day_target()) * float(twist().get("target_mult", 1.0)))
+
+
 func day_mult() -> float:
 	return pow(config.day_rate_mult, day - 1)
 
 
 func start_day() -> Factory:
 	var f := Factory.new(config, seed * 1000 + day, roster, day_mult())
-	f.target = day_target()
+	f.apply_twist(twist())
+	f.target = shift_target()
 	f.crew_speed = crew_speed
 	f.qa_capacity += qa_bonus
 	f.inspect_speed = inspect_speed

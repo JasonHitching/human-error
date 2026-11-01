@@ -27,6 +27,7 @@
   "quick_eye_mult": 0.8,
   "bigger_desk_bonus": 2,
   "monitor_amber_heat": 60,
+  "twist_start_day": 3,
   "sfx": {
     "volume": 0.35,
     "ship": {"pitch": 520, "pitch_end": 900, "length": 0.12, "volume": 1.0},

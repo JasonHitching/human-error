@@ -88,7 +88,7 @@ func _show_day() -> void:
 	_holding = false
 	_phase = Phase.BANNER
 	_hud.set_flash("")
-	_hud.show_banner(_career.day, _career.foreman_line("start"), _career.day_target())
+	_hud.show_banner(_career.day, _career.foreman_line("start"), _factory.target, _career.twist())
 	_fit()
 
 

@@ -424,6 +424,18 @@ func _process(_delta: float) -> bool:
 		21:
 			_check_overlay("fired", hud.fired, true)
 			_check_glyphs()
+			_main._career.day = 3  # first twist day
+			_main._show_day()
+		22:
+			if _main._factory.twist_id == "":
+				_fails.append("day 3 has no twist")
+			elif not hud.banner.is_visible_in_tree() or not (_main._hud._banner_label.text.contains("TWIST")):
+				_fails.append("twist banner not shown on a twist day")
+			_check_overlay("twist banner", hud.banner, true)
+			hud.start_pressed.emit()
+		24:
+			if not hud._twist.is_visible_in_tree() or hud._twist.text == "":
+				_fails.append("twist HUD label not visible on a twist day")
 			for e in _catcher.errors.slice(0, 5):
 				_fails.append("engine/script error while drawing: " + e)
 			for f in _fails:
