@@ -43,7 +43,7 @@ func _check_desk() -> void:
 	var desk: QaDeskView = _main._desk
 	if not screen.encloses(desk.rect):
 		_fails.append("desk strip %s not inside screen %s" % [desk.rect, screen])
-	for b: Button in [_main._reject_btn, _main._ship_btn]:
+	for b: Button in [_main._reject_btn, _main._ship_btn, _main._scan_btn]:
 		if not b.is_visible_in_tree() or not screen.encloses(b.get_global_rect()):
 			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
@@ -53,12 +53,13 @@ func _check_desk() -> void:
 	var spec := desk.spec_rect()
 	if not screen.encloses(spec):
 		_fails.append("spec card off-screen: %s" % spec)
-	for r: Rect2 in [desk.pad_rect(), _main._reject_btn.get_global_rect(), _main._ship_btn.get_global_rect()]:
+	for r: Rect2 in [desk.pad_rect(), _main._reject_btn.get_global_rect(), _main._ship_btn.get_global_rect(), _main._scan_btn.get_global_rect()]:
 		if spec.intersects(r):
 			_fails.append("spec card %s overlaps %s" % [spec, r])
 	if desk.caption == "":
 		_fails.append("day 1 spec caption missing")
 	var f: Factory = _main._factory
+	_check_spec_and_scan(desk, f)
 	f._qa_items.append({"defect": "", "decoy": "", "bot": ""})
 	f._qa.input_count += 1
 	if f.qa_queue().size() != 1:
@@ -81,6 +82,28 @@ func _check_desk() -> void:
 	f.worker.place(Worker.Location.OFFICE)
 	if desk.brb_visible():
 		_fails.append("BRB shown while worker at desk")
+
+
+## Spec card shows a changed rule; a subtle product is drawn only after the scan.
+func _check_spec_and_scan(desk: QaDeskView, f: Factory) -> void:
+	f.apply_spec({"extra": ["scuff"], "allowed": ["dent"], "change": "New spec: scuff is now a defect.", "subtle_share": 0.3})
+	var cap: String = _main._spec_caption()
+	if not cap.contains("REJECT: scuff") or not cap.contains("OK: dent"):
+		_fails.append("spec caption lacks the changed rules: '%s'" % cap)
+	var item := {"defect": "crack", "decoy": "", "bot": "", "subtle": true}
+	if QaDeskView.shown_defect(item) != "":
+		_fails.append("subtle defect drawn before the scan")
+	f.worker.place(Worker.Location.OFFICE)
+	f._qa_items.append(item)
+	f._qa.input_count += 1
+	_main._scan()
+	if QaDeskView.shown_defect(item) != "crack" or not f.inspect_busy():
+		_fails.append("scan did not reveal the subtle defect / take time")
+	f._inspect_left = 0
+	f.inspect(false)
+	f.apply_spec({})
+	f.caught = 0
+	f._inspect_left = 0
 
 
 func _check_button(b: Button, screen: Rect2) -> void:
@@ -257,7 +280,7 @@ func _check_layouts() -> void:
 		f.worker.place(Worker.Location.OFFICE)  # desk buttons: office page on screen
 		sw.sync(0.0)
 		var vp := Rect2(Vector2.ZERO, lg)
-		for b: Button in [_main._ship_btn, _main._reject_btn, sw.factory_btn]:
+		for b: Button in [_main._ship_btn, _main._reject_btn, _main._scan_btn, sw.factory_btn]:
 			if not vp.encloses(b.get_global_rect()):
 				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
 			if b.size.x < 120.0 or b.size.y < 80.0:

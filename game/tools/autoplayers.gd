@@ -13,6 +13,7 @@ const CAREFUL_VENT_HEAT := 55.0
 const HUMAN_REACT := 15
 const HUMAN_GAP := 8
 const HUMAN_INSPECT_GAP := 12
+const HUMAN_SCAN_GAP := 2
 const HUMAN_ACCURACY := 0.9
 
 
@@ -80,7 +81,13 @@ static func act(who: String, f: Factory, rng: RandomNumberGenerator = null, mem:
 	var q := f.qa_queue()
 	if q.is_empty():
 		return
-	var good := String((q[0] as Dictionary)["defect"]) == ""
+	var front: Dictionary = q[0]
+	if player == "careful" and f.subtle_share > 0.0 and not bool(front.get("scanned", false)) and q.size() < f.scan_queue_max:
+		f.scan()  # short queue: take the time to check for subtle defects
+		if paced:
+			mem["next"] = f.tick + f.scan_ticks + HUMAN_SCAN_GAP  # one tap, then look at the result
+		return
+	var good := not f.item_visible_bad(front)
 	var right := rng.randf() < (HUMAN_ACCURACY if paced else ACCURACY)
 	f.inspect(good == right)  # ship good / reject bad when right; the opposite when wrong
 	if paced:

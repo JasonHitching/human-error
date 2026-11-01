@@ -144,16 +144,23 @@ func set_flash(text: String) -> void:
 	_flash.text = text
 
 
-func show_banner(day: int, line: String, target: int, twist: Dictionary = {}) -> void:
+func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, spec_change: String = "") -> void:
 	var tw := ""
+	if spec_change != "":
+		tw = "\n\n" + spec_change
 	if not twist.is_empty():
-		tw = "\n\nTWIST: %s %s\n%s" % [twist.get("icon", ""), twist.get("name", ""), twist.get("line", "")]
+		tw += "\n\nTWIST: %s %s\n%s" % [twist.get("icon", ""), twist.get("name", ""), twist.get("line", "")]
 	_banner_label.text = "FOREMAN\nDay %d · target %d\n\n%s%s" % [day, target, line, tw]
 	_show_only(banner)
 
 
 func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra: String = "") -> void:
-	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), line]
+	var qa_lines := ""
+	if String(res.get("spec_change", "")) != "":
+		qa_lines += "\n" + String(res["spec_change"])
+	if int(res.get("subtle_scanned", 0)) + int(res.get("subtle_shipped", 0)) > 0:
+		qa_lines += "\nHairline faults: caught %d by scanning, shipped %d" % [res.get("subtle_caught", 0), res.get("subtle_shipped", 0)]
+	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), qa_lines, line]
 	if extra != "":
 		_review_label.text += "\n" + extra
 	if res.get("probation", false):

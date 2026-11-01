@@ -47,6 +47,11 @@ func twist() -> Dictionary:
 	return twists.for_day(day)
 
 
+## Today's QA spec (see QaSpec).
+func qa_spec() -> Dictionary:
+	return QaSpec.for_day(config, seed, day)
+
+
 ## Quota including the twist's target multiplier.
 func shift_target() -> int:
 	return roundi(float(day_target()) * float(twist().get("target_mult", 1.0)))
@@ -59,6 +64,7 @@ func day_mult() -> float:
 func start_day() -> Factory:
 	var f := Factory.new(config, seed * 1000 + day, roster, day_mult())
 	f.apply_twist(twist())
+	f.apply_spec(qa_spec())
 	f.target = shift_target()
 	f.pacing.day = day
 	f.crew_speed = crew_speed
@@ -79,7 +85,7 @@ func end_day(f: Factory) -> Dictionary:
 		strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "bot_mistakes": Career.mistake_tally(f.mistake_log)}
+	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log)}
 
 
 ## Builds {bot: {count, top}} from a factory mistake_log.

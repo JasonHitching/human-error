@@ -26,6 +26,7 @@ var _flash_left: float = 0.0
 var _offers: Array[Dictionary] = []
 var _ship_btn: Button
 var _reject_btn: Button
+var _scan_btn: Button
 var _sfx: Sfx
 var _mute_btn: Button
 var _muted: bool = false
@@ -67,6 +68,11 @@ func _ready() -> void:
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
 	_ship_btn = _inspect_button("Ship", true)
 	_reject_btn = _inspect_button("Reject", false)
+	_scan_btn = Button.new()
+	_scan_btn.text = "Scan (S)"
+	_scan_btn.add_theme_font_size_override("font_size", 28)
+	_scan_btn.pressed.connect(_scan)
+	_screens.office_page.add_child(_scan_btn)
 	_mute_btn = Button.new()
 	_mute_btn.add_theme_font_size_override("font_size", 28)
 	_mute_btn.pressed.connect(_toggle_mute)
@@ -98,13 +104,27 @@ func _show_day() -> void:
 	_front_since = _feel.clock
 	_desk.setup(_factory)
 	_desk.hint = HINT if _career.day == 1 else ""
-	_desk.caption = "6 bolts · label on top · %s body" % COLOUR_NAME if _career.day == 1 else ""
+	_desk.caption = _spec_caption()
+	_desk.spec_new = _factory.spec_change != ""
 	_acc = 0.0
 	_holding = false
 	_phase = Phase.BANNER
 	_hud.set_flash("")
-	_hud.show_banner(_career.day, _career.foreman_line("start"), _factory.target, _career.twist())
+	_hud.show_banner(_career.day, _career.foreman_line("start"), _factory.target, _career.twist(), _factory.spec_change)
 	_fit()
+
+
+func _spec_caption() -> String:
+	var lines: Array[String] = []
+	if _career.day == 1:
+		lines.append("6 bolts · label on top · %s body" % COLOUR_NAME)
+	for k: String in _factory.spec_extra:
+		lines.append("REJECT: " + QaSpec.nice(k))
+	for k: String in _factory.spec_allowed:
+		lines.append("OK: " + QaSpec.nice(k))
+	if _factory.subtle_share > 0.0:
+		lines.append("Hairline faults: Scan")
+	return " · ".join(lines)
 
 
 func _toggle_mute() -> void:
@@ -147,6 +167,17 @@ func _inspect_button(text: String, ship: bool) -> Button:
 	return b
 
 
+func _scan() -> void:
+	if _phase != Phase.PLAYING or _factory == null or not _factory.worker_at_desk():
+		return
+	if _factory.scan() == Factory.InspectResult.SCANNING:
+		_desk.hint = ""
+		_sfx.play("thunk")
+		var q := _factory.qa_queue()
+		if not q.is_empty() and bool((q[0] as Dictionary).get("subtle", false)) and _factory.item_bad(q[0]):
+			_desk.flash("Scan: hairline fault found", Color(0.6, 0.9, 1.0), 1.4)
+
+
 func _inspect(ship: bool) -> void:
 	if _phase != Phase.PLAYING or _factory == null:
 		return
@@ -158,7 +189,7 @@ func _inspect(ship: bool) -> void:
 	if res in [Factory.InspectResult.SHIPPED, Factory.InspectResult.COMPLAINT, Factory.InspectResult.CAUGHT, Factory.InspectResult.WASTED]:
 		_desk.hint = ""
 		_desk.play_inspect(front, ship)
-		var bad := String(front.get("defect", "")) != ""
+		var bad := _factory.item_bad(front)
 		var correct := ship != bad
 		var quick := _feel.clock - _front_since < Feel.QUICK_SECONDS
 		var perfect := correct and bad and (bool(front.get("subtle", false)) or quick)
@@ -177,11 +208,15 @@ func _inspect(ship: bool) -> void:
 		Factory.InspectResult.COMPLAINT:
 			Haptics.pulse(80)
 			_desk.flash("COMPLAINT!", Color(1.0, 0.25, 0.2), 1.6)
-			_desk.flash("Missed: " + String(_factory.last_inspected()["defect"]).replace("_", " ").to_upper(), Color(1.0, 0.5, 0.3), 2.0)
+			var li := _factory.last_inspected()
+			var what := String(li["defect"]) if String(li["defect"]) != "" else String(li["decoy"])
+			_desk.flash("Missed: " + what.replace("_", " ").to_upper(), Color(1.0, 0.5, 0.3), 2.0)
 			_desk.flash(_career.foreman_line_at("complaint", _factory.complaints), Color(1.0, 0.7, 0.6), 2.0)
 		Factory.InspectResult.WASTED:
 			var decoy := String(_factory.last_inspected()["decoy"])
 			var why := "no defect" if decoy == "" else "just a " + ("sticker" if decoy.begins_with("sticker") else decoy)
+			if String(_factory.last_inspected()["defect"]) != "":
+				why = String(_factory.last_inspected()["defect"]).replace("_", " ") + " is allowed now"
 			_desk.flash("That was fine - " + why, Color(1.0, 0.75, 0.3), 2.0)
 		Factory.InspectResult.CAUGHT:
 			_desk.flash("Caught it!", Color(0.4, 1.0, 0.5))
@@ -192,6 +227,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		match (event as InputEventKey).keycode:
 			KEY_LEFT: _inspect(false)
 			KEY_RIGHT: _inspect(true)
+			KEY_S: _scan()
 			KEY_DOWN: _screens.go_floor()
 			KEY_UP: _screens.go_office()
 
@@ -207,12 +243,13 @@ func _fit() -> void:
 		_haptics_btn.size = Vector2(150, 80)
 		_haptics_btn.position = _mute_btn.position - Vector2(_haptics_btn.size.x + 8.0, 0.0)
 	if _ship_btn != null:
-		var w := size.x * 0.45
+		var w := (size.x - 60.0) / 3.0
 		var y := strip.end.y - 104.0
-		_reject_btn.size = Vector2(w, 84)
-		_ship_btn.size = Vector2(w, 84)
-		_reject_btn.position = Vector2(size.x * 0.03, y)
-		_ship_btn.position = Vector2(size.x * 0.52, y)
+		for b: Button in [_reject_btn, _scan_btn, _ship_btn]:
+			b.size = Vector2(w, 84)
+		_reject_btn.position = Vector2(20.0, y)
+		_scan_btn.position = Vector2(30.0 + w, y)
+		_ship_btn.position = Vector2(40.0 + 2.0 * w, y)
 	if _view != null:
 		_view.area = _screens.floor_rect()
 	if _desk != null:
@@ -250,6 +287,7 @@ func _process(delta: float) -> void:
 			_desk.flash("Scuffs and stickers are fine.", Color(0.6, 0.9, 1.0), 3.0)
 	_ship_btn.visible = _phase == Phase.PLAYING
 	_reject_btn.visible = _phase == Phase.PLAYING
+	_scan_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
 	_screens.wall.poll()
 	_sfx_events()

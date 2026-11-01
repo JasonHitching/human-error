@@ -7,7 +7,7 @@ var shipped: int = 0
 var machines: Array[Machine] = []
 var rng := RandomNumberGenerator.new()  # sole source of randomness (used from #4)
 
-enum InspectResult { SHIPPED, COMPLAINT, CAUGHT, WASTED, NOT_AT_DESK, EMPTY, BUSY }
+enum InspectResult { SHIPPED, COMPLAINT, CAUGHT, WASTED, NOT_AT_DESK, EMPTY, BUSY, SCANNING }
 const DEFECTS := ["missing_bolt", "crack", "wrong_paint", "flipped_label", "dent"]
 const DECOYS := ["scuff", "sticker_blue", "sticker_green"]
 enum ActionResult { STARTED_REPAIR, STARTED_VENT, STARTED_FIX, STARTED_CLEAR, CREW_BUSY, NOTHING_TO_DO, NOT_ON_FLOOR, QUEUED, UNQUEUED }
@@ -65,6 +65,17 @@ var _next_flicker: int = 0
 var _power_left: int = 0
 var pacing: Pacing
 var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from rng
+var _subtle_rng := RandomNumberGenerator.new()  # subtle rolls, so they never shift the other sequences
+var spec_extra: Array = []  # decoys the Foreman made defects
+var spec_allowed: Array = []  # defects the Foreman made acceptable
+var spec_change: String = ""  # today's spec change text ("" = none)
+var subtle_share: float = 0.0
+var scan_ticks: int = 8
+var subtle_scanned: int = 0  # subtle defects revealed by a scan this shift
+var subtle_caught: int = 0  # ... of which rejected
+var subtle_shipped: int = 0  # subtle defects shipped (complaints)
+var scans: int = 0
+var scan_queue_max: int = 5  # autoplayer hint: scan only while the queue is shorter than this
 var _crew_kind: int = ActionResult.NOTHING_TO_DO
 var _crew_ticks: int = 0
 var _crew_left: int = 0
@@ -82,6 +93,9 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	day_mult = p_day_mult
 	rng.seed = seed
 	_qa_rng.seed = seed * 31 + 17
+	_subtle_rng.seed = seed * 37 + 5
+	scan_queue_max = config.scan_queue_max
+	scan_ticks = maxi(1, roundi(config.scan_seconds * config.tick_rate))
 	pacing = Pacing.new(config, rng)
 	_power_rng.seed = seed * 53 + 11
 	complaint_penalty = config.complaint_penalty
@@ -174,6 +188,29 @@ func step() -> void:
 		for m in machines:
 			_dispatch(m)
 	_track_qa()
+
+
+## Apply the day's QA spec (see QaSpec).
+func apply_spec(spec: Dictionary) -> void:
+	spec_extra = spec.get("extra", [])
+	spec_allowed = spec.get("allowed", [])
+	spec_change = String(spec.get("change", ""))
+	subtle_share = float(spec.get("subtle_share", 0.0))
+
+
+## Is this product bad under today's spec?
+func item_bad(item: Dictionary) -> bool:
+	var d := String(item.get("defect", ""))
+	if d != "":
+		return not spec_allowed.has(d)
+	return spec_extra.has(String(item.get("decoy", "")))
+
+
+## Does the bad product show its fault? A subtle defect stays hidden until scanned.
+func item_visible_bad(item: Dictionary) -> bool:
+	if not item_bad(item):
+		return false
+	return not (bool(item.get("subtle", false)) and not bool(item.get("scanned", false)))
 
 
 ## Apply a twist (see Twists) to this shift. Multipliers only; the base config is untouched.
@@ -294,23 +331,48 @@ func inspect(ship: bool) -> int:
 	_last_inspected = {"defect": item["defect"], "decoy": item.get("decoy", ""), "bot": item.get("bot", "")}
 	_qa.input_count = maxi(0, _qa.input_count - 1)
 	_inspect_left = maxi(1, roundi(_config.inspect_seconds * inspect_speed * _config.tick_rate))
-	var bad := String(item["defect"]) != ""
+	var bad := item_bad(item)
+	var subtle := bad and bool(item.get("subtle", false))
 	if ship:
 		if _qa_link >= 0:
 			_transit.append({"link": _qa_link, "left": _links[_qa_link]["ticks"], "junk": false, "scrap": false, "product": item})
 		if bad:
 			complaints += 1
-			missed_by_type[item["defect"]] = int(missed_by_type.get(item["defect"], 0)) + 1
+			var kind: String = item["defect"] if String(item["defect"]) != "" else String(item["decoy"])
+			missed_by_type[kind] = int(missed_by_type.get(kind, 0)) + 1
+			if subtle:
+				subtle_shipped += 1
 			streak = 0
 			return InspectResult.COMPLAINT
 		return InspectResult.SHIPPED
 	if bad:
 		caught += 1
+		if subtle:
+			subtle_caught += 1
 		streak += 1
 		return InspectResult.CAUGHT
 	wasted += 1
 	streak = 0
 	return InspectResult.WASTED
+
+
+## Scan the front product: reveals a subtle defect. Busy for scan_seconds. Recorded for replay.
+func scan() -> int:
+	actions.append({"tick": tick, "scan": true})
+	if _qa == null or not worker_at_desk():
+		return InspectResult.NOT_AT_DESK
+	if _inspect_left > 0:
+		return InspectResult.BUSY
+	if _qa_items.is_empty():
+		return InspectResult.EMPTY
+	_inspect_left = scan_ticks
+	scans += 1
+	var item: Dictionary = _qa_items[0]
+	if not bool(item.get("scanned", false)):
+		item["scanned"] = true
+		if bool(item.get("subtle", false)) and item_bad(item):
+			subtle_scanned += 1
+	return InspectResult.SCANNING
 
 
 func _has_fixable() -> bool:
@@ -369,6 +431,7 @@ func _make_product(asm: Machine) -> Dictionary:
 				culprit = makers[i]
 				break
 		prod["defect"] = DEFECTS[kind]
+		prod["subtle"] = subtle_share > 0.0 and _subtle_rng.randf() < subtle_share
 		prod["bot"] = culprit.bot.name
 		mistake_counts["sloppy"] += 1
 		var ev := {"type": "mistake", "mistake": "sloppy", "machine_id": culprit.id, "bot": culprit.bot.name}
@@ -510,6 +573,8 @@ static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ti
 		while i < recorded.size() and int(recorded[i]["tick"]) <= f.tick:
 			if recorded[i].has("release"):
 				f.release_action()
+			elif recorded[i].has("scan"):
+				f.scan()
 			elif recorded[i].has("inspect"):
 				f.inspect(bool(recorded[i]["ship"]))
 			elif recorded[i].has("go"):
