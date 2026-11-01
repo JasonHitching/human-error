@@ -7,6 +7,7 @@ signal continue_pressed
 signal offer_pressed(index: int)
 signal restart_pressed
 signal replay_pressed
+signal stats_pressed
 
 var banner: Control
 var review: Control
@@ -19,6 +20,9 @@ var _review_label: Label
 var _review_box: VBoxContainer
 var _fired_label: Label
 var _retry_btn: Button
+var stats_btn: Button
+var stats_overlay: Control
+var _stats_label: Label
 
 
 func _ready() -> void:
@@ -47,6 +51,13 @@ func _ready() -> void:
 	var rp := _button(fb[1], "Replay this seed", replay_pressed.emit)
 	rp.custom_minimum_size = Vector2(440, 80)
 	rp.add_theme_font_size_override("font_size", 22)
+	stats_btn = _button(fb[1], "Stats", stats_pressed.emit)
+	stats_btn.custom_minimum_size = Vector2(440, 80)
+	stats_btn.add_theme_font_size_override("font_size", 22)
+	var sb := _overlay()
+	stats_overlay = sb[0]
+	_stats_label = _big(sb[1])
+	_button(sb[1], "Close", hide_stats)
 	resized.connect(_layout)
 	_layout()
 
@@ -153,6 +164,15 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra
 func show_fired(days: int, line: String, breakdown: String, teaser: String) -> void:
 	_fired_label.text = "FIRED\nDays survived: %d\n\n%s\n\n%s\n%s" % [days, breakdown, teaser, line]
 	_show_only(fired)
+
+
+func show_stats(text: String) -> void:
+	_stats_label.text = text
+	stats_overlay.visible = true
+
+
+func hide_stats() -> void:
+	stats_overlay.visible = false
 
 
 func hide_overlays() -> void:
