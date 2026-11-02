@@ -10,6 +10,7 @@ const HINT := "Swipe right: ship good ones. Swipe left: reject defects.\nBots ca
 enum Phase { BANNER, PLAYING, REVIEW, FIRED }
 
 var _config: SimConfig
+var _tier: int = 1
 var _career: Career
 var _factory: Factory
 var _view: FactoryView
@@ -42,12 +43,13 @@ var _last_flash_id: String = ""
 
 
 func _ready() -> void:
-	_config = SimConfig.load_default()
+	_load_save()
+	_meta = SaveIO.load_meta()
+	_meta.note_best(1, _best_days)  # best.json predates tiers: it was tier 1
+	_set_tier(_meta.picked_tier)
 	if not _config.is_valid():
 		push_error("config invalid: %s" % str(_config.errors))
 		return
-	_load_save()
-	_meta = SaveIO.load_meta()
 	_stats = _meta.stats
 	_sfx = Sfx.new()
 	add_child(_sfx)
@@ -88,6 +90,10 @@ func _ready() -> void:
 	_home = Home.new()
 	add_child(_home)
 	_home.start_pressed.connect(_home_start)
+	_home.tier_picked.connect(func(t: int) -> void:
+		_meta.pick_tier(t)
+		SaveIO.write_meta(_meta)
+		_home.setup(_meta))
 	_home.perk_bought.connect(func(id: String) -> void:
 		if _meta.buy(id):
 			SaveIO.write_meta(_meta)
@@ -107,11 +113,18 @@ func _open_home() -> void:
 ## Start career: at app start a career is already set up behind Home; after a run-end begin a fresh one.
 func _home_start() -> void:
 	_home.visible = false
-	if _phase == Phase.FIRED:
+	if _phase == Phase.FIRED or _meta.picked_tier != _tier:
 		_new_career(int(Time.get_ticks_usec()))
 
 
+func _set_tier(t: int) -> void:
+	_tier = clampi(t, 1, _meta.tier)
+	_config = SimConfig.load_tier(_tier)
+	_best_days = _meta.best_for(_tier)
+
+
 func _new_career(seed_value: int) -> void:
+	_set_tier(_meta.picked_tier)
 	_decoy_tip_shown = false
 	_career = Career.new(_config, seed_value, _meta.owned_perks)
 	_stats.career_started(int(Time.get_unix_time_from_system()))
@@ -350,6 +363,7 @@ func _end_shift() -> void:
 		_stats.career_finished(now, _career.day)
 		if res["automated"]:
 			_meta.automations += 1
+			_meta.unlock_after(_tier)
 		awarded = _meta.award(_career.summary())
 	SaveIO.write_meta(_meta)
 	if res["fired"] or res["automated"]:
@@ -358,6 +372,8 @@ func _end_shift() -> void:
 		var new_best := days > _best_days
 		if new_best:
 			_best_days = days
+			_meta.note_best(_tier, days)
+			SaveIO.write_meta(_meta)
 			_save_best()
 		var bd := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty))
 		var praise := _career.foreman_line("new_best") if new_best else ""
@@ -385,6 +401,7 @@ func _end_automated() -> void:
 	var now := int(Time.get_unix_time_from_system())
 	_stats.career_finished(now, _career.day)
 	_meta.automations += 1
+	_meta.unlock_after(_tier)
 	var awarded := _meta.award(_career.summary())
 	SaveIO.write_meta(_meta)
 	_phase = Phase.FIRED
@@ -392,6 +409,8 @@ func _end_automated() -> void:
 	var new_best := days > _best_days
 	if new_best:
 		_best_days = days
+		_meta.note_best(_tier, days)
+		SaveIO.write_meta(_meta)
 		_save_best()
 	_hud.show_fired(days, _career.foreman_line("automated"), "", RunEnd.teaser(days, _best_days, new_best, ""), RunEnd.awards_text(awarded), "AUTOMATED (you win)")
 
@@ -476,4 +495,4 @@ func _load_save() -> void:
 func _save_best() -> void:
 	var f := FileAccess.open(BEST_PATH, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify({"best_days": _best_days, "muted": _muted, "haptics": Haptics.enabled}))
+		f.store_string(JSON.stringify({"best_days": _meta.best_for(1) if _meta != null else _best_days, "muted": _muted, "haptics": Haptics.enabled}))
