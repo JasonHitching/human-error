@@ -1,0 +1,273 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/office_hud.gd" id="1_office"]
+[ext_resource type="Script" path="res://scripts/ui/wall_monitor.gd" id="2_wall"]
+
+[node name="OfficeHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_office")
+
+[node name="Column" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = 150.0
+offset_right = -18.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Monitor" type="Panel" parent="Column"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 259)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Wall" type="Control" parent="Column/Monitor"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_wall")
+
+[node name="GoDownButton" type="Button" parent="Column/Monitor"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(204, 81)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -219.0
+offset_top = 15.0
+offset_right = -15.0
+offset_bottom = 96.0
+grow_horizontal = 0
+focus_mode = 0
+text = "Go down"
+
+[node name="Desk" type="VBoxContainer" parent="Column"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="QueueRow" type="HBoxContainer" parent="Column/Desk"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 78)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="QueueInfo" type="VBoxContainer" parent="Column/Desk/QueueRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Slots" type="HBoxContainer" parent="Column/Desk/QueueRow/QueueInfo"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="QueueLabel" type="Label" parent="Column/Desk/QueueRow/QueueInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 20
+text = "Desk queue 0 / 12"
+text_overrun_behavior = 3
+
+[node name="StreakPill" type="PanelContainer" parent="Column/Desk/QueueRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(162, 52)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="StreakLabel" type="Label" parent="Column/Desk/QueueRow/StreakPill"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.298, 0.788, 0.941, 1)
+theme_override_font_sizes/font_size = 20
+text = "Streak 0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SpecChip" type="PanelContainer" parent="Column/Desk"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 67)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Column/Desk/SpecChip"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="Row" type="HBoxContainer" parent="Column/Desk/SpecChip/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="SpecLabel" type="Label" parent="Column/Desk/SpecChip/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 20
+text = "SPEC"
+vertical_alignment = 1
+
+[node name="SpecIcon" type="Control" parent="Column/Desk/SpecChip/Margin/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="RuleLabel" type="Label" parent="Column/Desk/SpecChip/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_font_sizes/font_size = 22
+text = "6 bolts · label on top · blue body"
+vertical_alignment = 1
+autowrap_mode = 3
+text_overrun_behavior = 3
+clip_text = true
+
+[node name="Pad" type="Control" parent="Column/Desk"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Toast" type="Control" parent="Column/Desk"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 63)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Swipes" type="HBoxContainer" parent="Column/Desk/Toast"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SwipeLeft" type="Label" parent="Column/Desk/Toast/Swipes"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.541, 0.569, 0.627, 1)
+theme_override_font_sizes/font_size = 20
+text = "Swipe left: reject"
+vertical_alignment = 1
+
+[node name="SwipeRight" type="Label" parent="Column/Desk/Toast/Swipes"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.541, 0.569, 0.627, 1)
+theme_override_font_sizes/font_size = 20
+text = "Swipe right: ship"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="HintPanel" type="PanelContainer" parent="Column/Desk/Toast"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="HintLabel" type="Label" parent="Column/Desk/Toast/HintPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 20
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="SmallRow" type="HBoxContainer" parent="Column/Desk"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 15
+
+[node name="FlipButton" type="Button" parent="Column/Desk/SmallRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 81)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "Flip"
+
+[node name="LampButton" type="Button" parent="Column/Desk/SmallRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 81)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+text = "X-ray"
+
+[node name="MainRow" type="HBoxContainer" parent="Column/Desk"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 15
+
+[node name="RejectButton" type="Button" parent="Column/Desk/MainRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 111)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+focus_mode = 0
+text = "Reject"
+
+[node name="ScanButton" type="Button" parent="Column/Desk/MainRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 111)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.7
+focus_mode = 0
+text = "Scan"
+
+[node name="ShipButton" type="Button" parent="Column/Desk/MainRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 111)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.0
+focus_mode = 0
+text = "Ship"

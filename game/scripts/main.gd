@@ -70,6 +70,7 @@ func _ready() -> void:
 	_screens.worst_btn.pressed.connect(_focus_worst)
 	_desk = QaDeskView.new()
 	_desk.feel = _feel
+	_desk.ui = _screens.office
 	_screens.add_view(_screens.office_page, _desk)
 	_hud = Hud.new()
 	add_child(_hud)
@@ -80,12 +81,17 @@ func _ready() -> void:
 	_hud.again_pressed.connect(_home_start)
 	_hud.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed, _daily_date))
-	_ship_btn = _inspect_button("Ship", true)
-	_reject_btn = _inspect_button("Reject", false)
-	_scan_btn = _desk_button("Scan", "secondary", 30, _scan)
-	UiTheme.add_icon(_scan_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_magnifier(ci, c, r, col), 30)
-	_flip_btn = _desk_button("Flip", "secondary", 24, _flip)
-	_lamp_btn = _desk_button("X-ray", "secondary", 24, _lamp)
+	var office := _screens.office
+	_ship_btn = office.ship_btn
+	_reject_btn = office.reject_btn
+	_scan_btn = office.scan_btn
+	_flip_btn = office.flip_btn
+	_lamp_btn = office.lamp_btn
+	_ship_btn.pressed.connect(func() -> void: _inspect(true))
+	_reject_btn.pressed.connect(func() -> void: _inspect(false))
+	_scan_btn.pressed.connect(_scan)
+	_flip_btn.pressed.connect(_flip)
+	_lamp_btn.pressed.connect(_lamp)
 	_hud.debug_overlay = _config.debug_overlay
 	_settings = SettingsOverlay.create()
 	add_child(_settings)
@@ -289,25 +295,6 @@ func _begin_shift() -> void:
 	_hud.hide_overlays()
 
 
-func _desk_button(text: String, kind: String, font_size: int, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.focus_mode = Control.FOCUS_NONE
-	UiTheme.style_button(b, kind, font_size)
-	b.pressed.connect(cb)
-	_screens.office_page.add_child(b)
-	return b
-
-
-func _inspect_button(text: String, ship: bool) -> Button:
-	var b := _desk_button(text, "primary" if ship else "danger", 30, func() -> void: _inspect(ship))
-	if ship:
-		UiTheme.add_icon(b, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_tick(ci, c, r, col, 5.0), 30)
-	else:
-		UiTheme.add_icon(b, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_x(ci, c, r, col, 5.0), 30)
-	return b
-
-
 func _flip() -> void:
 	if _phase != Phase.PLAYING or _factory == null or not _factory.worker_at_desk():
 		return
@@ -404,14 +391,6 @@ func _fit() -> void:
 	var strip := _screens.desk_rect()
 	if _desk != null:
 		_desk.rect = strip
-	if _ship_btn != null:
-		var mr := _desk.main_row()
-		var sr := _desk.small_row()
-		var row: Array[Button] = [_reject_btn, _scan_btn, _ship_btn, _flip_btn, _lamp_btn]
-		var rects: Array[Rect2] = [mr[0], mr[1], mr[2], sr[0], sr[1]]
-		for i in row.size():
-			row[i].size = rects[i].size
-			row[i].position = rects[i].position
 	if _view != null:
 		_view.area = _screens.floor_rect()
 		_info.place(_view.area)
@@ -446,11 +425,7 @@ func _process(delta: float) -> void:
 		if not q.is_empty() and String(q[0].get("decoy", "")) != "":
 			_decoy_tip_shown = true
 			_desk.flash("Scuffs and stickers are fine.", Color(0.6, 0.9, 1.0), 3.0)
-	_ship_btn.visible = _phase == Phase.PLAYING
-	_reject_btn.visible = _phase == Phase.PLAYING
-	_scan_btn.visible = _phase == Phase.PLAYING
-	_flip_btn.visible = _phase == Phase.PLAYING
-	_lamp_btn.visible = _phase == Phase.PLAYING
+	_screens.office.set_playing(_phase == Phase.PLAYING)
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
 	_info.show_machine(_factory.get_machine(_view.selected) if _view.selected != "" else null)
 	if _phase == Phase.PLAYING and _factory.worker_location() == Worker.Location.FLOOR:
