@@ -697,7 +697,8 @@ func _draw_machine(m: Machine) -> void:
 		tint = Color(1, 1, 1, 0.6)  # starved: dim
 	elif m.state == Machine.State.BLOCKED:
 		tint = Color(1.0, 0.9, 0.75)  # blocked: items pile up upstream
-	if not _spr("machine_" + ("processor" if m.type == "processor" else m.type), g, false, tint):
+	var sprite := _iso.machine_sprite(m.id, m.type)
+	if not _spr(sprite, g, false, tint) and not _spr("machine_" + m.type, g, false, tint):
 		var sb := UiTheme.card(kind == 1, kind == 2)
 		if kind == 2:
 			sb.set_border_width_all(3)

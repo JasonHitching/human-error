@@ -441,6 +441,198 @@
      "window": false
     }
    ]
+  },
+  "machine_generator_se_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "se",
+      "sw"
+     ]
+    },
+    {
+     "model": "cover-corner",
+     "tint": "#8f9bc4"
+    }
+   ]
+  },
+  "machine_processor_ne_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "se"
+     ]
+    },
+    {
+     "model": "cover-corner",
+     "rot_y_deg": 90
+    }
+   ]
+  },
+  "machine_processor_nw_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "nw",
+      "sw"
+     ]
+    },
+    {
+     "model": "cover-corner",
+     "rot_y_deg": 270
+    }
+   ]
+  },
+  "machine_processor_nw_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "cover-window",
+     "rot_y_deg": 90
+    }
+   ]
+  },
+  "machine_assembler_ne_nw_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "nw",
+      "se"
+     ]
+    },
+    {
+     "model": "robot-arm-a",
+     "rot_y_deg": 90,
+     "pos": [
+      -0.55,
+      0,
+      0.0
+     ],
+     "scale": 0.4
+    }
+   ]
+  },
+  "machine_assembler_ne_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "se"
+     ]
+    },
+    {
+     "model": "robot-arm-a",
+     "rot_y_deg": 90,
+     "pos": [
+      -0.55,
+      0,
+      0.0
+     ],
+     "scale": 0.4
+    },
+    {
+     "model": "robot-arm-b",
+     "pos": [
+      0.0,
+      0,
+      -0.55
+     ],
+     "scale": 0.4
+    }
+   ]
+  },
+  "machine_assembler_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
+    },
+    {
+     "model": "robot-arm-a",
+     "pos": [
+      0.0,
+      0,
+      -0.55
+     ],
+     "scale": 0.4
+    },
+    {
+     "model": "robot-arm-b",
+     "pos": [
+      0.0,
+      0,
+      0.55
+     ],
+     "scale": 0.4
+    }
+   ]
+  },
+  "machine_warehouse_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
+    },
+    {
+     "model": "cover"
+    }
+   ]
   }
  }
 }

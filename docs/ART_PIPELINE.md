@@ -46,6 +46,14 @@ Belt directions use the screen edge names: `ne`/`se`/`sw`/`nw`. `belt_straight_a
 | `floor_tile` | 256x148 | 128,74 |
 | `floor_tile_alt` | 256x148 | 128,74 |
 | `machine_assembler` | 384x384 | 192,292 |
+| `machine_assembler_ne_nw_se` | 384x384 | 192,292 |
+| `machine_assembler_ne_se` | 384x384 | 192,292 |
+| `machine_assembler_ne_sw` | 384x384 | 192,292 |
+| `machine_generator_se_sw` | 384x384 | 192,292 |
+| `machine_processor_ne_se` | 384x384 | 192,292 |
+| `machine_processor_nw_se` | 384x384 | 192,292 |
+| `machine_processor_nw_sw` | 384x384 | 192,292 |
+| `machine_warehouse_ne_sw` | 384x384 | 192,292 |
 | `machine_generator` | 384x384 | 192,292 |
 | `machine_processor` | 384x384 | 192,292 |
 | `machine_warehouse` | 384x384 | 192,292 |
@@ -57,6 +65,7 @@ Belt directions use the screen edge names: `ne`/`se`/`sw`/`nw`. `belt_straight_a
 | `worker` | 192x192 | 96,150 |
 
 Notes
+- **Facing variants:** `machine_<type>_<edges>` (e.g. `machine_processor_ne_se`) is open on exactly the belt edges that meet the machine (a lone belt gets a straight tunnel). `IsoFloor.machine_sprite()` picks it; the plain `machine_<type>` is the fallback. Needed set = distinct edge sets in `game/data/factories`; add a variant in `tools/art_bake/facing_recipes.py` when a layout needs one (`test_iso_floor.gd` fails if it's missing).
 - `machine_processor` is also Press A/B. `crate` is the product / moving item. `shadow_machine` is a soft ellipse (black, 35% alpha) to draw under machines.
 - **No `machine_<type>_light.png`:** the kit has no obvious indicator on the cover pieces, so none was baked. ART-3 can draw a small light in code (or a procedural sphere can be added to `recipes.json`).
 - `bot_<name>_panic` = same bot with red eyes and a red antenna tip. All 8 bots (5 + rookies) are baked.

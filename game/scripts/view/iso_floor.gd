@@ -13,6 +13,7 @@ const DIRS := {"se": Vector2i(1, 0), "sw": Vector2i(0, 1), "nw": Vector2i(-1, 0)
 const OPP := {"se": "nw", "nw": "se", "sw": "ne", "ne": "sw"}
 
 var cells: Dictionary = {}  # machine id -> Vector2i
+var types: Dictionary = {}  # machine id -> type
 var by_cell: Dictionary = {}  # Vector2i -> machine id
 var edges: Dictionary = {}  # belt cell -> {edge name: true}
 var paths: Dictionary = {}  # "from>to" -> Array[Vector2i] (machine cell, belt cells, machine cell)
@@ -40,12 +41,14 @@ static func anchor(sprite_name: String) -> Vector2:
 
 func setup(machines: Array, links: Array, art: Dictionary) -> void:
 	cells.clear()
+	types.clear()
 	by_cell.clear()
 	edges.clear()
 	paths.clear()
 	for md: Dictionary in machines:
 		var c := Vector2i(int(md.get("gx", 0)), int(md.get("gy", 0)))
 		cells[String(md["id"])] = c
+		types[String(md["id"])] = String(md.get("type", ""))
 		by_cell[c] = String(md["id"])
 	var g: Array = art.get("grid", [5, 5])
 	grid = Vector2i(int(g[0]), int(g[1]))
@@ -126,6 +129,69 @@ func route(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 		if ok or not gx_first:
 			return out
 	return [a, b]
+
+
+## Edge names where belts attach to machine `id`: {"in": [edge, ...], "out": [edge, ...]} (screen edge names).
+func machine_ports(id: String) -> Dictionary:
+	var ports := {"in": [], "out": []}
+	for key: String in paths:
+		var ids := key.split(">")
+		var p: Array = paths[key]
+		if p.size() < 2:
+			continue
+		if ids[0] == id:
+			ports["out"].append(_dir_name(p[1] - p[0]))
+		if ids[1] == id:
+			ports["in"].append(OPP[_dir_name(p[p.size() - 1] - p[p.size() - 2])])
+	return ports
+
+
+## Distinct belt edges at machine `id`, sorted (ne, nw, se, sw order).
+func machine_edges(id: String) -> Array[String]:
+	var ports := machine_ports(id)
+	var out: Array[String] = []
+	for e: String in (ports["in"] as Array) + (ports["out"] as Array):
+		if not out.has(e):
+			out.append(e)
+	out.sort()
+	return out
+
+
+## Edges a machine's sprite is open on: a lone belt gets a straight tunnel (edge + opposite),
+## two belts an opposite pair (tunnel) or adjacent pair (corner), three or more an open base.
+func machine_openings(id: String) -> Array[String]:
+	var e := machine_edges(id)
+	if e.size() == 1:
+		e.append(OPP[e[0]])
+		e.sort()
+	return e
+
+
+## Facing-variant sprite name for a machine, e.g. machine_processor_ne_se (base name if it has no belts).
+func machine_sprite(id: String, type: String) -> String:
+	var o := machine_openings(id)
+	var base := "machine_" + type
+	return base if o.is_empty() else base + "_" + "_".join(PackedStringArray(o))
+
+
+## Layout problems: a belt meeting a machine on a side its sprite variant is closed on.
+func facing_mismatches() -> Array[String]:
+	var out: Array[String] = []
+	for id: String in cells:
+		if types.get(id, "qa") == "qa":
+			continue  # the QA desk is a desk, not a machine sprite
+		var open := machine_openings(id)
+		for e: String in machine_edges(id):
+			if not open.has(e):
+				out.append("%s: belt on %s but sprite is open on %s" % [id, e, ",".join(PackedStringArray(open))])
+	return out
+
+
+static func _dir_name(d: Vector2i) -> String:
+	for k: String in DIRS:
+		if DIRS[k] == d:
+			return k
+	return ""
 
 
 ## Belt sprite for a belt cell: {name, flip}. See docs/ART_PIPELINE.md for the edge conventions.
