@@ -14,20 +14,17 @@ signal stats_pressed
 signal settings_pressed
 
 var banner: Control
-var review: Control
-var fired: Control
+var review: DayReview
+var fired: RunEndScreen
 var top_bar: TopBar
 var debug_overlay: bool = false
 var _flash: Label
 var _seed: Label
 var _twist: Label
 var _banner_label: Label
-var _review_box: VBoxContainer
-var _fired_box: VBoxContainer
 var _retry_btn: Button
 var stats_btn: Button  # Stats link on the run-end screen
-var stats_overlay: Control
-var _stats_box: VBoxContainer
+var stats_overlay: StatsScreen
 
 
 func _ready() -> void:
@@ -44,16 +41,19 @@ func _ready() -> void:
 	banner = bb[0]
 	_banner_label = _big(bb[1])
 	_button(bb[1], "Tap to start", start_pressed.emit, "primary")
-	var rb := _overlay()
-	review = rb[0]
-	_review_box = rb[1]
-	var fb := _overlay()
-	fired = fb[0]
-	_fired_box = fb[1]
-	var sb := _overlay()
-	stats_overlay = sb[0]
-	_stats_box = sb[1]
-
+	review = DayReview.create()
+	review.offer_chosen.connect(offer_pressed.emit)
+	review.continue_pressed.connect(continue_pressed.emit)
+	fired = RunEndScreen.create()
+	fired.again_pressed.connect(again_pressed.emit)
+	fired.replay_pressed.connect(replay_pressed.emit)
+	fired.home_pressed.connect(restart_pressed.emit)
+	fired.stats_pressed.connect(stats_pressed.emit)
+	stats_overlay = StatsScreen.create()
+	for o: Control in [review, fired, stats_overlay]:
+		add_child(o)
+	_retry_btn = fired.again_btn
+	stats_btn = fired.stats_btn
 
 ## Full-screen overlay with a scrolling column. Returns [overlay, column].
 func _overlay() -> Array:
@@ -115,38 +115,22 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra
 	var missed := _missed_line(res)
 	if missed != "":
 		notes.append(missed.strip_edges())
-	ResultCards.review(_review_box, res, line, offers, extra, notes, func(i: int) -> void: offer_pressed.emit(i), continue_pressed.emit)
+	review.show_review(res, line, offers, extra, notes)
 	_show_only(review)
 
 
 ## info (optional): score, target, best, colors {bot name: Color}, award_total.
 func show_fired(days: int, line: String, breakdown: String, teaser: String, awards: String = "", title: String = "FIRED", info: Dictionary = {}) -> void:
-	_retry_btn = ResultCards.fired(_fired_box, title, days, line, breakdown, teaser, awards, info, again_pressed.emit, replay_pressed.emit, restart_pressed.emit, stats_pressed.emit)
-	stats_btn = _stats_link()
+	fired.show_run_end(title, days, line, breakdown, teaser, awards, info)
 	_show_only(fired)
 
 
-func _stats_link() -> Button:
-	for b in _fired_box.find_children("*", "Button", true, false):
-		if (b as Button).text == "Stats":
-			return b
-	return null
-
-
 func show_stats(text: String) -> void:
-	UiKit.clear(_stats_box)
-	var lines := text.split("\n", false)
-	_stats_box.add_child(UiKit.label("Stats", 40, UiTheme.TEXT, true))
-	var c := UiKit.card(_stats_box, null, 8.0, 14.0)
-	for l in lines.slice(1):
-		var kv := l.split(": ", true, 1)
-		UiKit.row(c, kv[0], kv[1] if kv.size() > 1 else "")
-	_button(_stats_box, "Close", hide_stats)
-	stats_overlay.visible = true
+	stats_overlay.show_stats(text)
 
 
 func hide_stats() -> void:
-	stats_overlay.visible = false
+	stats_overlay.close()
 
 
 func hide_overlays() -> void:
