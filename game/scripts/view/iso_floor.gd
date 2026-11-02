@@ -7,6 +7,8 @@ const HW := 64.0
 const HH := 37.0
 ## Baked-pixel anchors (ground cell centre) per sprite family, from docs/ART_PIPELINE.md.
 const ANCHORS := {"machine_": Vector2(192, 292), "desk_hatch": Vector2(192, 292), "belt_": Vector2(128, 126), "floor_tile": Vector2(128, 74), "crate_stack": Vector2(128, 170), "crate": Vector2(64, 84), "scrap_bin": Vector2(128, 170), "reject_bin": Vector2(128, 170), "fence": Vector2(128, 126), "wall_back_plain": Vector2(96, 270), "wall_back": Vector2(160, 330), "shadow_machine": Vector2(160, 60)}
+## Belt top surface rise above the ground cell centre (baked px; measured: left/right corner row 65 vs anchor 126).
+const BELT_RISE := 61.0
 const DIRS := {"se": Vector2i(1, 0), "sw": Vector2i(0, 1), "nw": Vector2i(-1, 0), "ne": Vector2i(0, -1)}
 const OPP := {"se": "nw", "nw": "se", "sw": "ne", "ne": "sw"}
 
@@ -22,6 +24,11 @@ var stairs_cell := Vector2(-1, 1)
 
 static func to_local(g: Vector2) -> Vector2:
 	return Vector2((g.x - g.y) * HW, (g.x + g.y) * HH)
+
+
+## Logical-px offset from a belt cell's ground point to the centre of its top surface (items ride here).
+static func belt_top_offset() -> Vector2:
+	return Vector2(0, -BELT_RISE * 0.5)
 
 
 static func anchor(sprite_name: String) -> Vector2:
