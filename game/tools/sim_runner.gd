@@ -32,6 +32,18 @@ func _init() -> void:
 			"--shift-seconds": shift = float(args[i + 1])
 			"--player", "--bot": bot = args[i + 1]
 			"--perks": perks_arg = args[i + 1]
+	if args.has("--daily"):  # --daily [YYYY-MM-DD]: the daily's career (tier 1, no perks; default today)
+		var di := args.find("--daily")
+		var date := args[di + 1] if di + 1 < args.size() and not args[di + 1].begins_with("--") else Time.get_date_string_from_system()
+		if not Daily.is_date(date):
+			print("bad --daily date: ", date)
+			quit(1)
+			return
+		career = true
+		cfg = SimConfig.load_tier(Daily.TIER)
+		perks_arg = "none"
+		seed_start = Daily.seed_for(date)
+		print("daily %s seed=%d" % [date, seed_start])
 	var ticks := int(shift * cfg.tick_rate)
 	if not Autoplayers.NAMES.has(bot):
 		print("unknown player: ", bot)

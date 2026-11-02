@@ -16,6 +16,9 @@ var tier_best: Dictionary = {}  # "1" -> best days in that tier
 var owned_perks: Array = []  # perk ids bought with commendations
 var automations: int = 0  # careers ended by being automated (the win)
 var last_seen_unix: int = 0  # last time the app was seen running (night shift clock; never moves backwards)
+var daily_best: Dictionary = {}  # "YYYY-MM-DD" -> best days (last Daily.KEEP dates)
+var daily_streak: int = 0  # consecutive calendar days with a daily played
+var daily_last: String = ""  # latest date a daily was played (never moves backwards)
 var pending_night: Dictionary = {}  # {commendations, mess_level, lines[], collected}; {} = none
 
 
@@ -24,6 +27,7 @@ func to_dict() -> Dictionary:
 		"version": version, "stats": stats.to_dict(), "commendations": commendations,
 		"unlocked": unlocked, "tier": tier, "picked_tier": picked_tier, "tier_best": tier_best, "owned_perks": owned_perks, "automations": automations,
 		"last_seen_unix": last_seen_unix, "pending_night": pending_night,
+		"daily_best": daily_best, "daily_streak": daily_streak, "daily_last": daily_last,
 	}
 
 
@@ -51,6 +55,15 @@ static func from_dict(d: Dictionary) -> Meta:
 	m.automations = maxi(0, RunStats.to_int(d.get("automations", 0)))
 	m.last_seen_unix = maxi(0, RunStats.to_int(d.get("last_seen_unix", 0)))
 	m.pending_night = parse_night(d.get("pending_night", {}))
+	var db: Variant = d.get("daily_best", {})
+	if db is Dictionary:
+		for k: Variant in db:
+			if Daily.is_date(str(k)):
+				m.daily_best[str(k)] = maxi(0, RunStats.to_int(db[k]))
+	m.daily_streak = maxi(0, RunStats.to_int(d.get("daily_streak", 0)))
+	var dl := str(d.get("daily_last", ""))
+	m.daily_last = dl if Daily.is_date(dl) else ""
+	m._trim_daily()
 	var op: Variant = d.get("owned_perks", [])
 	if op is Array:
 		for v: Variant in op:
@@ -210,3 +223,42 @@ func take_mess(day: int) -> int:
 	var n := int(pending_night.get("mess_level", 0))
 	pending_night = {}
 	return n if day > 1 else 0
+
+
+func daily_best_for(date: String) -> int:
+	return int(daily_best.get(date, 0))
+
+
+func daily_played(date: String) -> bool:
+	return daily_best.has(date)
+
+
+## Records a finished daily. Returns {new_best, first, bonus}. The first-daily bonus is paid only for a date
+## later than any played before, so setting the clock back never re-awards it or loses a best. Caller saves.
+func note_daily(date: String, days: int, rules: Dictionary = {}) -> Dictionary:
+	var out := {"new_best": false, "first": false, "bonus": 0}
+	if not Daily.is_date(date):
+		return out
+	if days > daily_best_for(date):
+		daily_best[date] = days
+		out["new_best"] = true
+	elif not daily_best.has(date):
+		daily_best[date] = maxi(0, days)
+	if daily_last == "" or date > daily_last:
+		out["first"] = true
+		daily_streak = daily_streak + 1 if Daily.is_next_day(daily_last, date) else 1
+		daily_last = date
+		var r := rules if not rules.is_empty() else load_commendation_rules()
+		var b := maxi(0, int(r.get("daily_first_bonus", 0)))
+		out["bonus"] = b
+		commendations["balance"] = balance() + b
+		commendations["earned"] = RunStats.to_int(commendations.get("earned", 0)) + b
+	_trim_daily()
+	return out
+
+
+func _trim_daily() -> void:
+	var keys := daily_best.keys()
+	keys.sort()
+	while keys.size() > Daily.KEEP:
+		daily_best.erase(keys.pop_front())

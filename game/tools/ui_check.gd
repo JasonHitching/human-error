@@ -487,7 +487,7 @@ func _check_home(tag: String, placed: bool = true) -> void:
 	var need: Vector2 = h.start_btn.get_parent().get_combined_minimum_size()
 	if need.y > vp.size.y or need.x > vp.size.x:
 		_fails.append("[%s] Home content %s does not fit %s" % [tag, need, vp.size])
-	for b: Button in [h.start_btn, h.stats_btn]:
+	for b: Button in [h.start_btn, h.daily_btn, h.stats_btn]:
 		if placed and not vp.encloses(b.get_global_rect()):
 			_fails.append("[%s] Home button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
