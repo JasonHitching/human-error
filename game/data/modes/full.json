@@ -1,0 +1,21 @@
+{
+  "features": {
+    "misroute": true,
+    "wrong_recipe": true,
+    "twists": true,
+    "spec_change": true,
+    "subtle_defects": true,
+    "back_defects": true,
+    "decoys": true,
+    "rookies": true,
+    "bot_learning": true,
+    "offers_extra": true,
+    "perks": true,
+    "commendations": true,
+    "night_shift": true,
+    "daily": true,
+    "tiers": true
+  },
+  "factory": "tier_1",
+  "balance": {}
+}
