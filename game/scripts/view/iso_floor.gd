@@ -74,6 +74,36 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 				_edge(path[i], OPP[en])
 
 
+## Logical px below the machine's ground centre where the worker stands (still inside its own cell).
+const WORKER_STOP := Vector2(0, 34)
+## Candidate bot spots around a machine, front-right first (gx runs down-right, gy down-left).
+const STAND_ORDER: Array[Vector2i] = [Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(-1, -1)]
+
+
+## True when cell c is free floor: inside the grid, no machine, belt, scrap bin or stairs on it.
+func is_free_floor(c: Vector2i) -> bool:
+	if c.x < 0 or c.y < 0 or c.x >= grid.x or c.y >= grid.y:
+		return false
+	return not by_cell.has(c) and not edges.has(c) and c != scrap_cell and Vector2(c) != stairs_cell
+
+
+## Cell where the machine's bot stands: first free cell adjacent to the machine, front-right first;
+## then the same search two cells out; finally the machine's own front-right neighbour (deterministic).
+func stand_cell(id: String) -> Vector2i:
+	var m: Vector2i = cells.get(id, Vector2i.ZERO)
+	for r in [1, 2]:
+		for d in STAND_ORDER:
+			if is_free_floor(m + d * r):
+				return m + d * r
+	return m + STAND_ORDER[0]
+
+
+## True when logical-px point p (local space, see to_local) lies inside cell c's diamond.
+static func in_cell(p: Vector2, c: Vector2i) -> bool:
+	var q := p - to_local(Vector2(c))
+	return absf(q.x) / HW + absf(q.y) / HH <= 1.0
+
+
 func _edge(c: Vector2i, e: String) -> void:
 	if not edges.has(c):
 		edges[c] = {}

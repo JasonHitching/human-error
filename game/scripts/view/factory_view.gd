@@ -206,9 +206,9 @@ func heat_rect(m: Machine) -> Rect2:
 	return Rect2(Vector2(r.get_center().x - 35.0 * _s, r.end.y - 14.0 * _s), Vector2(70.0 * _s, 5.0))
 
 
-## Bot standing beside the machine (front right); the sprite is centred here.
+## Bot standing on a free floor cell beside the machine (never a belt); the sprite is centred here.
 func bot_anchor(m: Machine) -> Vector2:
-	return machine_ground(m) + Vector2(66.0, 6.0) * _s
+	return ground(Vector2(_iso.stand_cell(m.id)))
 
 
 ## Chip under the machine with its name and bot.
@@ -357,7 +357,7 @@ func layout_to_px(p: Vector2) -> Vector2:
 	var den := 0.0
 	var pts: Array = [[factory.worker.stairs, ground(_iso.stairs_cell)]]
 	for m in factory.machines:
-		pts.append([m.pos, machine_ground(m) + Vector2(0, 34.0) * _s])
+		pts.append([m.pos, machine_ground(m) + IsoFloor.WORKER_STOP * _s])
 	for e: Array in pts:
 		var d2 := p.distance_squared_to(e[0])
 		if d2 < 1e-8:
