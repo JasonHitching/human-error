@@ -2,8 +2,6 @@ class_name FactoryView
 extends Node2D
 ## Draws the factory. Reads sim state only; never mutates it.
 
-const MIN_S := 0.6  # below this the floor scrolls instead of shrinking
-const MAX_S := 1.5
 const RECT_W := 120.0  # machine hit rect, logical px (sprite is wider; 8 px gaps between neighbours)
 const RECT_H := 130.0
 const RECT_UP := 110.0  # rect top above the ground centre
@@ -26,8 +24,9 @@ var _time: float = 0.0
 var _iso := IsoFloor.new()
 var _s: float = 1.0  # logical px -> screen px
 var _origin := Vector2.ZERO
-var scroll_y: float = 0.0
-var _max_scroll: float = 0.0
+var _cam := FloorCamera.new()
+var _cam_ready := false
+var _fit_size := Vector2.ZERO
 var _scrap_runs: Dictionary = {}  # machine id -> seconds into the scrap-bin roll
 var _pulse: Dictionary = {}  # machine id -> seconds left of the fix pulse
 var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
@@ -43,7 +42,7 @@ func setup(f: Factory, config: SimConfig) -> void:
 	factory = f
 	_tick_rate = config.tick_rate
 	_iso.setup(config.machines, config.links, config.floor_art)
-	scroll_y = 0.0
+	_cam_ready = false
 	_relayout()
 	_link_ticks.clear()
 	_bubbles.clear()
@@ -63,21 +62,50 @@ func _relayout() -> void:
 	if factory == null:
 		return
 	var cr := _iso.content_rect()
-	_s = clampf(minf(area.size.x / cr.size.x, area.size.y / cr.size.y), MIN_S, MAX_S)
-	var ch := cr.size.y * _s
-	_max_scroll = maxf(0.0, ch - area.size.y)
-	scroll_y = clampf(scroll_y, 0.0, _max_scroll)
-	var top := area.position.y + (area.size.y - ch) * 0.5 if _max_scroll <= 0.0 else area.position.y - scroll_y
-	_origin = Vector2(area.position.x + area.size.x * 0.5 - (cr.position.x + cr.size.x * 0.5) * _s, top - cr.position.y * _s)
+	_cam.set_view(area.size)
+	if not _cam_ready or area.size != _fit_size:
+		_fit_size = area.size
+		_cam.reset(cr, _cam.fit_zoom(cr))
+		_cam_ready = true
+	else:
+		_cam.set_bounds(cr)
+	_s = _cam.zoom
+	_origin = area.position + _cam.view * 0.5 - _cam.center * _s
 
 
-func can_scroll() -> bool:
-	return _max_scroll > 0.0
+func camera() -> FloorCamera:
+	return _cam
 
 
-func scroll_by(dy: float) -> void:
-	scroll_y = clampf(scroll_y - dy, 0.0, _max_scroll)
+## Drag-pan by a screen delta.
+func pan_by(delta: Vector2) -> void:
+	_cam.pan_screen(delta)
 	_relayout()
+	queue_redraw()
+
+
+## Wheel/pinch/key zoom around a screen point (absolute coordinates).
+func zoom_by(factor: float, at: Vector2) -> void:
+	_cam.zoom_at(factor, at - area.position)
+	_relayout()
+	queue_redraw()
+
+
+func keys(d: float) -> void:
+	var v := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if Input.is_key_pressed(KEY_A):
+		v.x -= 1.0
+	if Input.is_key_pressed(KEY_D):
+		v.x += 1.0
+	if Input.is_key_pressed(KEY_W):
+		v.y -= 1.0
+	if Input.is_key_pressed(KEY_S):
+		v.y += 1.0
+	if v != Vector2.ZERO:
+		pan_by(-v.limit_length(1.0) * FloorCamera.KEY_PAN * d)
+	var z := (1.0 if Input.is_key_pressed(KEY_EQUAL) or Input.is_key_pressed(KEY_KP_ADD) else 0.0) - (1.0 if Input.is_key_pressed(KEY_MINUS) or Input.is_key_pressed(KEY_KP_SUBTRACT) else 0.0)
+	if z != 0.0:
+		zoom_by(pow(FloorCamera.KEY_ZOOM, z * d), area.get_center())
 
 
 ## Screen position of a (fractional) grid cell centre.

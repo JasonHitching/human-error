@@ -440,6 +440,8 @@ func _process(delta: float) -> void:
 	_flip_btn.visible = _phase == Phase.PLAYING
 	_lamp_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
+	if _phase == Phase.PLAYING and _factory.worker_location() == Worker.Location.FLOOR:
+		_view.keys(delta)
 	_screens.wall.poll()
 	_sfx_events()
 	_screens.sync(_view.alpha)
@@ -555,7 +557,9 @@ func _next_day() -> void:
 func _gui_input(event: InputEvent) -> void:
 	if _phase != Phase.PLAYING or _factory == null:
 		return
-	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+	if event is InputEventMouseButton and ((event as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP or (event as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		_view.zoom_by(1.1 if (event as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1, (event as InputEventMouseButton).position)
+	elif event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		var mb := event as InputEventMouseButton
 		var loc := _factory.worker_location()
 		if mb.pressed:
@@ -573,8 +577,12 @@ func _gui_input(event: InputEvent) -> void:
 					_screens.go_office()
 				elif loc == Worker.Location.OFFICE and absf(d.x) >= SWIPE_MIN:
 					_inspect(d.x > 0.0)
-	elif event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0 and _view.can_scroll() and _factory.worker_location() == Worker.Location.FLOOR:
-		_view.scroll_by((event as InputEventMouseMotion).relative.y)  # taller floors drag-scroll
+	elif event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0 and _factory.worker_location() == Worker.Location.FLOOR:
+		_view.pan_by((event as InputEventMouseMotion).relative)  # drag to pan the floor
+	elif event is InputEventPanGesture and _factory.worker_location() == Worker.Location.FLOOR:
+		_view.pan_by(-(event as InputEventPanGesture).delta * 12.0)
+	elif event is InputEventMagnifyGesture and _factory.worker_location() == Worker.Location.FLOOR:
+		_view.zoom_by((event as InputEventMagnifyGesture).factor, (event as InputEventMagnifyGesture).position)  # pinch
 	elif event is InputEventMouseMotion and _holding:
 		var m := _view.machine_at((event as InputEventMouseMotion).position)
 		if m == null or m.id != _factory.crew_target:
