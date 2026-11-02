@@ -33,6 +33,7 @@ var _muted: bool = false
 var _haptics_btn: Button
 var _feel := Feel.new()
 var _meta: Meta
+var _home: Home
 var _stats: RunStats
 var _front_since: float = 0.0
 var _last_qn: int = 0
@@ -65,7 +66,7 @@ func _ready() -> void:
 	_hud.start_pressed.connect(_begin_shift)
 	_hud.offer_pressed.connect(_pick_offer)
 	_hud.continue_pressed.connect(_next_day)
-	_hud.restart_pressed.connect(func() -> void: _new_career(int(Time.get_ticks_usec())))
+	_hud.restart_pressed.connect(_open_home)
 	_hud.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
 	_ship_btn = _inspect_button("Ship", true)
@@ -84,8 +85,26 @@ func _ready() -> void:
 	_haptics_btn.pressed.connect(_toggle_haptics)
 	add_child(_haptics_btn)
 	_refresh_mute()
+	_home = Home.new()
+	add_child(_home)
+	_home.start_pressed.connect(_home_start)
+	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
+	_hud.stats_overlay.z_index = 20  # stats opens above Home
 	resized.connect(_fit)
 	_new_career(int(Time.get_ticks_usec()))
+	_open_home()
+
+
+func _open_home() -> void:
+	_home.setup(_meta)
+	_home.visible = true
+
+
+## Start career: at app start a career is already set up behind Home; after a run-end begin a fresh one.
+func _home_start() -> void:
+	_home.visible = false
+	if _phase == Phase.FIRED:
+		_new_career(int(Time.get_ticks_usec()))
 
 
 func _new_career(seed_value: int) -> void:
@@ -322,8 +341,10 @@ func _end_shift() -> void:
 	var res := _career.end_day(_factory)
 	var now := int(Time.get_unix_time_from_system())
 	_stats.shift_ended(now, int(res["complaints"]))
+	var awarded := {"total": 0, "lines": [] as Array[String]}
 	if res["fired"]:
 		_stats.career_finished(now, _career.day)
+		awarded = _meta.award(_career.summary())
 	SaveIO.write_meta(_meta)
 	if res["fired"]:
 		_phase = Phase.FIRED
@@ -334,7 +355,7 @@ func _end_shift() -> void:
 			_save_best()
 		var bd := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty))
 		var praise := _career.foreman_line("new_best") if new_best else ""
-		_hud.show_fired(days, _career.foreman_line("fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise))
+		_hud.show_fired(days, _career.foreman_line("fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise), RunEnd.awards_text(awarded))
 		return
 	_phase = Phase.REVIEW
 	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])

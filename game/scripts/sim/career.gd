@@ -20,6 +20,8 @@ var twists: Twists
 var rookies_joined: int = 0
 var arrival: Dictionary = {}  # today's rookie, {name, replaced} (replaced "" = took a free slot); {} = none
 var lessons_learned: int = 0
+var clean_shifts: int = 0  # shifts with zero complaints
+var twist_days_done: int = 0  # shifts played under a twist
 var perks: Dictionary = {}  # radio: bool, supervise: bot name, auto_inspect: bool (see offers())
 var offers_taken: Dictionary = {}  # offer kind -> times taken
 var _lines: Dictionary = {}
@@ -123,6 +125,10 @@ func arrival_line() -> String:
 func end_day(f: Factory) -> Dictionary:
 	var score := f.score()
 	lessons_learned += f.lessons.size()
+	if f.complaints == 0:
+		clean_shifts += 1
+	if f.twist_id != "":
+		twist_days_done += 1
 	var hit := score >= f.target
 	history.append({"day": day, "shipped": score, "target": f.target, "hit": hit})
 	if hit:
@@ -134,6 +140,16 @@ func end_day(f: Factory) -> Dictionary:
 		if strikes >= config.max_strikes:
 			fired = true
 	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
+
+
+## Career summary for Meta.award. days = days survived (the day you were fired on counts).
+func summary() -> Dictionary:
+	var best := 0
+	var run := 0
+	for h: Dictionary in history:
+		run = run + 1 if bool(h["hit"]) else 0
+		best = maxi(best, run)
+	return {"days": day, "clean_shifts": clean_shifts, "best_streak": best, "lessons": lessons_learned, "twist_days": twist_days_done}
 
 
 ## Builds {bot: {count, top}} from a factory mistake_log.

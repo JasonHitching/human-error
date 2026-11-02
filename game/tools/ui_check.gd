@@ -277,6 +277,9 @@ func _check_layouts() -> void:
 		sw.sync(0.0)
 		_main._process(0.0)
 		var tag := "%dx%d" % [win.x, win.y]
+		_main._open_home()
+		_check_home(tag, false)
+		_main._home.visible = false
 		f.worker.place(Worker.Location.OFFICE)  # desk buttons: office page on screen
 		sw.sync(0.0)
 		var vp := Rect2(Vector2.ZERO, lg)
@@ -455,6 +458,22 @@ func _check_rookie(hud: Hud) -> void:
 	_check_overlay("lesson review", hud.review, true)
 
 
+func _check_home(tag: String, placed: bool = true) -> void:
+	var h: Home = _main._home
+	if not h.visible:
+		_fails.append("[%s] Home not shown" % tag)
+		return
+	var vp := Rect2(Vector2.ZERO, _main.size)
+	var need: Vector2 = h.start_btn.get_parent().get_combined_minimum_size()
+	if need.y > vp.size.y or need.x > vp.size.x:
+		_fails.append("[%s] Home content %s does not fit %s" % [tag, need, vp.size])
+	for b: Button in [h.start_btn, h.stats_btn]:
+		if placed and not vp.encloses(b.get_global_rect()):
+			_fails.append("[%s] Home button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
+		if b.size.x < 120.0 or b.size.y < 80.0:
+			_fails.append("[%s] Home button '%s' too small %s" % [tag, b.text, b.size])
+
+
 func _check_stats(hud: Hud) -> void:
 	var sb: Button = hud.stats_btn
 	if sb.size.x < 120 or sb.size.y < 80:
@@ -480,6 +499,10 @@ func _process(_delta: float) -> bool:
 			if hud.size != _main.size:
 				_fails.append("HUD size %s != screen %s" % [hud.size, _main.size])
 			_check_overlay("banner", hud.banner, true)
+			_check_home("start")
+			_main._home_start()
+			if _main._home.visible:
+				_fails.append("Home Start did not hide Home")
 			hud.start_pressed.emit()
 		4:
 			if _main._desk.hint == "":
@@ -519,6 +542,9 @@ func _process(_delta: float) -> bool:
 			if rb.size.x < need.x or rb.size.y < need.y:
 				_fails.append("retry button too small: %s" % rb.size)
 			_check_stats(hud)
+			hud.restart_pressed.emit()
+			_check_home("after run-end")
+			_main._home.visible = false
 			_check_glyphs()
 			_main._career.day = 3  # first twist day
 			_main._show_day()

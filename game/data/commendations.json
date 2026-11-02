@@ -1,0 +1,15 @@
+{
+ "per_day": 3,
+ "per_clean_shift": 2,
+ "streak_every": 3,
+ "per_streak_milestone": 3,
+ "per_lesson": 2,
+ "per_twist_day": 2,
+ "lines": {
+  "days": "{n} days survived: the Foreman is baffled. +{pts}",
+  "clean": "{n} shifts with zero complaints: suspiciously good. +{pts}",
+  "streak": "Best streak {n} days on target: have a sticker. +{pts}",
+  "lessons": "{n} lessons learned by the bots (mostly the hard way). +{pts}",
+  "twists": "{n} twist days endured without crying. +{pts}"
+ }
+}
