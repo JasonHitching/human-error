@@ -15,6 +15,7 @@ var _font: Font = ThemeDB.fallback_font
 var _bubbles: Array[Dictionary] = []  # {id, text, left}
 var _event_idx: int = 0
 var _time: float = 0.0
+var _machine_w: float = 0.34
 var _scrap_runs: Dictionary = {}  # machine id -> seconds into the scrap-bin roll
 var _pulse: Dictionary = {}  # machine id -> seconds left of the fix pulse
 var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
@@ -29,6 +30,7 @@ const SPARK_N := 12
 func setup(f: Factory, config: SimConfig) -> void:
 	factory = f
 	_tick_rate = config.tick_rate
+	_machine_w = config.machine_w
 	_link_ticks.clear()
 	_bubbles.clear()
 	_event_idx = 0
@@ -49,7 +51,7 @@ func machine_h() -> float:
 
 
 func machine_rect(m: Machine) -> Rect2:
-	var w := area.size.x * 0.34
+	var w := area.size.x * _machine_w
 	var h := machine_h()
 	var c := area.position + Vector2(m.pos.x * area.size.x, m.pos.y * area.size.y)
 	return Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))

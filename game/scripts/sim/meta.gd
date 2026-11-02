@@ -10,7 +10,9 @@ var version: int = VERSION
 var stats: RunStats = RunStats.new()
 var commendations: Dictionary = {}  # "balance" (spendable) and "earned" (lifetime), see award()
 var unlocked: Array = []  # unlocked perk/unlock ids
-var tier: int = 1
+var tier: int = 1  # highest unlocked factory tier
+var picked_tier: int = 1  # tier the next career starts in
+var tier_best: Dictionary = {}  # "1" -> best days in that tier
 var owned_perks: Array = []  # perk ids bought with commendations
 var automations: int = 0  # careers ended by being automated (the win)
 
@@ -18,7 +20,7 @@ var automations: int = 0  # careers ended by being automated (the win)
 func to_dict() -> Dictionary:
 	return {
 		"version": version, "stats": stats.to_dict(), "commendations": commendations,
-		"unlocked": unlocked, "tier": tier, "owned_perks": owned_perks, "automations": automations,
+		"unlocked": unlocked, "tier": tier, "picked_tier": picked_tier, "tier_best": tier_best, "owned_perks": owned_perks, "automations": automations,
 	}
 
 
@@ -35,7 +37,14 @@ static func from_dict(d: Dictionary) -> Meta:
 	if u is Array:
 		for v: Variant in u:
 			m.unlocked.append(str(v))
-	m.tier = maxi(1, int(d.get("tier", 1)))
+	m.tier = clampi(int(d.get("tier", 1)), 1, SimConfig.MAX_TIER)
+	m.picked_tier = clampi(int(d.get("picked_tier", 1)), 1, m.tier)
+	var tb: Variant = d.get("tier_best", {})
+	if tb is Dictionary:
+		for k: Variant in tb:
+			var t := int(str(k))
+			if t >= 1 and t <= SimConfig.MAX_TIER:
+				m.tier_best[str(t)] = maxi(0, int(tb[k]))
 	m.automations = maxi(0, int(d.get("automations", 0)))
 	var op: Variant = d.get("owned_perks", [])
 	if op is Array:
@@ -121,4 +130,26 @@ func buy(id: String, defs: Dictionary = {}) -> bool:
 		return false
 	commendations["balance"] = balance() - int(p["cost"])
 	owned_perks.append(id)
+	return true
+
+
+## Picks the tier the next career starts in (clamped to the unlocked tiers).
+func pick_tier(t: int) -> void:
+	picked_tier = clampi(t, 1, tier)
+
+
+## An automation in `career_tier` unlocks the next tier.
+func unlock_after(career_tier: int) -> void:
+	tier = clampi(maxi(tier, career_tier + 1), 1, SimConfig.MAX_TIER)
+
+
+func best_for(t: int) -> int:
+	return int(tier_best.get(str(t), 0))
+
+
+## Records a finished career's days for a tier. True when it is a new best there.
+func note_best(t: int, days: int) -> bool:
+	if days <= best_for(t):
+		return false
+	tier_best[str(t)] = days
 	return true

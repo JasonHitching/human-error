@@ -6,9 +6,11 @@ extends Control
 signal start_pressed
 signal stats_pressed
 signal perk_bought(id: String)
+signal tier_picked(tier: int)
 
 var start_btn: Button
 var stats_btn: Button
+var tier_box: HBoxContainer  # one button per unlocked tier
 var perks_box: VBoxContainer  # one row per perk: name, desc, buy button
 var _info: Label
 
@@ -30,6 +32,10 @@ func _ready() -> void:
 	box.add_child(title)
 	_info = _label("", 30)
 	box.add_child(_info)
+	tier_box = HBoxContainer.new()
+	tier_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	tier_box.add_theme_constant_override("separation", 10)
+	box.add_child(tier_box)
 	var perks_title := _label("Perks", 28)
 	box.add_child(perks_title)
 	perks_box = VBoxContainer.new()
@@ -46,8 +52,17 @@ func _ready() -> void:
 
 
 func setup(m: Meta) -> void:
-	_info.text = "Commendations: %d\nBest: %d days\nCareers: %d\nTier %d" % [
-		m.balance(), m.stats.best_days, m.stats.careers_finished, m.tier]
+	_info.text = "Commendations: %d\nBest: %d days (tier %d)\nCareers: %d" % [
+		m.balance(), m.best_for(m.picked_tier), m.picked_tier, m.stats.careers_finished]
+	for c in tier_box.get_children():
+		tier_box.remove_child(c)
+		c.queue_free()
+	for t in range(1, m.tier + 1):
+		var tb := _button("Tier %d\nbest %d" % [t, m.best_for(t)], 22, Vector2(140, 80))
+		tb.name = "tier_%d" % t
+		tb.disabled = t == m.picked_tier
+		tb.pressed.connect(tier_picked.emit.bind(t))
+		tier_box.add_child(tb)
 	for c in perks_box.get_children():
 		perks_box.remove_child(c)
 		c.queue_free()

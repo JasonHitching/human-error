@@ -1,7 +1,9 @@
 class_name SimConfig
 extends RefCounted
 
-const MACHINES_PATH := "res://data/factory_m0.json"
+const MACHINES_PATH := "res://data/factories/tier_1.json"
+const FACTORY_DIR := "res://data/factories/"
+const MAX_TIER := 2
 const BOTS_PATH := "res://data/bots.json"
 const BALANCE_PATH := "res://data/balance.json"
 const TYPES := ["generator", "processor", "assembler", "qa", "warehouse"]
@@ -74,6 +76,7 @@ var supervise_radius: float = 0.35
 var auto_inspect_seconds: float = 3.0
 var auto_inspect_error: float = 0.25
 var repair_mode: String = "tap"  # "tap" or "hold"
+var machine_w: float = 0.34  # machine width on the floor, fraction of its width
 var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
 var errors: Array[String] = []
@@ -84,7 +87,16 @@ func is_valid() -> bool:
 
 
 static func load_default() -> SimConfig:
-	return from_dicts(_read(MACHINES_PATH), _read(BALANCE_PATH), _read(BOTS_PATH))
+	return load_tier(1)
+
+
+static func tier_path(tier: int) -> String:
+	return "%stier_%d.json" % [FACTORY_DIR, tier]
+
+
+## Config for a factory tier (1..MAX_TIER); out-of-range tiers are clamped.
+static func load_tier(tier: int) -> SimConfig:
+	return from_dicts(_read(tier_path(clampi(tier, 1, MAX_TIER))), _read(BALANCE_PATH), _read(BOTS_PATH))
 
 
 static func _read(path: String) -> Dictionary:
@@ -104,6 +116,15 @@ static func from_dicts(factory: Dictionary, balance: Dictionary, bots: Dictionar
 			c.errors.append(String(d["__error"]))
 	if not c.is_valid():
 		return c
+	var over: Variant = factory.get("balance", {})  # a layout may override balance numbers
+	if over is Dictionary:
+		balance = balance.merged(over as Dictionary, true)
+	var extra: Variant = factory.get("bots", [])  # ... and add bots to the roster
+	if extra is Array and not (extra as Array).is_empty():
+		bots = bots.duplicate(true)
+		var list: Array = bots.get("bots", [])
+		list.append_array(extra as Array)
+		bots["bots"] = list
 	c._load_balance(balance)
 	c._load_factory(factory)
 	c._load_bots(bots)
@@ -205,6 +226,7 @@ func _load_factory(f: Dictionary) -> void:
 		stairs = Vector2(float(st[0]), float(st[1]))
 	else:
 		errors.append("factory: stairs needs [x, y]")
+	machine_w = _opt(f, "machine_w", machine_w, 0.1, 0.5)
 	for m: Variant in f.get("machines", []):
 		if not (m is Dictionary):
 			errors.append("factory: machine entry is not an object")
@@ -221,6 +243,11 @@ func _load_factory(f: Dictionary) -> void:
 			errors.append("factory: machine '%s' needs pos [x, y]" % id)
 		if float(md.get("process_time", 0.0)) <= 0.0:
 			errors.append("factory: machine '%s' needs process_time > 0" % id)
+		elif (pos as Array)[0] is float and (pos as Array)[1] is float:
+			var px := float((pos as Array)[0])
+			var py := float((pos as Array)[1])
+			if px < machine_w * 0.5 or px > 1.0 - machine_w * 0.5 or py < 0.04 or py > 0.96:
+				errors.append("factory: machine '%s' pos is off the floor" % id)
 		ids[id] = true
 		machines.append(md)
 	if machines.is_empty():

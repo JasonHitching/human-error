@@ -1,0 +1,261 @@
+{
+ "stairs": [
+  0.08,
+  0.06
+ ],
+ "machine_w": 0.24,
+ "balance": {
+  "target_base": 34,
+  "target_per_day": 3
+ },
+ "bots": [
+  {
+   "name": "Wobble",
+   "color": "#e76f51",
+   "rates": {
+    "jam": 0.4,
+    "overclock": 0.3,
+    "misroute": 0.3,
+    "wrong_recipe": 0.3
+   },
+   "lines": [
+    "Is it meant to wobble?",
+    "Balance is a state of mind."
+   ],
+   "sloppy": 0.2,
+   "call_in": [
+    "It wobbled. Then it stopped.",
+    "Come look. Do not touch."
+   ]
+  },
+  {
+   "name": "Fizz",
+   "color": "#9b5de5",
+   "rates": {
+    "jam": 0.3,
+    "overclock": 0.6,
+    "misroute": 0.2,
+    "wrong_recipe": 0.2
+   },
+   "lines": [
+    "Fizzing nicely.",
+    "Pressure is just opinion."
+   ],
+   "sloppy": 0.15,
+   "call_in": [
+    "Fizzing a bit too nicely.",
+    "Help. Smells like toast."
+   ]
+  },
+  {
+   "name": "Gadget",
+   "color": "#00bbf9",
+   "rates": {
+    "jam": 0.5,
+    "overclock": 0.2,
+    "misroute": 0.4,
+    "wrong_recipe": 0.3
+   },
+   "lines": [
+    "I have an idea!",
+    "Ignore the sparks."
+   ],
+   "sloppy": 0.25,
+   "call_in": [
+    "I had an idea. It was bad.",
+    "Help. The idea is on fire."
+   ]
+  }
+ ],
+ "machines": [
+  {
+   "id": "generator",
+   "type": "generator",
+   "pos": [
+    0.5,
+    0.08
+   ],
+   "output": "raw",
+   "input_cap": 0,
+   "output_cap": 2,
+   "process_time": 0.8,
+   "heat_per_sec": 1.0,
+   "cool_per_sec": 3.0
+  },
+  {
+   "id": "proc_a",
+   "type": "processor",
+   "pos": [
+    0.13,
+    0.3
+   ],
+   "input": "raw",
+   "output": "component",
+   "input_cap": 2,
+   "output_cap": 2,
+   "process_time": 2.5,
+   "heat_per_sec": 2.8,
+   "cool_per_sec": 4.0
+  },
+  {
+   "id": "proc_b",
+   "type": "processor",
+   "pos": [
+    0.38,
+    0.3
+   ],
+   "input": "raw",
+   "output": "component",
+   "input_cap": 2,
+   "output_cap": 2,
+   "process_time": 2.5,
+   "heat_per_sec": 2.8,
+   "cool_per_sec": 4.0
+  },
+  {
+   "id": "proc_c",
+   "type": "processor",
+   "pos": [
+    0.62,
+    0.3
+   ],
+   "input": "raw",
+   "output": "component",
+   "input_cap": 2,
+   "output_cap": 2,
+   "process_time": 2.5,
+   "heat_per_sec": 2.8,
+   "cool_per_sec": 4.0
+  },
+  {
+   "id": "proc_d",
+   "type": "processor",
+   "pos": [
+    0.87,
+    0.3
+   ],
+   "input": "raw",
+   "output": "component",
+   "input_cap": 2,
+   "output_cap": 2,
+   "process_time": 2.5,
+   "heat_per_sec": 2.8,
+   "cool_per_sec": 4.0
+  },
+  {
+   "id": "assembler_a",
+   "type": "assembler",
+   "pos": [
+    0.3,
+    0.52
+   ],
+   "input": "component",
+   "output": "product",
+   "input_cap": 4,
+   "output_cap": 2,
+   "process_time": 1.5,
+   "heat_per_sec": 2.0,
+   "cool_per_sec": 4.0
+  },
+  {
+   "id": "assembler_b",
+   "type": "assembler",
+   "pos": [
+    0.7,
+    0.52
+   ],
+   "input": "component",
+   "output": "product",
+   "input_cap": 4,
+   "output_cap": 2,
+   "process_time": 1.5,
+   "heat_per_sec": 2.0,
+   "cool_per_sec": 4.0
+  },
+  {
+   "id": "qa_desk",
+   "type": "qa",
+   "pos": [
+    0.5,
+    0.73
+   ],
+   "input": "product",
+   "input_cap": 8,
+   "output_cap": 0,
+   "process_time": 1.0,
+   "heat_per_sec": 0.0,
+   "cool_per_sec": 3.0
+  },
+  {
+   "id": "warehouse",
+   "type": "warehouse",
+   "pos": [
+    0.5,
+    0.91
+   ],
+   "input": "product",
+   "input_cap": 4,
+   "output_cap": 0,
+   "process_time": 0.5,
+   "heat_per_sec": 0.0,
+   "cool_per_sec": 3.0
+  }
+ ],
+ "links": [
+  {
+   "from": "generator",
+   "to": "proc_a",
+   "transit_time": 0.6
+  },
+  {
+   "from": "generator",
+   "to": "proc_b",
+   "transit_time": 0.6
+  },
+  {
+   "from": "generator",
+   "to": "proc_c",
+   "transit_time": 0.6
+  },
+  {
+   "from": "generator",
+   "to": "proc_d",
+   "transit_time": 0.6
+  },
+  {
+   "from": "proc_a",
+   "to": "assembler_a",
+   "transit_time": 0.6
+  },
+  {
+   "from": "proc_b",
+   "to": "assembler_a",
+   "transit_time": 0.6
+  },
+  {
+   "from": "proc_c",
+   "to": "assembler_b",
+   "transit_time": 0.6
+  },
+  {
+   "from": "proc_d",
+   "to": "assembler_b",
+   "transit_time": 0.6
+  },
+  {
+   "from": "assembler_a",
+   "to": "qa_desk",
+   "transit_time": 0.6
+  },
+  {
+   "from": "assembler_b",
+   "to": "qa_desk",
+   "transit_time": 0.6
+  },
+  {
+   "from": "qa_desk",
+   "to": "warehouse",
+   "transit_time": 0.6
+  }
+ ]
+}

@@ -264,6 +264,26 @@ func _within(inner: Rect2, outer: Rect2, tag: String, tol: float = 0.5) -> bool:
 	return false
 
 
+## Tier 2 (#88): the bigger floor, every machine, the wall monitor and the worst-first button fit at every size.
+func _check_tier_two() -> void:
+	_main._meta.unlock_after(1)
+	_main._meta.pick_tier(2)
+	_main._new_career(7)
+	if _main._tier != 2 or _main._factory == null or _main._factory.machines.size() != SimConfig.load_tier(2).machines.size():
+		_fails.append("tier 2 career did not build the tier 2 floor")
+	else:
+		_check_layouts()
+		var n := 0
+		for m in _main._factory.machines:
+			n += 0 if m.type == "qa" or m.type == "warehouse" else 1
+		if _main._screens.wall.light_rects().size() != n:
+			_fails.append("tier 2 wall monitor lights != %d" % n)
+	_main._meta.tier = 1
+	_main._meta.pick_tier(1)
+	_main._new_career(1)
+	_main._hud.start_pressed.emit()
+
+
 func _check_layouts() -> void:
 	var f: Factory = _main._factory
 	var v: FactoryView = _main._view
@@ -511,6 +531,7 @@ func _process(_delta: float) -> bool:
 			_check_screens()
 			_check_sprites_sfx()
 			_check_layouts()
+			_check_tier_two()
 		5:
 			Sprites.clear_cache()
 			if _main._phase != _main.Phase.PLAYING:
