@@ -111,7 +111,7 @@ func _ready() -> void:
 	_home.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled))
 	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.stats_overlay.z_index = 20  # stats opens above Home
-	_night = NightReport.new()
+	_night = NightReport.create()
 	add_child(_night)
 	_night.collected.connect(_night_collected)
 	_tutorial = Tutorial.new()
