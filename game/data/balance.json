@@ -53,6 +53,12 @@
   "subtle_share_max": 0.9,
   "scan_seconds": 0.5,
   "scan_queue_max": 3,
+  "back_start_day": 3,
+  "back_share_base": 0.15,
+  "back_share_per_day": 0.03,
+  "back_share_max": 0.35,
+  "flip_seconds": 0.4,
+  "lamp_cooldown_seconds": 4.0,
   "sfx": {
     "volume": 0.35,
     "ship": {"pitch": 520, "pitch_end": 900, "length": 0.12, "volume": 1.0},

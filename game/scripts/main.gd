@@ -28,6 +28,8 @@ var _offers: Array[Dictionary] = []
 var _ship_btn: Button
 var _reject_btn: Button
 var _scan_btn: Button
+var _flip_btn: Button
+var _lamp_btn: Button
 var _sfx: Sfx
 var _mute_btn: Button
 var _muted: bool = false
@@ -80,6 +82,16 @@ func _ready() -> void:
 	_scan_btn.add_theme_font_size_override("font_size", 28)
 	_scan_btn.pressed.connect(_scan)
 	_screens.office_page.add_child(_scan_btn)
+	_flip_btn = Button.new()
+	_flip_btn.text = "Flip (F)"
+	_flip_btn.add_theme_font_size_override("font_size", 24)
+	_flip_btn.pressed.connect(_flip)
+	_screens.office_page.add_child(_flip_btn)
+	_lamp_btn = Button.new()
+	_lamp_btn.text = "Lamp (L)"
+	_lamp_btn.add_theme_font_size_override("font_size", 24)
+	_lamp_btn.pressed.connect(_lamp)
+	_screens.office_page.add_child(_lamp_btn)
 	_mute_btn = Button.new()
 	_mute_btn.add_theme_font_size_override("font_size", 28)
 	_mute_btn.pressed.connect(_toggle_mute)
@@ -205,7 +217,9 @@ func _spec_caption() -> String:
 	for k: String in _factory.spec_allowed:
 		lines.append("OK: " + QaSpec.nice(k))
 	if _factory.subtle_share > 0.0:
-		lines.append("Hairline faults: Scan")
+		lines.append("Hairline faults: Scan or Lamp")
+	if _factory.back_share > 0.0:
+		lines.append("Check the back: Flip")
 	return " · ".join(lines)
 
 
@@ -247,6 +261,28 @@ func _inspect_button(text: String, ship: bool) -> Button:
 	b.pressed.connect(func() -> void: _inspect(ship))
 	_screens.office_page.add_child(b)
 	return b
+
+
+func _flip() -> void:
+	if _phase != Phase.PLAYING or _factory == null or not _factory.worker_at_desk():
+		return
+	if _factory.flip() == Factory.InspectResult.SCANNING:
+		_desk.hint = ""
+		_sfx.play("thunk")
+		var q := _factory.qa_queue()
+		if not q.is_empty() and bool((q[0] as Dictionary).get("back", false)) and _factory.item_bad(q[0]):
+			_desk.flash("Flip: fault on the back", Color(0.6, 0.9, 1.0), 1.4)
+
+
+func _lamp() -> void:
+	if _phase != Phase.PLAYING or _factory == null or not _factory.worker_at_desk():
+		return
+	if _factory.lamp() == Factory.InspectResult.SCANNING:
+		_desk.hint = ""
+		_sfx.play("thunk")
+		var q := _factory.qa_queue()
+		if not q.is_empty() and bool((q[0] as Dictionary).get("subtle", false)) and _factory.item_bad(q[0]):
+			_desk.flash("X-ray: hairline fault found", Color(0.6, 0.9, 1.0), 1.4)
 
 
 func _scan() -> void:
@@ -310,6 +346,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_LEFT: _inspect(false)
 			KEY_RIGHT: _inspect(true)
 			KEY_S: _scan()
+			KEY_F: _flip()
+			KEY_L: _lamp()
 			KEY_DOWN: _screens.go_floor()
 			KEY_UP: _screens.go_office()
 
@@ -325,13 +363,12 @@ func _fit() -> void:
 		_haptics_btn.size = Vector2(150, 80)
 		_haptics_btn.position = _mute_btn.position - Vector2(_haptics_btn.size.x + 8.0, 0.0)
 	if _ship_btn != null:
-		var w := (size.x - 60.0) / 3.0
+		var w := (size.x - 20.0 - 10.0 * 5.0) / 5.0
 		var y := strip.end.y - 104.0
-		for b: Button in [_reject_btn, _scan_btn, _ship_btn]:
-			b.size = Vector2(w, 84)
-		_reject_btn.position = Vector2(20.0, y)
-		_scan_btn.position = Vector2(30.0 + w, y)
-		_ship_btn.position = Vector2(40.0 + 2.0 * w, y)
+		var row: Array[Button] = [_reject_btn, _scan_btn, _flip_btn, _lamp_btn, _ship_btn]
+		for i in row.size():
+			row[i].size = Vector2(w, 84)
+			row[i].position = Vector2(10.0 + float(i) * (w + 10.0), y)
 	if _view != null:
 		_view.area = _screens.floor_rect()
 	if _desk != null:
@@ -370,6 +407,8 @@ func _process(delta: float) -> void:
 	_ship_btn.visible = _phase == Phase.PLAYING
 	_reject_btn.visible = _phase == Phase.PLAYING
 	_scan_btn.visible = _phase == Phase.PLAYING
+	_flip_btn.visible = _phase == Phase.PLAYING
+	_lamp_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
 	_screens.wall.poll()
 	_sfx_events()

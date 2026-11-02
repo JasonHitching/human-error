@@ -167,7 +167,7 @@ func end_day(f: Factory) -> Dictionary:
 		if strikes >= config.max_strikes:
 			fired = true
 	check_automation()
-	return {"probation": not hit and (day <= config.probation_days or (near and meta_perks.has("grace") and day <= probation_days())), "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "automated": automated, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
+	return {"probation": not hit and (day <= config.probation_days or (near and meta_perks.has("grace") and day <= probation_days())), "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "automated": automated, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "back_shipped": f.back_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
 
 
 ## Career summary for Meta.award. days = days survived (the day you were fired on counts).
