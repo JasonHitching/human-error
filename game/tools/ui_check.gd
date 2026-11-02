@@ -24,6 +24,7 @@ func _initialize() -> void:
 
 
 func _check_overlay(name: String, o: Control, need_buttons: bool) -> void:
+	_layout_now(o)
 	var screen: Vector2 = _main.size
 	if not o.is_visible_in_tree():
 		_fails.append("%s overlay not visible" % name)
@@ -34,7 +35,7 @@ func _check_overlay(name: String, o: Control, need_buttons: bool) -> void:
 	if need_buttons and buttons.is_empty():
 		_fails.append("%s overlay has no buttons" % name)
 	for b: Button in buttons:
-		if not Rect2(Vector2.ZERO, screen).encloses(b.get_global_rect()):
+		if not Rect2(Vector2.ZERO, screen).encloses(b.get_global_rect()) and not _scrolls_to(b, Rect2(Vector2.ZERO, screen)):
 			_fails.append("%s button '%s' off-screen at %s" % [name, b.text, b.get_global_rect()])
 
 
@@ -468,16 +469,36 @@ func _check_sprites_sfx() -> void:
 
 ## Overlap + minimum-target check over every visible button under `root`.
 ## No two visible buttons intersect; none outside the viewport; smaller side >= 44 mock px.
-func _check_buttons(tag: String, root: Node) -> void:
+## Sorts every Container under root now (top-down, several passes) so rects are final without waiting a frame.
+func _layout_now(root: Node) -> void:
+	for _pass in 8:
+		for n in [root] + root.find_children("*", "Container", true, false):
+			if n is Container:
+				(n as Container).notification(Container.NOTIFICATION_SORT_CHILDREN)
+
+
+## True when the control sits below the fold of a ScrollContainer that really scrolls (long content is allowed to scroll).
+func _scrolls_to(n: Control, vp: Rect2) -> bool:
+	var p := n.get_parent()
+	while p != null:
+		if p is ScrollContainer:
+			var sc := p as ScrollContainer
+			return sc.get_v_scroll_bar().max_value > sc.get_v_scroll_bar().page + 1.0 and n.get_global_rect().position.x >= 0.0 and n.get_global_rect().end.x <= vp.size.x
+		p = p.get_parent()
+	return false
+
+
+func _check_buttons(tag: String, root: Node, in_overlay: bool = false) -> void:
+	_layout_now(root)
 	var vp := Rect2(Vector2.ZERO, _main.size)
 	var bs: Array[Button] = []
 	for n in root.find_children("*", "Button", true, false):
-		if (n as Button).is_visible_in_tree() and not _in_overlay(n):
+		if (n as Button).is_visible_in_tree() and (in_overlay or not _in_overlay(n)):
 			bs.append(n)
 	var need := UiTheme.min_target() * minf(_main.size.x / UiTheme.DESIGN_W, 1.0) - 0.5
 	for i in bs.size():
 		var r := bs[i].get_global_rect()
-		if not vp.encloses(r):
+		if not vp.encloses(r) and not _scrolls_to(bs[i], vp):
 			_fails.append("[%s] button '%s' outside viewport %s" % [tag, bs[i].text, r])
 		if minf(r.size.x, r.size.y) < need:
 			_fails.append("[%s] button '%s' below min target: %s" % [tag, bs[i].text, r.size])
@@ -524,9 +545,11 @@ func _check_rookie(hud: Hud) -> void:
 	wall.poll()
 	# the review lists a learned lesson
 	hud.show_review({"shipped": 30, "target": 24, "hit": true, "caught": 0, "complaints": 0, "wasted": 0, "strikes": 0, "points": 1, "probation": false, "lessons": [{"bot": "Pip", "mistake": "wrong_recipe"}, {"bot": "Bolt", "mistake": "overclock"}, {"bot": "Nudge", "mistake": "misroute"}], "rookie": {"name": "Pip", "replaced": "Clank"}}, "ok", [{"text": "Train Pip: jam -40%"}, {"text": "Quick eye: inspect -20%"}, {"text": "Bigger desk: +2 queue"}] as Array[Dictionary], "Streak: 1 days on target\nTraining point banked: pick below")
-	if not hud._review_label.text.contains("Pip learned") or not hud._review_label.text.contains("Rookie: "):
+	var rtxt := Hud.text_of(hud.review)
+	if not rtxt.contains("Pip learned") or not rtxt.contains("Rookie: "):
 		_fails.append("review did not list the lesson and rookie")
 	_check_overlay("lesson review", hud.review, true)
+	_check_buttons("lesson review", hud.review, true)
 
 
 func _check_home(tag: String, placed: bool = true) -> void:
@@ -538,11 +561,10 @@ func _check_home(tag: String, placed: bool = true) -> void:
 	var need: Vector2 = h.start_btn.get_parent().get_combined_minimum_size()
 	if need.y > vp.size.y or need.x > vp.size.x:
 		_fails.append("[%s] Home content %s does not fit %s" % [tag, need, vp.size])
-	for b: Button in [h.start_btn, h.daily_btn, h.stats_btn, h.tutorial_btn]:
-		if placed and not vp.encloses(b.get_global_rect()):
-			_fails.append("[%s] Home button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
-		if b.size.x < 120.0 or b.size.y < 80.0:
+	for b: Button in [h.start_btn, h.daily_btn, h.stats_btn, h.tutorial_btn, h.perks_btn]:
+		if b.size.x < 100.0 or b.size.y < UiTheme.min_target() * minf(vp.size.x / UiTheme.DESIGN_W, 1.0) - 0.5:
 			_fails.append("[%s] Home button '%s' too small %s" % [tag, b.text, b.size])
+	_check_buttons("Home " + tag, h, true)
 
 
 func _check_tutorial() -> void:
@@ -584,6 +606,7 @@ func _check_stats(hud: Hud) -> void:
 		_fails.append("stats button too small: %s" % sb.size)
 	hud.stats_pressed.emit()
 	_check_overlay("stats", hud.stats_overlay, true)
+	_check_buttons("stats", hud.stats_overlay, true)
 	var lab: Label = hud.stats_overlay.find_children("*", "Label", true, false)[0]
 	if not Rect2(Vector2.ZERO, _main.size).encloses(lab.get_global_rect()):
 		_fails.append("stats text off-screen %s" % lab.get_global_rect())
@@ -630,6 +653,7 @@ func _process(_delta: float) -> bool:
 			_end_shift(_main._factory.target * 2)  # hit with bonus -> points to spend
 		8:
 			_check_overlay("review", hud.review, true)
+			_check_buttons("review+offers", hud.review, true)
 			if _main._offers.is_empty():
 				_fails.append("no training offers after a hit")
 			else:
@@ -642,6 +666,7 @@ func _process(_delta: float) -> bool:
 			_end_shift(0)  # strike 1
 		14:
 			_check_overlay("review (miss)", hud.review, true)
+			_check_buttons("review (miss)", hud.review, true)
 			hud.continue_pressed.emit()
 		16:
 			hud.start_pressed.emit()
@@ -649,6 +674,7 @@ func _process(_delta: float) -> bool:
 			_end_shift(0)  # strike 2 -> fired
 		21:
 			_check_overlay("fired", hud.fired, true)
+			_check_buttons("fired", hud.fired, true)
 			var rb: Button = hud._retry_btn
 			var need := Vector2(200, 100) if _main.size == Vector2(720, 1280) else Vector2(120, 80)
 			if rb.size.x < need.x or rb.size.y < need.y:
