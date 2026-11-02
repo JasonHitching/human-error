@@ -1,0 +1,446 @@
+{
+ "camera": {
+  "yaw": 45,
+  "pitch": 35.264,
+  "ppu": 181.02
+ },
+ "bot_canvas": [
+  192,
+  192,
+  96,
+  150
+ ],
+ "bot_scale": 0.42,
+ "sprites": {
+  "floor_tile": {
+   "canvas": [
+    256,
+    148,
+    128,
+    74
+   ],
+   "parts": [
+    {
+     "model": "floor",
+     "tint": "#585e72"
+    }
+   ]
+  },
+  "floor_tile_alt": {
+   "canvas": [
+    256,
+    148,
+    128,
+    74
+   ],
+   "parts": [
+    {
+     "model": "floor",
+     "tint": "#515769"
+    }
+   ]
+  },
+  "belt_straight_a": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "sw"
+     ]
+    }
+   ]
+  },
+  "belt_straight_b": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "nw",
+      "se"
+     ]
+    }
+   ]
+  },
+  "belt_corner_ne_se": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "se"
+     ]
+    }
+   ]
+  },
+  "belt_corner_se_sw": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "se",
+      "sw"
+     ]
+    }
+   ]
+  },
+  "belt_corner_sw_nw": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "sw",
+      "nw"
+     ]
+    }
+   ]
+  },
+  "belt_corner_nw_ne": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "nw",
+      "ne"
+     ]
+    }
+   ]
+  },
+  "belt_split": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "nw",
+      "se",
+      "sw"
+     ]
+    }
+   ]
+  },
+  "belt_merge": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "nw",
+      "se",
+      "ne"
+     ]
+    }
+   ]
+  },
+  "machine_generator": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
+    },
+    {
+     "model": "cover-hopper",
+     "tint": "#8f9bc4"
+    }
+   ]
+  },
+  "machine_processor": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
+    },
+    {
+     "model": "cover-window"
+    }
+   ]
+  },
+  "machine_assembler": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
+    },
+    {
+     "model": "robot-arm-a",
+     "pos": [
+      0,
+      0,
+      0.55
+     ],
+     "scale": 0.4
+    },
+    {
+     "model": "robot-arm-b",
+     "pos": [
+      0,
+      0,
+      -0.55
+     ],
+     "scale": 0.4
+    }
+   ]
+  },
+  "machine_warehouse": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "cover"
+    },
+    {
+     "model": "box-large",
+     "pos": [
+      0.0,
+      0,
+      0.0
+     ],
+     "scale": 0.8
+    },
+    {
+     "model": "box-long",
+     "pos": [
+      0,
+      0.4,
+      0
+     ]
+    }
+   ]
+  },
+  "desk_hatch": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
+    },
+    {
+     "model": "scanner-low",
+     "scale": 1.0
+    }
+   ]
+  },
+  "scrap_bin": {
+   "canvas": [
+    256,
+    256,
+    128,
+    170
+   ],
+   "parts": [
+    {
+     "model": "box-large",
+     "scale": [
+      0.75,
+      0.8,
+      0.75
+     ],
+     "tint": "#4d5262"
+    }
+   ]
+  },
+  "reject_bin": {
+   "canvas": [
+    256,
+    256,
+    128,
+    170
+   ],
+   "parts": [
+    {
+     "model": "box-large",
+     "scale": [
+      0.75,
+      0.8,
+      0.75
+     ],
+     "tint": "#775a66"
+    }
+   ]
+  },
+  "crate": {
+   "canvas": [
+    128,
+    128,
+    64,
+    84
+   ],
+   "parts": [
+    {
+     "model": "box-small"
+    }
+   ]
+  },
+  "crate_stack": {
+   "canvas": [
+    256,
+    256,
+    128,
+    170
+   ],
+   "parts": [
+    {
+     "model": "box-large",
+     "pos": [
+      -0.2,
+      0,
+      0
+     ]
+    },
+    {
+     "model": "box-small",
+     "pos": [
+      -0.2,
+      0.5,
+      0
+     ]
+    },
+    {
+     "model": "box-long",
+     "pos": [
+      0.3,
+      0,
+      0.35
+     ],
+     "rot_y_deg": 90
+    }
+   ]
+  },
+  "fence": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "proc": "fence"
+    }
+   ]
+  },
+  "wall_back": {
+   "canvas": [
+    320,
+    420,
+    160,
+    330
+   ],
+   "parts": [
+    {
+     "proc": "wall",
+     "len": 2,
+     "window": true
+    }
+   ]
+  },
+  "shadow_machine": {
+   "canvas": [
+    320,
+    120,
+    160,
+    60
+   ],
+   "shadow": true,
+   "parts": []
+  },
+  "worker": {
+   "canvas": [
+    192,
+    192,
+    96,
+    150
+   ],
+   "parts": [
+    {
+     "proc": "worker",
+     "scale": 0.46
+    }
+   ]
+  },
+  "wall_back_plain": {
+   "canvas": [
+    192,
+    340,
+    96,
+    270
+   ],
+   "parts": [
+    {
+     "proc": "wall",
+     "len": 1,
+     "window": false
+    }
+   ]
+  }
+ }
+}
