@@ -7,3 +7,7 @@ build/
 *.pck
 *.exe
 .mono/
+tools/art_bake/node_modules/
+tools/art_bake/models
+tools/art_bake/package*.json
+tools/art_bake/out*/
