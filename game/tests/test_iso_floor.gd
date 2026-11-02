@@ -45,3 +45,22 @@ func test_tier_one_is_a_diamond() -> void:
 	var s := IsoFloor.to_local(Vector2(iso.cells["assembler"]))
 	assert_true(a.x < g.x and b.x > g.x and absf(a.y - b.y) < 0.01, "presses left and right of the generator")
 	assert_true(s.y > a.y and s.y > g.y, "assembler below the presses")
+
+
+func test_item_anchor_sits_on_belt_top_surface_centre() -> void:
+	# The belt top face's left/right corners lie on the row where the sprite first touches its edge column.
+	var anchor_y: float = IsoFloor.anchor("belt_").y
+	var target_y: float = anchor_y + IsoFloor.belt_top_offset().y * 2.0  # baked px
+	for n in ["belt_straight_a", "belt_straight_b", "belt_corner_ne_se", "belt_corner_nw_ne", "belt_corner_se_sw", "belt_corner_sw_nw", "belt_merge", "belt_split"]:
+		var img := Sprites.tex(n).get_image()
+		var best := 9999
+		for x in [0, img.get_width() - 1]:
+			for y in img.get_height():
+				if img.get_pixel(x, y).a > 0.5:
+					best = mini(best, y)
+					break
+			if best == 65:
+				break
+		assert_true(absf(float(best) - target_y) <= 4.0, "%s corner row %d vs item row %.1f" % [n, best, target_y])
+		# Item (centred on the anchor) lies on opaque belt pixels, i.e. on the surface.
+		assert_true(img.get_pixel(int(IsoFloor.anchor(n).x), int(target_y)).a > 0.5, n + " item over belt")

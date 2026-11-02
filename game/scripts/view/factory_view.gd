@@ -467,7 +467,7 @@ func _draw() -> void:
 			5:
 				var pp: Vector2 = e["p"]
 				var tint := Color(0.55, 0.58, 0.65) if e["junk"] else Color.WHITE
-				if not _spr("crate", pp + Vector2(0, 6.0 * _s), false, tint, 0.4):
+				if not _spr("crate", pp, false, tint, 0.4):
 					if e["junk"]:
 						draw_rect(Rect2(pp - Vector2(5, 5) * _s, Vector2(10, 10) * _s), UiTheme.TEXT_FAINT)
 					else:
@@ -555,8 +555,8 @@ func _draw_belt_queues() -> void:
 		for i in n:
 			var cell: Vector2i = pth[pth.size() - 2 - i / 2]
 			var off := Vector2(-9.0, 0) if i % 2 == 0 else Vector2(9.0, 0)
-			var p := ground(Vector2(cell)) + off * _s + Vector2(0, -4.0 * _s)
-			if not _spr("crate", p + Vector2(0, 6.0 * _s), false, Color(1.0, 0.85, 0.6), 0.4):
+			var p := ground(Vector2(cell)) + off * _s + IsoFloor.belt_top_offset() * _s
+			if not _spr("crate", p, false, Color(1.0, 0.85, 0.6), 0.4):
 				draw_circle(p, 5.0 * _s, UiTheme.WARN)
 
 
@@ -620,7 +620,7 @@ func _item_pos(it: Dictionary) -> Vector2:
 			pts.append(ground(Vector2(c)))
 	if pts.size() < 2:
 		return area.get_center()
-	return _along(pts, t) + Vector2(0, -6.0 * _s)
+	return _along(pts, t) + IsoFloor.belt_top_offset() * _s
 
 
 ## Point a fraction t along a polyline (by length).
