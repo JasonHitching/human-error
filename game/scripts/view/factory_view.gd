@@ -93,6 +93,10 @@ func push_events(events: Array[Dictionary]) -> void:
 			_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["id"] != e["machine_id"])
 			_bubbles.append({"id": e["machine_id"], "text": "Fixed itself. Probably.", "left": 2.0})
 			continue
+		if e.get("type") == "trained":
+			_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["id"] != e["machine_id"])
+			_bubbles.append({"id": e["machine_id"], "text": "Trained! Honestly? Better than you.", "left": 3.0})
+			continue
 		if e.get("type") == "lesson":
 			_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["id"] != e["machine_id"])
 			_bubbles.append({"id": e["machine_id"], "text": "Noted. Will not do that again.", "left": 2.5})

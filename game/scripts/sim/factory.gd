@@ -664,9 +664,12 @@ func _note_fixed(m: Machine, kind: int) -> void:
 	for k in fixed:
 		if m.bot.learned.has(k):
 			continue
+		var was_trained := m.bot.is_trained()
 		if m.bot.note_fix(k, _config.learn_after, _config.learn_chance, _learn_rng.randf()):
 			lessons.append({"bot": m.bot.name, "mistake": k})
 			events.append({"type": "lesson", "machine_id": m.id, "bot": m.bot.name, "mistake": k})
+			if m.bot.is_trained() and not was_trained:
+				events.append({"type": "trained", "machine_id": m.id, "bot": m.bot.name})
 
 
 ## Replay a recorded run: same seed + same action list => same result.
