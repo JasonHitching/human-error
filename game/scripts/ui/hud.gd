@@ -1,6 +1,8 @@
 class_name Hud
 extends Control
-## Top bar, flash text, and full-screen overlays (day banner, review, fired). Built in code.
+## Top bar, flash text, and full-screen overlays (day banner, review, fired). HUD layer (top bar, alerts) is a scene.
+
+const HUD_LAYER := preload("res://scenes/ui/hud_layer.tscn")
 
 signal start_pressed
 signal continue_pressed
@@ -31,16 +33,13 @@ var _stats_box: VBoxContainer
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	top_bar = TopBar.new()
-	add_child(top_bar)
+	var layer: Control = HUD_LAYER.instantiate()
+	add_child(layer)
+	top_bar = layer.get_node("%TopBar")
+	_flash = layer.get_node("%FlashLabel")
+	_twist = layer.get_node("%TwistLabel")
+	_seed = layer.get_node("%SeedLabel")
 	top_bar.settings_pressed.connect(settings_pressed.emit)
-	_flash = _label(22, HORIZONTAL_ALIGNMENT_CENTER)
-	_flash.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
-	_twist = _label(18, HORIZONTAL_ALIGNMENT_CENTER)
-	_twist.add_theme_color_override("font_color", Color(1, 0.7, 0.3))
-	_seed = _label(12, HORIZONTAL_ALIGNMENT_LEFT)
-	_seed.modulate = Color(1, 1, 1, 0.5)
-	_seed.visible = false
 	var bb := _overlay()
 	banner = bb[0]
 	_banner_label = _big(bb[1])
@@ -54,17 +53,6 @@ func _ready() -> void:
 	var sb := _overlay()
 	stats_overlay = sb[0]
 	_stats_box = sb[1]
-	resized.connect(_layout)
-	_layout()
-
-
-func _label(size: int, align: HorizontalAlignment) -> Label:
-	var l := Label.new()
-	l.horizontal_alignment = align
-	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	l.add_theme_font_size_override("font_size", size)
-	add_child(l)
-	return l
 
 
 ## Full-screen overlay with a scrolling column. Returns [overlay, column].
@@ -82,17 +70,6 @@ func _button(box: Control, text: String, cb: Callable, kind: String = "secondary
 	var b := UiKit.button(box, text, kind, 72.0 if kind == "primary" else 56.0, 30 if kind == "primary" else 26)
 	b.pressed.connect(cb)
 	return b
-
-
-func _layout() -> void:
-	top_bar.size = Vector2(size.x, TopBar.height())
-	var strip := TopBar.height() + 2.0
-	_flash.size = Vector2(size.x, 32)
-	_flash.position = Vector2(0, strip)
-	_twist.size = Vector2(size.x, 32)
-	_twist.position = Vector2(0, strip)
-	_seed.size = Vector2(size.x * 0.2, 20)
-	_seed.position = Vector2(4, size.y - 24)
 
 
 func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, _best_days: int) -> void:
