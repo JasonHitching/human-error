@@ -246,6 +246,7 @@ func _check_floor_chars() -> void:
 	f.worker.place(Worker.Location.FLOOR)
 	sw.sync(0.0)
 	v.area = sw.floor_rect()
+	v.show_overview()
 	var back := sw.back_btn.get_global_rect()
 	var bad := 0
 	var off_sim := 0
@@ -419,6 +420,7 @@ func _check_layouts() -> void:
 		sw.sync(0.0)
 		await _main.get_tree().process_frame  # floor page just became visible: containers sort now
 		var a: Rect2 = v.area
+		v.show_overview()  # the factory opens close-up; the overview must still fit the floor area
 		var screen := Rect2(Vector2.ZERO, lg)
 		if not screen.encloses(a) or a.size.x < 100.0 or a.size.y < 400.0:
 			_fails.append("[%s] floor area %s bad in viewport %s" % [tag, a, lg])

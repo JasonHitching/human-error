@@ -99,12 +99,25 @@ func _relayout() -> void:
 	_cam.set_view(area.size)
 	if not _cam_ready or area.size != _fit_size:
 		_fit_size = area.size
-		_cam.reset(cr, _cam.fit_zoom(cr))
+		_cam.reset(cr, _cam.start_zoom())
 		_cam_ready = true
 	else:
 		_cam.set_bounds(cr)
 	_s = _cam.zoom
 	_origin = area.position + _cam.view * 0.5 - _cam.center * _s
+
+
+## Zoom out to the whole-factory overview (also used by headless layout checks).
+func show_overview() -> void:
+	if factory == null:
+		return
+	var cr := _iso.content_rect()
+	_cam.set_view(area.size)
+	_cam.reset(cr, _cam.fit_zoom(cr))
+	_cam_ready = true
+	_fit_size = area.size
+	_relayout()
+	queue_redraw()
 
 
 func camera() -> FloorCamera:
