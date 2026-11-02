@@ -132,3 +132,59 @@ func test_shift_over() -> void:
 	f.step()
 	assert_true(f.is_over())
 	assert_eq(f.target, 100)
+
+
+func _repaired_overheat(grace: float) -> Array:
+	var f := Factory.new(_cfg({"fix_grace_seconds": grace}), 1)
+	f.worker.place(Worker.Location.FLOOR)
+	_quiet(f)
+	var m := f.get_machine("proc_a")
+	m.heat_per_sec = 50.0
+	_run_until(f, func(): return m.state == Machine.State.OVERHEATED)
+	f.request_action("proc_a")
+	_run_until(f, func(): return not m.is_faulted())
+	return [f, m]
+
+
+func test_grace_blocks_same_fault_only_for_window() -> void:
+	var r := _repaired_overheat(4.0)
+	var f: Factory = r[0]
+	var m: Machine = r[1]
+	for i in 35:  # 3.5 s < 4 s grace, heat gain is 50/s
+		f.step()
+		assert_true(m.state != Machine.State.OVERHEATED, "re-overheated inside grace")
+	assert_eq(f.fix_recurrences, 0)
+	assert_true(_run_until(f, func(): return m.state == Machine.State.OVERHEATED, 100), "fault possible after grace")
+
+
+func test_no_grace_recurs_immediately() -> void:
+	var r := _repaired_overheat(0.0)
+	var f: Factory = r[0]
+	var m: Machine = r[1]
+	assert_true(_run_until(f, func(): return m.state == Machine.State.OVERHEATED, 50))
+	assert_eq(f.fix_recurrences, 1)
+
+
+func test_grace_does_not_block_a_different_fault() -> void:
+	var r := _repaired_overheat(30.0)
+	var f: Factory = r[0]
+	var m: Machine = r[1]
+	m.bot.rates = {"jam": 600000.0}
+	assert_true(_run_until(f, func(): return m.state == Machine.State.JAMMED, 100), "jam blocked by overheat grace")
+
+
+func test_grace_replay_is_deterministic() -> void:
+	var cfg := _cfg({"ramp_start": 1.0, "ramp_end": 3.0, "fix_grace_seconds": 6.0})
+	var a := Factory.new(cfg, 5)
+	a.go_to_floor()
+	for i in 900:
+		if i % 40 == 0:
+			for m in a.machines:
+				if m.is_faulted():
+					a.request_action(m.id)
+					break
+		a.step()
+	var b := Factory.replay(cfg, 5, a.actions, 900)
+	assert_eq(a.fault_counts, b.fault_counts)
+	assert_eq(a.fix_recurrences, b.fix_recurrences)
+	assert_eq(a.rng.randi(), b.rng.randi())
