@@ -18,6 +18,7 @@ var by_cell: Dictionary = {}  # Vector2i -> machine id
 var edges: Dictionary = {}  # belt cell -> {edge name: true}
 var paths: Dictionary = {}  # "from>to" -> Array[Vector2i] (machine cell, belt cells, machine cell)
 var props: Array = []
+var press_hidden: Dictionary = {}  # belt cells fully under a press's own belt (not drawn, FIX-7)
 var grid := Vector2i(5, 5)
 var scrap_cell := Vector2i(0, 0)
 var stairs_cell := Vector2(-1, 1)
@@ -45,6 +46,7 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 	by_cell.clear()
 	edges.clear()
 	paths.clear()
+	press_hidden.clear()
 	for md: Dictionary in machines:
 		var c := Vector2i(int(md.get("gx", 0)), int(md.get("gy", 0)))
 		cells[String(md["id"])] = c
@@ -64,8 +66,8 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 		var path := route(a, b)
 		var stub := _press_stub(String(l["from"]), a, b)
 		if stub != Vector2i.ZERO:
-			path = [a]
-			path.append_array(route(a + stub, b))
+			path = [a, a + stub]  # the press belt covers a+stub; the bend is on the cell after it
+			path.append_array(route(a + stub * 2, b))
 		paths[key] = path
 		for i in range(1, path.size()):
 			var d := path[i] - path[i - 1]
@@ -79,6 +81,14 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 				_edge(path[i - 1], en)
 			if not by_cell.has(path[i]):
 				_edge(path[i], OPP[en])
+	for id: String in cells:
+		var axis := press_axis(id)
+		if axis == "":
+			continue
+		var d := Vector2i(0, 1) if axis == "gy" else Vector2i(1, 0)
+		for k in [-1, 1]:
+			if edges.has(cells[id] + d * k):
+				press_hidden[cells[id] + d * k] = true
 
 
 ## Logical px below the machine's ground centre where the worker stands (still inside its own cell).
@@ -119,7 +129,7 @@ func _edge(c: Vector2i, e: String) -> void:
 
 ## Cells from a to b inclusive: along gx then gy; the other order if a machine is in the way.
 ## Processors use the press sprite, whose belt runs straight through: the output leaves on the side
-## opposite the input (one cell straight on) and any bend is on the belt cell after it.
+## opposite the input (one cell straight on, under the press belt) and any bend is on the cell after that.
 ## Returns that first step (Vector2i.ZERO = not a processor, no input yet, or the cell is taken).
 func _press_stub(from_id: String, a: Vector2i, b: Vector2i) -> Vector2i:
 	if types.get(from_id, "") != "processor":
@@ -128,7 +138,7 @@ func _press_stub(from_id: String, a: Vector2i, b: Vector2i) -> Vector2i:
 		var p: Array = paths[key]
 		if key.ends_with(">" + from_id) and p.size() >= 2:
 			var d: Vector2i = p[p.size() - 1] - p[p.size() - 2]
-			if a + d == b or by_cell.has(a + d):
+			if a + d == b or by_cell.has(a + d) or a + d * 2 == b or by_cell.has(a + d * 2):
 				return Vector2i.ZERO
 			return d
 	return Vector2i.ZERO

@@ -129,3 +129,32 @@ func test_press_frame_selection() -> void:
 	for i in 60:
 		seen[PressAnim.frame(Machine.State.WORKING, float(i) / 30.0, true)] = true
 	assert_eq(seen.size(), PressAnim.FRAMES, "working cycles through all frames")
+
+
+func test_press_belt_reach_matches_sprite() -> void:
+	var img := Sprites.tex(PressAnim.sprite_name(0)).get_image()
+	var box := img.get_used_rect()
+	var anchor_x: float = IsoFloor.anchor("press").x
+	assert_true(absf((anchor_x - box.position.x) - PressAnim.BELT_REACH_PX) <= 2.0, "left belt tip vs BELT_REACH_PX")
+	assert_true(absf((box.end.x - anchor_x) - PressAnim.BELT_REACH_PX) <= 2.0, "right belt tip vs BELT_REACH_PX")
+
+
+func test_press_belt_ends_meet_neighbouring_belt_tiles_both_tiers() -> void:
+	for tier in [1, 2]:
+		var iso := _floor(tier)
+		# belt tip must land on the far end of the hidden neighbour tile (1.5 cells out = 96 px along screen x)
+		assert_true(absf(PressAnim.belt_reach() - IsoFloor.HW * 1.5) <= 2.0, "press belt end vs neighbour tile end")
+		for id: String in iso.cells:
+			var axis := iso.press_axis(id)
+			if axis == "":
+				continue
+			var d := Vector2i(0, 1) if axis == "gy" else Vector2i(1, 0)
+			for k in [-1, 1]:
+				var n: Vector2i = iso.cells[id] + d * k
+				assert_true(iso.press_hidden.has(n), "tier %d %s: neighbour tile %s is hidden under the press belt" % [tier, id, n])
+				var bs: String = iso.belt_sprite(n)["name"]
+				assert_eq(bs, "belt_straight_a" if axis == "gy" else "belt_straight_b", "tier %d %s: hidden tile must be straight, not a bend" % [tier, id])
+				var after: Vector2i = iso.cells[id] + d * (2 * k)
+				assert_true(iso.edges.has(after) or iso.by_cell.has(after), "tier %d %s: belt or machine meets the press belt end at %s" % [tier, id, after])
+		for c: Vector2i in iso.press_hidden:
+			assert_true(iso.edges.has(c), "hidden cell is a belt cell")

@@ -8,7 +8,24 @@ const FRAMES := 6
 const FPS := 9.0
 const IDLE := 0
 const PRESSED := 2
-const SCALE := 0.94  # sprite px -> baked-2x px: the baked belt spans two cells, end to end
+## Press sprite px -> baked-2x px. Chosen so the baked belt reaches exactly the far end of the two
+## neighbouring belt tiles (1.5 cells each side of the press cell): the press owns those tiles' belt
+## and IsoFloor hides them (FIX-7). Bigger would cover the bend that follows; smaller leaves a gap.
+const SCALE := 1.38
+## Sprite px from the anchor (x) to either belt tip, measured on press_0..5 (10..288 around x=150).
+const BELT_REACH_PX := 139.0
+## Sprite px width of the press arch (the machine body without its belt arms), measured on press_0.
+const BODY_PX := 172.0
+
+
+## Logical px (at scale 1) the baked belt reaches along screen x from the ground point.
+static func belt_reach() -> float:
+	return BELT_REACH_PX * 0.5 * SCALE
+
+
+## Logical px width of the press body as drawn (scale 1).
+static func body_width() -> float:
+	return BODY_PX * 0.5 * SCALE
 
 
 ## Frame for a machine in `state` at clock `t` seconds. Effects off: no spark/smoke frames, held on idle.

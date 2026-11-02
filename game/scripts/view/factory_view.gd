@@ -502,6 +502,8 @@ func _draw_ground() -> void:
 			if not _spr("floor_tile_alt" if (gx + gy) % 2 == 1 else "floor_tile", g):
 				draw_colored_polygon(_diamond(g, 0.98), UiTheme.SURFACE_DIM if (gx + gy) % 2 == 0 else UiTheme.BG.lightened(0.04))
 	for c: Vector2i in _iso.edges:
+		if _iso.press_hidden.has(c):
+			continue  # under a press's own belt
 		var bs := _iso.belt_sprite(c)
 		if not _spr(String(bs["name"]), ground(Vector2(c)), bool(bs["flip"])):
 			draw_colored_polygon(_diamond(ground(Vector2(c)), 0.8), COL_BELT)
@@ -516,6 +518,8 @@ func _draw_fx_ground() -> void:
 	if FloorFx.enabled:
 		var ph := fposmod(_time * 0.5, 1.0)
 		for c: Vector2i in _iso.edges:
+			if _iso.press_hidden.has(c):
+				continue
 			FloorFx.draw_belt_motion(self, ground(Vector2(c)), _iso.edges[c], _s, ph)
 	_draw_chevrons()
 	_draw_belt_queues()
@@ -567,7 +571,7 @@ func _draw_input_pips(m: Machine) -> void:
 	var n := mini(m.input_cap, 12)
 	var fill := FlowReadout.input_fill(m)
 	var col := UiTheme.CRIT if fill >= 1.0 else (UiTheme.WARN if fill >= FlowReadout.FULL_FILL else UiTheme.TEXT_DIM)
-	var g := machine_ground(m) + Vector2(0, 16.0 * _s)
+	var g := machine_ground(m) + Vector2(0, (42.0 if m.type == "warehouse" else 16.0) * _s)  # warehouse: just under its crate
 	var step := 8.0 * _s
 	var x0 := -step * float(n - 1) * 0.5
 	var filled := roundi(fill * n)
@@ -694,7 +698,7 @@ func _draw_machine(m: Machine) -> void:
 		draw_polyline(br, UiTheme.WARN, 3.0)
 	var tint := Color.WHITE
 	if m.state == Machine.State.STARVED and m.type != "generator":
-		tint = Color(1, 1, 1, 0.6)  # starved: dim
+		tint = Color(0.72, 0.72, 0.78)  # starved: dim (opaque, so belts never show through)
 	elif m.state == Machine.State.BLOCKED:
 		tint = Color(1.0, 0.9, 0.75)  # blocked: items pile up upstream
 	var sprite := _iso.machine_sprite(m.id, m.type)
@@ -727,7 +731,7 @@ func _draw_chips(m: Machine) -> void:
 		draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), bd)
 		_text(_badge_text(m), bd.position + Vector2(7, 16), fs, UiTheme.TEXT_DIM, bd.size.x - 10)
 	if m.type == "warehouse":
-		_text("%d shipped" % factory.shipped, bd.position + Vector2(0, 40), fs, UiTheme.TEXT_DIM, bd.size.x)
+		_text("%d shipped" % factory.shipped, Vector2(machine_ground(m).x - bd.size.x * 0.5, machine_ground(m).y + 62.0 * _s), fs, UiTheme.TEXT_DIM, bd.size.x)
 	elif kind == 2 and m.bot != null:
 		_text("tap to fix", bd.position + Vector2(0, 40), fs, UiTheme.CRIT_TEXT, bd.size.x)
 	var qi := factory.crew_queue.find(m.id)
