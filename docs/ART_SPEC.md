@@ -62,7 +62,7 @@ At 720x1280: keep the top ~140 px calm (the top bar sits there) and the bottom ~
 Layout anchors as data (so a background defines where things sit), support for the layered names in section 5 and the three new names in section 4, state tint of `machine_*_light`, parallax and scrolling layers, belt tiles that join machines, contact shadows, floor glow by state, ambient effects (steam, sparks, dust, lamp flicker), a vertically scrolling taller floor, and a `ui_check` mode that runs with and without sprites. Until then, drop files in and they simply replace the code drawings.
 
 ## 8. Scene composition: making it a place, not sprites on a page
-**Camera:** one fixed 3/4 top-down angle (a diorama look). Every machine, prop and character is drawn from that same angle, lit from the top-left. Decide this in the concept stage; it changes everything downstream. (Alternatives if you prefer: pre-rendered simple 3D models exported as 2D sprites for perfectly consistent light; or flat side-on. Don't mix.)
+**Camera:** true isometric (yaw 45, pitch 35.264), lit from the top-left, as in `docs/ART_PIPELINE.md`. Every machine, prop and character is drawn from that same angle and scale. The game is 2D isometric (decision #27); sprites are pre-rendered, no runtime 3D. Don't mix angles.
 
 **Layer stack, back to front** (each its own transparent PNG or tile set):
 1. `scene_wall.png` back wall (pipes, windows, sign "Days without incident: 0", the window up to the office).
