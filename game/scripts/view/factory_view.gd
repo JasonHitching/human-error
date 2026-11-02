@@ -34,6 +34,9 @@ var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
 var _was_crew: String = ""
 var _qa_seen: int = 0
 var _bounce: float = 0.0
+var _fx := FloorFx.new()
+var _fx_kinds := PackedInt32Array()
+var _fx_tops := PackedVector2Array()
 const SCRAP_RUN := 2.4
 const PULSE_TIME := 0.3
 const SPARK_N := 12
@@ -56,6 +59,9 @@ func setup(f: Factory, config: SimConfig) -> void:
 	_was_crew = ""
 	_qa_seen = 0
 	_bounce = 0.0
+	_fx.reset(f.machines.size())
+	_fx_kinds.resize(f.machines.size())
+	_fx_tops.resize(f.machines.size())
 	for l in config.links:
 		_link_ticks["%s>%s" % [l["from"], l["to"]]] = maxf(1.0, float(l["transit_time"]) * config.tick_rate)
 	queue_redraw()
@@ -260,10 +266,18 @@ func _process(d: float) -> void:
 	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["left"] > 0.0)
 	if factory != null:
 		_update_juice(d)
+		_update_fx(d)
 		if _cam.moving:
 			_cam.step(d)
 			_relayout()
 	queue_redraw()
+
+
+func _update_fx(d: float) -> void:
+	for i in factory.machines.size():
+		var m := factory.machines[i]
+		_fx_kinds[i] = -1 if m.type == "qa" else (maxi(0, int(_status(m)["kind"])) if m.type != "warehouse" else -1)
+	_fx.update(d, _fx_kinds)
 
 
 func _update_juice(d: float) -> void:
@@ -349,11 +363,11 @@ func bot_pos(m: Machine) -> Vector2:
 
 
 ## Draws sprite `n` with its anchor on screen point g. False (nothing drawn) when the sprite is missing.
-func _spr(n: String, g: Vector2, flip: bool = false, mod: Color = Color.WHITE) -> bool:
+func _spr(n: String, g: Vector2, flip: bool = false, mod: Color = Color.WHITE, scale: float = 1.0) -> bool:
 	var t := Sprites.tex(n)
 	if t == null:
 		return false
-	var f := 0.5 * _s
+	var f := 0.5 * _s * scale
 	var sz := t.get_size() * f
 	var tl := g - IsoFloor.anchor(n) * f
 	if flip:
@@ -372,6 +386,8 @@ func _diamond(g: Vector2, k: float = 1.0) -> PackedVector2Array:
 func _draw() -> void:
 	if factory == null:
 		return
+	RenderingServer.canvas_item_set_clip(get_canvas_item(), true)  # effects never leave the floor area
+	RenderingServer.canvas_item_set_custom_rect(get_canvas_item(), true, area)
 	draw_rect(area, UiTheme.BG)
 	_draw_ground()
 	var list: Array[Dictionary] = []
@@ -411,10 +427,13 @@ func _draw() -> void:
 				WorkerView.draw(self, worker_pos(), _time, _worker_walking(), factory.crew_busy and not _worker_walking(), 1.7 * _s)
 			5:
 				var pp: Vector2 = e["p"]
-				if e["junk"]:
-					draw_rect(Rect2(pp - Vector2(5, 5) * _s, Vector2(10, 10) * _s), UiTheme.TEXT_FAINT)
-				else:
-					draw_circle(pp, 5.0 * _s, UiTheme.TEXT)
+				var tint := Color(0.55, 0.58, 0.65) if e["junk"] else Color.WHITE
+				if not _spr("crate", pp + Vector2(0, 6.0 * _s), false, tint, 0.4):
+					if e["junk"]:
+						draw_rect(Rect2(pp - Vector2(5, 5) * _s, Vector2(10, 10) * _s), UiTheme.TEXT_FAINT)
+					else:
+						draw_circle(pp, 5.0 * _s, UiTheme.TEXT)
+	_draw_fx_top()
 	for m in factory.machines:
 		_draw_chips(m)
 	for b in _bubbles:
@@ -447,6 +466,39 @@ func _draw_ground() -> void:
 		var bs := _iso.belt_sprite(c)
 		if not _spr(String(bs["name"]), ground(Vector2(c)), bool(bs["flip"])):
 			draw_colored_polygon(_diamond(ground(Vector2(c)), 0.8), COL_BELT)
+	_draw_fx_ground()
+
+
+## Glow under each machine (loudest thing on the floor), then belt motion and the lamp's light pool.
+func _draw_fx_ground() -> void:
+	for m in factory.machines:
+		if m.type != "qa":
+			_fx.draw_glow(self, machine_ground(m), _s, int(_status(m)["kind"]), _time)
+	if FloorFx.enabled:
+		var ph := fposmod(_time * 0.5, 1.0)
+		for c: Vector2i in _iso.edges:
+			FloorFx.draw_belt_motion(self, ground(Vector2(c)), _iso.edges[c], _s, ph)
+	var lm := _lamp_machine()
+	if lm != null:
+		_fx.draw_lamp(self, machine_ground(lm), _s, _time, area)
+		_fx.draw_dust(self, machine_ground(lm), _s, _time, area)
+
+
+func _lamp_machine() -> Machine:
+	for m in factory.machines:
+		if m.type == "assembler":
+			return m
+	return null
+
+
+## Steam above the machines and the vignette; stays inside `area`.
+func _draw_fx_top() -> void:
+	if not FloorFx.enabled:
+		return
+	for i in factory.machines.size():
+		_fx_tops[i] = machine_ground(factory.machines[i]) + Vector2(0, -RECT_UP + 10.0) * _s
+	_fx.draw_steam(self, _fx_tops, _s)
+	_fx.draw_vignette(self, area)
 
 
 func _wall(n: String, g: Vector2, flip: bool, ar: Rect2) -> void:

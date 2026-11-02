@@ -4,10 +4,12 @@ extends ColorRect
 
 signal sound_toggled
 signal haptics_toggled
+signal effects_toggled
 signal home_pressed
 
 var sound_btn: Button
 var haptics_btn: Button
+var effects_btn: Button
 var home_btn: Button
 var close_btn: Button
 
@@ -34,6 +36,7 @@ func _ready() -> void:
 	box.add_child(title)
 	sound_btn = _btn(box, "secondary", sound_toggled.emit)
 	haptics_btn = _btn(box, "secondary", haptics_toggled.emit)
+	effects_btn = _btn(box, "secondary", effects_toggled.emit)
 	home_btn = _btn(box, "secondary", home_pressed.emit)
 	home_btn.text = "Back to home"
 	close_btn = _btn(box, "primary", close)
@@ -57,6 +60,7 @@ func open(sound_on: bool, haptics_on: bool) -> void:
 func refresh(sound_on: bool, haptics_on: bool) -> void:
 	sound_btn.text = "Sound: on" if sound_on else "Sound: off"
 	haptics_btn.text = "Haptics: on" if haptics_on else "Haptics: off"
+	effects_btn.text = "Effects: on" if FloorFx.enabled else "Effects: off"
 
 
 func close() -> void:

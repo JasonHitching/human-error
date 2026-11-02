@@ -40,6 +40,7 @@ var stairs := Vector2(0.08, 0.06)  # floor layout position of the stairs
 var floor_art: Dictionary = {}  # view-only: iso grid size, props, scrap bin cell (machines carry gx/gy)
 var complaint_penalty: int = 3
 var debug_overlay: bool = false  # UI only: show the career seed label
+var ambient_effects: bool = true  # UI only: floor steam, lamp, dust, vignette, belt motion
 var quick_eye_mult: float = 0.8
 var bigger_desk_bonus: int = 2
 var overclock_speed_mult: float = 1.3
@@ -174,6 +175,7 @@ func _load_balance(b: Dictionary) -> void:
 	transition_seconds = _opt(b, "transition_seconds", transition_seconds, 0.0, 100.0)
 	walk_speed = _opt(b, "walk_speed", walk_speed, 0.0, 100.0)
 	debug_overlay = bool(b.get("debug_overlay", false))
+	ambient_effects = bool(b.get("ambient_effects", true))
 	complaint_penalty = int(_opt(b, "complaint_penalty", complaint_penalty, 0.0, 1000.0))
 	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))
