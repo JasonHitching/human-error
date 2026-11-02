@@ -64,3 +64,22 @@ func test_item_anchor_sits_on_belt_top_surface_centre() -> void:
 		assert_true(absf(float(best) - target_y) <= 4.0, "%s corner row %d vs item row %.1f" % [n, best, target_y])
 		# Item (centred on the anchor) lies on opaque belt pixels, i.e. on the surface.
 		assert_true(img.get_pixel(int(IsoFloor.anchor(n).x), int(target_y)).a > 0.5, n + " item over belt")
+
+
+func test_bots_and_worker_never_stand_on_belts_both_tiers() -> void:
+	for tier in [1, 2]:
+		var iso := _floor(tier)
+		var stands: Dictionary = {}
+		for id: String in iso.cells:
+			var sc := iso.stand_cell(id)
+			assert_true(iso.is_free_floor(sc), "tier %d %s bot cell %s not free floor" % [tier, id, sc])
+			assert_true(not stands.has(sc), "tier %d %s shares a bot cell" % [tier, id])
+			stands[sc] = true
+			var bot_p := IsoFloor.to_local(Vector2(sc))
+			var stop_p := IsoFloor.to_local(Vector2(iso.cells[id])) + IsoFloor.WORKER_STOP
+			for b: Vector2i in iso.edges:
+				assert_true(not IsoFloor.in_cell(bot_p, b), "tier %d %s bot on belt %s" % [tier, id, b])
+				assert_true(not IsoFloor.in_cell(stop_p, b), "tier %d %s worker stop on belt %s" % [tier, id, b])
+		var stairs_p := IsoFloor.to_local(iso.stairs_cell)
+		for b: Vector2i in iso.edges:
+			assert_true(not IsoFloor.in_cell(stairs_p, b), "tier %d stairs on belt %s" % [tier, b])
