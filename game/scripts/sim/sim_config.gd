@@ -37,6 +37,7 @@ var inspect_seconds: float = 0.5
 var transition_seconds: float = 0.8
 var walk_speed: float = 0.0  # floor layout units per second (<= 0: instant)
 var stairs := Vector2(0.08, 0.06)  # floor layout position of the stairs
+var floor_art: Dictionary = {}  # view-only: iso grid size, props, scrap bin cell (machines carry gx/gy)
 var complaint_penalty: int = 3
 var debug_overlay: bool = false  # UI only: show the career seed label
 var quick_eye_mult: float = 0.8
@@ -241,6 +242,7 @@ func _load_factory(f: Dictionary) -> void:
 	else:
 		errors.append("factory: stairs needs [x, y]")
 	machine_w = _opt(f, "machine_w", machine_w, 0.1, 0.5)
+	floor_art = f.get("floor", {}) if f.get("floor") is Dictionary else {}
 	for m: Variant in f.get("machines", []):
 		if not (m is Dictionary):
 			errors.append("factory: machine entry is not an object")

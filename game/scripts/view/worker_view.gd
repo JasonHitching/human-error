@@ -6,7 +6,13 @@ const HALF := 22.0  # drawn extent from the centre, for bounds checks
 
 
 ## Draw the worker centred at pos. walking: 2-frame leg swing. working: wrench wiggle.
-static func draw(ci: CanvasItem, pos: Vector2, t: float, walking: bool, working: bool) -> void:
+static func draw(ci: CanvasItem, pos: Vector2, t: float, walking: bool, working: bool, size_k: float = 1.0) -> void:
+	var wt := Sprites.tex("worker")
+	if wt != null:  # baked sprite: figure stands at the sprite's (96,150) anchor of 192
+		var sz := Vector2(96.0, 96.0) * size_k
+		var bob := (-2.0 * size_k if walking and int(t * 8.0) % 2 == 0 else 0.0)
+		Sprites.draw_fit(ci, wt, Rect2(pos - sz * 0.5 + Vector2(0, bob + sz.y * 0.1), sz))
+		return
 	var skin := Color(0.95, 0.78, 0.6)
 	var swing := 0.0
 	if walking:

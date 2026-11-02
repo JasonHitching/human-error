@@ -80,7 +80,9 @@
    "output_cap": 2,
    "process_time": 0.8,
    "heat_per_sec": 1.0,
-   "cool_per_sec": 3.0
+   "cool_per_sec": 3.0,
+   "gx": 0,
+   "gy": 0
   },
   {
    "id": "proc_a",
@@ -95,7 +97,9 @@
    "output_cap": 2,
    "process_time": 2.5,
    "heat_per_sec": 2.8,
-   "cool_per_sec": 4.0
+   "cool_per_sec": 4.0,
+   "gx": 0,
+   "gy": 4
   },
   {
    "id": "proc_b",
@@ -110,7 +114,9 @@
    "output_cap": 2,
    "process_time": 2.5,
    "heat_per_sec": 2.8,
-   "cool_per_sec": 4.0
+   "cool_per_sec": 4.0,
+   "gx": 1,
+   "gy": 3
   },
   {
    "id": "proc_c",
@@ -125,7 +131,9 @@
    "output_cap": 2,
    "process_time": 2.5,
    "heat_per_sec": 2.8,
-   "cool_per_sec": 4.0
+   "cool_per_sec": 4.0,
+   "gx": 3,
+   "gy": 1
   },
   {
    "id": "proc_d",
@@ -140,7 +148,9 @@
    "output_cap": 2,
    "process_time": 2.5,
    "heat_per_sec": 2.8,
-   "cool_per_sec": 4.0
+   "cool_per_sec": 4.0,
+   "gx": 4,
+   "gy": 0
   },
   {
    "id": "assembler_a",
@@ -155,7 +165,9 @@
    "output_cap": 2,
    "process_time": 1.5,
    "heat_per_sec": 2.0,
-   "cool_per_sec": 4.0
+   "cool_per_sec": 4.0,
+   "gx": 2,
+   "gy": 6
   },
   {
    "id": "assembler_b",
@@ -170,7 +182,9 @@
    "output_cap": 2,
    "process_time": 1.5,
    "heat_per_sec": 2.0,
-   "cool_per_sec": 4.0
+   "cool_per_sec": 4.0,
+   "gx": 6,
+   "gy": 2
   },
   {
    "id": "qa_desk",
@@ -184,7 +198,9 @@
    "output_cap": 0,
    "process_time": 1.0,
    "heat_per_sec": 0.0,
-   "cool_per_sec": 3.0
+   "cool_per_sec": 3.0,
+   "gx": 6,
+   "gy": 6
   },
   {
    "id": "warehouse",
@@ -198,7 +214,9 @@
    "output_cap": 0,
    "process_time": 0.5,
    "heat_per_sec": 0.0,
-   "cool_per_sec": 3.0
+   "cool_per_sec": 3.0,
+   "gx": 8,
+   "gy": 8
   }
  ],
  "links": [
@@ -257,5 +275,49 @@
    "to": "warehouse",
    "transit_time": 0.6
   }
- ]
+ ],
+ "floor": {
+  "grid": [
+   9,
+   9
+  ],
+  "stairs_g": [
+   -1,
+   1
+  ],
+  "scrap_g": [
+   4,
+   4
+  ],
+  "props": [
+   {
+    "s": "crate_stack",
+    "g": [
+     3,
+     7
+    ]
+   },
+   {
+    "s": "crate",
+    "g": [
+     5,
+     3
+    ]
+   },
+   {
+    "s": "crate",
+    "g": [
+     2,
+     2
+    ]
+   },
+   {
+    "s": "fence",
+    "g": [
+     7,
+     3
+    ]
+   }
+  ]
+ }
 }

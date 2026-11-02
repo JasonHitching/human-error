@@ -573,6 +573,8 @@ func _gui_input(event: InputEvent) -> void:
 					_screens.go_office()
 				elif loc == Worker.Location.OFFICE and absf(d.x) >= SWIPE_MIN:
 					_inspect(d.x > 0.0)
+	elif event is InputEventMouseMotion and (event as InputEventMouseMotion).button_mask != 0 and _view.can_scroll() and _factory.worker_location() == Worker.Location.FLOOR:
+		_view.scroll_by((event as InputEventMouseMotion).relative.y)  # taller floors drag-scroll
 	elif event is InputEventMouseMotion and _holding:
 		var m := _view.machine_at((event as InputEventMouseMotion).position)
 		if m == null or m.id != _factory.crew_target:

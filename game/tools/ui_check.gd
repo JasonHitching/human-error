@@ -224,6 +224,9 @@ func _check_screens() -> void:
 	if not ql.is_visible_in_tree() or not screen.encloses(ql.get_global_rect()) or not ql.text.begins_with("Desk queue"):
 		_fails.append("queue meter not visible on the floor: '%s' %s" % [ql.text, ql.get_global_rect()])
 	_check_floor_chars()
+	Sprites.disabled = true
+	_check_floor_chars()
+	Sprites.disabled = false
 	_press_and_travel(sw.back_btn, Worker.Location.OFFICE)
 	if sw.office_page.position != Vector2.ZERO:
 		_fails.append("office not shown after back to desk")
@@ -300,6 +303,9 @@ func _check_tier_two() -> void:
 		_fails.append("tier 2 career did not build the tier 2 floor")
 	else:
 		_check_layouts()
+		Sprites.disabled = true  # fallback drawing (no sprites) must lay out and draw without errors too
+		_check_layouts()
+		Sprites.disabled = false
 		var n := 0
 		for m in _main._factory.machines:
 			n += 0 if m.type == "qa" or m.type == "warehouse" else 1
@@ -353,6 +359,7 @@ func _check_layouts() -> void:
 			rects.append(r)
 			if m.type == "qa":
 				continue
+			_within(v.status_rect(m), a, "[%s] %s status chip" % [tag, m.id])
 			var hb := v.heat_rect(m)
 			_within(hb, a, "[%s] %s heat bar" % [tag, m.id])
 			if hb.get_center().distance_to(r.get_center()) > mh:
@@ -364,6 +371,9 @@ func _check_layouts() -> void:
 				_within(bd, a, "[%s] %s badge" % [tag, m.id])
 				if bd.get_center().distance_to(r.get_center()) > mh * 1.5 or absf(bd.get_center().y - r.get_center().y) > mh * 1.5:
 					_fails.append("[%s] %s badge detached from machine" % [tag, m.id])
+		for c in v.belt_cells():
+			_within(v.belt_rect(c), a, "[%s] belt %s" % [tag, c], 1.0)
+		_check_hit_order(v, tag)
 		var sr := v.scrap_rect()
 		_within(sr, a, "[%s] scrap bin" % tag)
 		for o in rects:
@@ -388,6 +398,22 @@ func _check_layouts() -> void:
 	_main.size = old
 	_main._fit()
 	f.worker.place(Worker.Location.OFFICE)
+
+
+## With widened rects several machines can contain a point: the front-most (largest ground y) must win.
+func _check_hit_order(v: FactoryView, tag: String) -> void:
+	var ms: Array[Machine] = []
+	for m in v.factory.machines:
+		if m.type != "qa":
+			ms.append(m)
+	for i in ms.size():
+		for j in range(i + 1, ms.size()):
+			var p := (v.machine_rect(ms[i]).get_center() + v.machine_rect(ms[j]).get_center()) * 0.5
+			var hit := v.machine_at(p, 400.0)
+			var front: Machine = ms[i] if v.machine_ground(ms[i]).y >= v.machine_ground(ms[j]).y else ms[j]
+			if hit == null or v.machine_ground(hit).y < v.machine_ground(front).y:
+				_fails.append("[%s] hit-test did not pick the front-most of %s / %s" % [tag, ms[i].id, ms[j].id])
+				return
 
 
 ## No events for 60 frames: machines and badges stay put (<1 px), robots only bob (<=3 px).
