@@ -68,6 +68,7 @@ var _next_flicker: int = 0
 var _power_left: int = 0
 var pacing: Pacing
 var _qa_rng := RandomNumberGenerator.new()  # defect/decoy rolls, separate from rng
+var _back_rng := RandomNumberGenerator.new()  # back-defect rolls (own stream)
 var _subtle_rng := RandomNumberGenerator.new()  # subtle rolls, so they never shift the other sequences
 var spec_extra: Array = []  # decoys the Foreman made defects
 var spec_allowed: Array = []  # defects the Foreman made acceptable
@@ -78,6 +79,14 @@ var subtle_scanned: int = 0  # subtle defects revealed by a scan this shift
 var subtle_caught: int = 0  # ... of which rejected
 var subtle_shipped: int = 0  # subtle defects shipped (complaints)
 var scans: int = 0
+var back_share: float = 0.0  # share of defects that only show on the back (flip to see)
+var flip_ticks: int = 3
+var lamp_ticks: int = 30  # lamp cooldown
+var flips: int = 0
+var lamps: int = 0
+var back_flipped: int = 0  # back defects revealed by a flip this shift
+var back_shipped: int = 0  # back defects shipped unflipped (complaints)
+var _lamp_left: int = 0
 var scan_queue_max: int = 5  # autoplayer hint: scan only while the queue is shorter than this
 var radio_enabled: bool = false  # career offer: fix a jam from the office
 var supervise_bot: String = ""  # career offer: this bot errs less while the worker is near its machine
@@ -106,10 +115,13 @@ func _init(config: SimConfig, seed: int, roster: Array[Bot] = [], p_day_mult: fl
 	rng.seed = seed
 	_qa_rng.seed = seed * 31 + 17
 	_subtle_rng.seed = seed * 37 + 5
+	_back_rng.seed = seed * 43 + 11
 	_learn_rng.seed = seed * 59 + 7
 	_auto_rng.seed = seed * 61 + 3
 	scan_queue_max = config.scan_queue_max
 	scan_ticks = maxi(1, roundi(config.scan_seconds * config.tick_rate))
+	flip_ticks = maxi(1, roundi(config.flip_seconds * config.tick_rate))
+	lamp_ticks = maxi(1, roundi(config.lamp_cooldown_seconds * config.tick_rate))
 	pacing = Pacing.new(config, rng)
 	_power_rng.seed = seed * 53 + 11
 	complaint_penalty = config.complaint_penalty
@@ -189,6 +201,7 @@ func step() -> void:
 	events.clear()
 	tick += 1
 	_inspect_left = maxi(0, _inspect_left - 1)
+	_lamp_left = maxi(0, _lamp_left - 1)
 	worker.step()
 	_radio_left = maxi(0, _radio_left - 1)
 	_step_auto_inspect()
@@ -212,6 +225,7 @@ func apply_spec(spec: Dictionary) -> void:
 	spec_allowed = spec.get("allowed", [])
 	spec_change = String(spec.get("change", ""))
 	subtle_share = float(spec.get("subtle_share", 0.0))
+	back_share = float(spec.get("back_share", 0.0))
 
 
 ## Is this product bad under today's spec?
@@ -226,7 +240,9 @@ func item_bad(item: Dictionary) -> bool:
 func item_visible_bad(item: Dictionary) -> bool:
 	if not item_bad(item):
 		return false
-	return not (bool(item.get("subtle", false)) and not bool(item.get("scanned", false)))
+	if bool(item.get("subtle", false)) and not bool(item.get("scanned", false)):
+		return false
+	return not (bool(item.get("back", false)) and not bool(item.get("flipped", false)))
 
 
 ## Night-shift mess: `n` distinct bot machines start the shift JAMMED (own rng stream; 0 changes nothing).
@@ -379,6 +395,8 @@ func _resolve(item: Dictionary, ship: bool) -> int:
 			missed_by_type[kind] = int(missed_by_type.get(kind, 0)) + 1
 			if subtle:
 				subtle_shipped += 1
+			if bool(item.get("back", false)) and not bool(item.get("flipped", false)):
+				back_shipped += 1
 			streak = 0
 			return InspectResult.COMPLAINT
 		return InspectResult.SHIPPED
@@ -472,6 +490,48 @@ func scan() -> int:
 	return InspectResult.SCANNING
 
 
+## Flip the front product to see its back: reveals a back-side defect. Busy for flip_seconds. Recorded for replay.
+func flip() -> int:
+	actions.append({"tick": tick, "flip": true})
+	if _qa == null or not worker_at_desk():
+		return InspectResult.NOT_AT_DESK
+	if _inspect_left > 0:
+		return InspectResult.BUSY
+	if _qa_items.is_empty():
+		return InspectResult.EMPTY
+	_inspect_left = flip_ticks
+	flips += 1
+	var item: Dictionary = _qa_items[0]
+	if not bool(item.get("flipped", false)):
+		item["flipped"] = true
+		if bool(item.get("back", false)) and item_bad(item):
+			back_flipped += 1
+	return InspectResult.SCANNING
+
+
+## X-ray lamp: instantly reveals a subtle defect on the front product, then recharges. No desk time, but limited by the cooldown.
+func lamp() -> int:
+	actions.append({"tick": tick, "lamp": true})
+	if _qa == null or not worker_at_desk():
+		return InspectResult.NOT_AT_DESK
+	if _lamp_left > 0:
+		return InspectResult.BUSY
+	if _qa_items.is_empty():
+		return InspectResult.EMPTY
+	_lamp_left = lamp_ticks
+	lamps += 1
+	var item: Dictionary = _qa_items[0]
+	if not bool(item.get("scanned", false)):
+		item["scanned"] = true
+		if bool(item.get("subtle", false)) and item_bad(item):
+			subtle_scanned += 1
+	return InspectResult.SCANNING
+
+
+func lamp_ready() -> bool:
+	return _lamp_left <= 0
+
+
 func _has_fixable() -> bool:
 	for m in machines:
 		if _job_kind(m) != ActionResult.NOTHING_TO_DO:
@@ -529,6 +589,7 @@ func _make_product(asm: Machine) -> Dictionary:
 				break
 		prod["defect"] = DEFECTS[kind]
 		prod["subtle"] = subtle_share > 0.0 and _subtle_rng.randf() < subtle_share
+		prod["back"] = back_share > 0.0 and not prod["subtle"] and _back_rng.randf() < back_share
 		prod["bot"] = culprit.bot.name
 		mistake_counts["sloppy"] += 1
 		var ev := {"type": "mistake", "mistake": "sloppy", "machine_id": culprit.id, "bot": culprit.bot.name}
@@ -699,6 +760,10 @@ static func replay(config: SimConfig, seed: int, recorded: Array[Dictionary], ti
 				f.release_action()
 			elif recorded[i].has("scan"):
 				f.scan()
+			elif recorded[i].has("flip"):
+				f.flip()
+			elif recorded[i].has("lamp"):
+				f.lamp()
 			elif recorded[i].has("radio"):
 				f.radio_fix(String(recorded[i]["radio"]))
 			elif recorded[i].has("inspect"):

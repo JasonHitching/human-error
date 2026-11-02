@@ -88,10 +88,18 @@ static func act(who: String, f: Factory, rng: RandomNumberGenerator = null, mem:
 	if q.is_empty():
 		return
 	var front: Dictionary = q[0]
+	if player == "careful" and f.subtle_share > 0.0 and not bool(front.get("scanned", false)) and f.lamp_ready():
+		f.lamp()  # free: no desk time, only a cooldown
+		return
 	if player == "careful" and f.subtle_share > 0.0 and not bool(front.get("scanned", false)) and q.size() < f.scan_queue_max:
 		f.scan()  # short queue: take the time to check for subtle defects
 		if paced:
 			mem["next"] = f.tick + f.scan_ticks + HUMAN_SCAN_GAP  # one tap, then look at the result
+		return
+	if player == "careful" and f.back_share > 0.0 and not bool(front.get("flipped", false)) and q.size() < f.scan_queue_max:
+		f.flip()
+		if paced:
+			mem["next"] = f.tick + f.flip_ticks + HUMAN_SCAN_GAP
 		return
 	var good := not f.item_visible_bad(front)
 	var right := rng.randf() < (HUMAN_ACCURACY if paced else ACCURACY)

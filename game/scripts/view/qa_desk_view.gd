@@ -252,6 +252,8 @@ func _draw_hint() -> void:
 static func shown_defect(item: Dictionary) -> String:
 	if bool(item.get("subtle", false)) and not bool(item.get("scanned", false)):
 		return ""
+	if bool(item.get("back", false)) and not bool(item.get("flipped", false)):
+		return ""
 	return String(item.get("defect", ""))
 
 

@@ -43,7 +43,7 @@ func _check_desk() -> void:
 	var desk: QaDeskView = _main._desk
 	if not screen.encloses(desk.rect):
 		_fails.append("desk strip %s not inside screen %s" % [desk.rect, screen])
-	for b: Button in [_main._reject_btn, _main._ship_btn, _main._scan_btn]:
+	for b: Button in [_main._reject_btn, _main._ship_btn, _main._scan_btn, _main._flip_btn, _main._lamp_btn]:
 		if not b.is_visible_in_tree() or not screen.encloses(b.get_global_rect()):
 			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
@@ -53,7 +53,7 @@ func _check_desk() -> void:
 	var spec := desk.spec_rect()
 	if not screen.encloses(spec):
 		_fails.append("spec card off-screen: %s" % spec)
-	for r: Rect2 in [desk.pad_rect(), _main._reject_btn.get_global_rect(), _main._ship_btn.get_global_rect(), _main._scan_btn.get_global_rect()]:
+	for r: Rect2 in [desk.pad_rect(), _main._reject_btn.get_global_rect(), _main._ship_btn.get_global_rect(), _main._scan_btn.get_global_rect(), _main._flip_btn.get_global_rect(), _main._lamp_btn.get_global_rect()]:
 		if spec.intersects(r):
 			_fails.append("spec card %s overlaps %s" % [spec, r])
 	if desk.caption == "":
@@ -303,7 +303,7 @@ func _check_layouts() -> void:
 		f.worker.place(Worker.Location.OFFICE)  # desk buttons: office page on screen
 		sw.sync(0.0)
 		var vp := Rect2(Vector2.ZERO, lg)
-		for b: Button in [_main._ship_btn, _main._reject_btn, _main._scan_btn, sw.factory_btn]:
+		for b: Button in [_main._ship_btn, _main._reject_btn, _main._scan_btn, _main._flip_btn, _main._lamp_btn, sw.factory_btn]:
 			if not vp.encloses(b.get_global_rect()):
 				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
 			if b.size.x < 120.0 or b.size.y < 80.0:

@@ -41,13 +41,20 @@ static func for_day(config: SimConfig, seed: int, day: int) -> Dictionary:
 		else:
 			continue
 		last = d
-	return {"extra": extra, "allowed": allowed, "change": change, "subtle_share": subtle_share(config, day)}
+	return {"extra": extra, "allowed": allowed, "change": change, "subtle_share": subtle_share(config, day), "back_share": back_share(config, day)}
 
 
 static func subtle_share(config: SimConfig, day: int) -> float:
 	if day < config.subtle_start_day:
 		return 0.0
 	return minf(config.subtle_share_max, config.subtle_share_base + config.subtle_share_per_day * float(day - config.subtle_start_day))
+
+
+## Share of defects that are back-side only (hidden until the product is flipped). 0 before back_start_day.
+static func back_share(config: SimConfig, day: int) -> float:
+	if day < config.back_start_day:
+		return 0.0
+	return minf(config.back_share_max, config.back_share_base + config.back_share_per_day * float(day - config.back_start_day))
 
 
 static func nice(kind: String) -> String:
