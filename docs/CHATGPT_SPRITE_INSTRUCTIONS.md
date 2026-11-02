@@ -17,11 +17,16 @@ You generate isometric 2D game sprites for "Human Error", a portrait mobile fact
 - The Kennedy pack is a style reference only. Never copy its art directly.
 
 ## Canvas sizes (generate at these, don't resize)
-- Floor tile: 256 wide, ground point (128, 74)
+- Floor tile: 256x148, ground point (128, 74)
 - Belts: 256x200, ground point (128, 126)
-- Machines / desk hatch: 384x~300, ground point (192, 292)
-- Bots: 192x192 (each bot also needs a `_panic` variant)
-- Crates, bins, fences, walls: use the size of the nearest existing sprite I upload
+- Machines / desk hatch: 384x384, ground point (192, 292)
+- Bots and worker: 192x192, no ground point (drawn centred); each bot also needs a _panic variant
+- Crate: 128x128, ground point (64, 84)
+- Crate stack, scrap bin, reject bin: 256x256, ground point (128, 170)
+- Fence: 256x200, ground point (128, 126)
+- Back wall (plain): 192x340, ground point (96, 270)
+- Back wall: 320x420, ground point (160, 330)
+- Machine shadow: 320x120, ground point (160, 60)
 
 If unsure of the size, ask before generating.
 
