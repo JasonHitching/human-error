@@ -157,6 +157,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 	var qa := QaStats.new()
 	var rules := Meta.load_commendation_rules()
 	var comm_total := 0
+	var auto_days: Array[int] = []
 	for r in runs:
 		var c := Career.new(cfg, seed_start + r, perks)
 		while not c.fired and c.day <= DAY_CAP:
@@ -181,13 +182,19 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 						best = int(f.mistake_counts[k])
 						top = k
 				fail_causes[top] = int(fail_causes.get(top, 0)) + 1
-			if c.fired:
+			if c.fired or c.automated:
 				break
 			var offs := c.offers()
 			while c.points > 0 and not offs.is_empty():
-				c.apply(Career.pick_offer(player.ends_with("careful"), offs))
+				c.apply(c.choose_offer(player, offs))
 				offs = c.offers()
+				if c.automated:
+					break
+			if c.automated:
+				break
 			c.next_day()
+		if c.automated:
+			auto_days.append(c.automated_day)
 		lessons_total += c.lessons_learned
 		rookies_total += c.rookies_joined
 		for k: String in c.offers_taken:
@@ -200,6 +207,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 		sum += d
 	print("career player=%s runs=%d seed=%d (days survived, cap %d)%s" % [player, runs, seed_start, DAY_CAP, "" if perks.is_empty() else " perks=" + ",".join(perks)])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
+	auto_days.sort()
+	print("  automated %.0f%%, median automation day %s" % [100.0 * auto_days.size() / runs, str(auto_days[auto_days.size() / 2]) if not auto_days.is_empty() else "-"])
 	print("  days p10=%d" % days[days.size() / 10])
 	print("  commendations/career mean %.1f" % (float(comm_total) / runs))
 	print("  lessons learned/career %.2f, rookies joined/career %.2f" % [float(lessons_total) / runs, float(rookies_total) / runs])

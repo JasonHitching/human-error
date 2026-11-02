@@ -196,8 +196,8 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra
 	_show_only(review)
 
 
-func show_fired(days: int, line: String, breakdown: String, teaser: String, awards: String = "") -> void:
-	_fired_label.text = "FIRED\nDays survived: %d\n\n%s\n\n%s\n%s" % [days, breakdown, teaser, line]
+func show_fired(days: int, line: String, breakdown: String, teaser: String, awards: String = "", title: String = "FIRED") -> void:
+	_fired_label.text = title + "\nDays survived: %d\n\n%s\n\n%s\n%s" % [days, breakdown, teaser, line]
 	_awards_label.text = awards
 	_awards_label.visible = awards != ""
 	_show_only(fired)

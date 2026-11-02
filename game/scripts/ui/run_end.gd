@@ -74,3 +74,15 @@ static func awards_text(a: Dictionary) -> String:
 	if int(a.get("total", 0)) <= 0:
 		return ""
 	return "COMMENDATIONS\n%s\nTotal: +%d" % ["\n".join(a["lines"]), int(a["total"])]
+
+
+## Training progress for every bot, two per line ("Loopy ##-- Bolt TRAINED"); pips = lessons toward trained.
+static func training_lines(roster: Array) -> String:
+	var parts: Array[String] = []
+	for b: Bot in roster:
+		var n := mini(b.lesson_count(), b.trained_lessons)
+		parts.append("%s %s" % [b.name, "TRAINED" if b.is_trained() else "#".repeat(n) + "-".repeat(b.trained_lessons - n)])
+	var out: Array[String] = ["TRAINED = AUTOMATED"]
+	for i in range(0, parts.size(), 2):
+		out.append("  ".join(parts.slice(i, i + 2)))
+	return "\n".join(out)

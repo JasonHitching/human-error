@@ -12,6 +12,8 @@ var day: int = 1
 var strikes: int = 0
 var points: int = 0
 var fired: bool = false
+var automated: bool = false  # every bot on the roster is trained: the Foreman replaces you (a win)
+var automated_day: int = 0
 var crew_speed: float = 1.0
 var qa_bonus: int = 0  # extra queue slots (Bigger desk)
 var inspect_speed: float = 1.0  # Quick eye multiplies inspect time
@@ -46,7 +48,7 @@ func _init(p_config: SimConfig, p_seed: int, p_perks: Array = []) -> void:
 		defs[i] = defs[j]
 		defs[j] = t
 	for d: Dictionary in defs:
-		roster.append(Bot.from_dict(d, config.train_factor, config.learn_mult))
+		roster.append(Bot.from_dict(d, config.train_factor, config.learn_mult, config.trained_lessons, config.trained_mistake_mult))
 	_forgive_left = 1 if meta_perks.has("forgive") else 0
 	if meta_perks.has("lesson") and not roster.is_empty():
 		var pr := RandomNumberGenerator.new()  # separate stream: the career rng is untouched
@@ -114,7 +116,7 @@ func _add_rookie() -> void:
 	var i := rookies_joined
 	if i >= config.rookie_days.size() or i >= config.rookie_defs.size() or day < config.rookie_days[i]:
 		return
-	var rk := Bot.from_dict(config.rookie_defs[i], config.train_factor, config.learn_mult)
+	var rk := Bot.from_dict(config.rookie_defs[i], config.train_factor, config.learn_mult, config.trained_lessons, config.trained_mistake_mult)
 	rk.rookie = true
 	rookies_joined += 1
 	var slots := bot_slots()
@@ -160,7 +162,8 @@ func end_day(f: Factory) -> Dictionary:
 			strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"probation": not hit and (day <= config.probation_days or (near and meta_perks.has("grace") and day <= probation_days())), "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
+	check_automation()
+	return {"probation": not hit and (day <= config.probation_days or (near and meta_perks.has("grace") and day <= probation_days())), "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "automated": automated, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
 
 
 ## Career summary for Meta.award. days = days survived (the day you were fired on counts).
@@ -170,7 +173,7 @@ func summary() -> Dictionary:
 	for h: Dictionary in history:
 		run = run + 1 if bool(h["hit"]) else 0
 		best = maxi(best, run)
-	return {"days": day, "clean_shifts": clean_shifts, "best_streak": best, "lessons": lessons_learned, "twist_days": twist_days_done}
+	return {"automated": automated, "automation_bonus": config.automation_bonus if automated else 0, "days": day, "clean_shifts": clean_shifts, "best_streak": best, "lessons": lessons_learned, "twist_days": twist_days_done}
 
 
 ## Builds {bot: {count, top}} from a factory mistake_log.
@@ -197,6 +200,18 @@ static func mistake_tally(log: Array) -> Dictionary:
 				top = k
 		out[b] = {"count": total, "top": top}
 	return out
+
+
+## True once every bot on the roster is trained (rookies who join later must be trained too). Sets `automated`.
+func check_automation() -> bool:
+	if automated or fired or roster.is_empty():
+		return automated
+	for b in roster:
+		if not b.is_trained():
+			return false
+	automated = true
+	automated_day = day
+	return true
 
 
 func probation_days() -> int:
@@ -292,6 +307,7 @@ func apply(offer: Dictionary) -> void:
 		if b.name == offer.get("bot"):
 			var m := String(offer["mistake"])
 			b.levels[m] = b.level(m) + 1
+	check_automation()
 
 
 func next_day() -> void:
@@ -322,3 +338,22 @@ static func pick_offer(careful: bool, offs: Array[Dictionary]) -> Dictionary:
 		if PREF.find(String(o["kind"])) < PREF.find(String(best["kind"])):
 			best = o
 	return best
+
+
+## Offer a scripted player takes. `human_careful` and `careful` take a "train a bot" offer when one helps an untrained bot
+## (the one closest to trained); other players use pick_offer.
+func choose_offer(player: String, offs: Array[Dictionary]) -> Dictionary:
+	var careful := player.ends_with("careful")
+	if careful:
+		var best: Dictionary = {}
+		var best_n := -1
+		for o in offs:
+			if String(o["kind"]) != "train":
+				continue
+			for b in roster:
+				if b.name == o["bot"] and not b.is_trained() and b.lesson_count() > best_n:
+					best_n = b.lesson_count()
+					best = o
+		if not best.is_empty():
+			return best
+	return Career.pick_offer(careful, offs)

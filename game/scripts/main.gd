@@ -346,11 +346,13 @@ func _end_shift() -> void:
 	var now := int(Time.get_unix_time_from_system())
 	_stats.shift_ended(now, int(res["complaints"]))
 	var awarded := {"total": 0, "lines": [] as Array[String]}
-	if res["fired"]:
+	if res["fired"] or res["automated"]:
 		_stats.career_finished(now, _career.day)
+		if res["automated"]:
+			_meta.automations += 1
 		awarded = _meta.award(_career.summary())
 	SaveIO.write_meta(_meta)
-	if res["fired"]:
+	if res["fired"] or res["automated"]:
 		_phase = Phase.FIRED
 		var days := _career.day
 		var new_best := days > _best_days
@@ -359,19 +361,39 @@ func _end_shift() -> void:
 			_save_best()
 		var bd := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty))
 		var praise := _career.foreman_line("new_best") if new_best else ""
-		_hud.show_fired(days, _career.foreman_line("fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise), RunEnd.awards_text(awarded))
+		var auto := bool(res["automated"])
+		_hud.show_fired(days, _career.foreman_line("automated" if auto else "fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise), RunEnd.awards_text(awarded), "AUTOMATED (you win)" if auto else "FIRED")
 		return
 	_phase = Phase.REVIEW
 	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])
 	var extra := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty)) if not res["hit"] else "Streak: %d days on target" % RunEnd.hit_streak(_career.history)
-	extra += "\n" + RunEnd.progress_line(res, _config.bonus_threshold)
+	extra += "\n" + RunEnd.progress_line(res, _config.bonus_threshold) + "\n" + RunEnd.training_lines(_career.roster)
 	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers, extra)
 
 
 func _pick_offer(index: int) -> void:
 	if index >= 0 and index < _offers.size():
 		_career.apply(_offers[index])
+	if _career.automated:
+		_end_automated()
+		return
 	_next_day()
+
+
+## A training pick trained the last bot: the career ends as a win.
+func _end_automated() -> void:
+	var now := int(Time.get_unix_time_from_system())
+	_stats.career_finished(now, _career.day)
+	_meta.automations += 1
+	var awarded := _meta.award(_career.summary())
+	SaveIO.write_meta(_meta)
+	_phase = Phase.FIRED
+	var days := _career.day
+	var new_best := days > _best_days
+	if new_best:
+		_best_days = days
+		_save_best()
+	_hud.show_fired(days, _career.foreman_line("automated"), "", RunEnd.teaser(days, _best_days, new_best, ""), RunEnd.awards_text(awarded), "AUTOMATED (you win)")
 
 
 func _next_day() -> void:

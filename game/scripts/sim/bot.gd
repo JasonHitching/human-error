@@ -16,9 +16,11 @@ var learn_mult: float = 0.5
 var fixes: Dictionary = {}  # mistake -> fixes the worker made on this bot's machines
 var learned: Dictionary = {}  # mistake -> true once the bot has learned from fixes
 var rookie: bool = false
+var trained_lessons: int = 3  # lessons (training picks + lessons learned from fixes) to count as trained
+var trained_mult: float = 0.4  # mistake chance multiplier once trained
 
 
-static func from_dict(d: Dictionary, train: float, p_learn_mult: float = 0.5) -> Bot:
+static func from_dict(d: Dictionary, train: float, p_learn_mult: float = 0.5, p_trained_lessons: int = 3, p_trained_mult: float = 0.4) -> Bot:
 	var b := Bot.new()
 	b.name = String(d.get("name", ""))
 	b.color = Color.html(String(d.get("color", "#ffffff")))
@@ -30,6 +32,8 @@ static func from_dict(d: Dictionary, train: float, p_learn_mult: float = 0.5) ->
 		b.call_in.append(String(l))
 	b.train_factor = train
 	b.learn_mult = p_learn_mult
+	b.trained_lessons = p_trained_lessons
+	b.trained_mult = p_trained_mult
 	return b
 
 
@@ -41,12 +45,25 @@ func rate_per_tick(mistake: String, tick_rate: int, ramp: float, day_mult: float
 	var r := float(rates.get(mistake, 0.0))
 	if r <= 0.0:
 		return 0.0
-	return r / 60.0 / float(tick_rate) * ramp * day_mult * pow(train_factor, level(mistake)) * (learn_mult if learned.has(mistake) else 1.0)
+	return r / 60.0 / float(tick_rate) * ramp * day_mult * pow(train_factor, level(mistake)) * (learn_mult if learned.has(mistake) else 1.0) * trained_scale()
 
 
 ## Chance this bot spoils one product: sloppy * ramp * day_mult, reduced by "sloppy" training.
 func sloppy_chance(ramp: float, day_mult: float) -> float:
-	return clampf(sloppy * ramp * day_mult * pow(train_factor, level("sloppy")), 0.0, 1.0)
+	return clampf(sloppy * ramp * day_mult * pow(train_factor, level("sloppy")) * trained_scale(), 0.0, 1.0)
+
+
+## Lessons so far: training picks plus lessons learned from the worker's fixes.
+func lesson_count() -> int:
+	return training_total() + learned.size()
+
+
+func is_trained() -> bool:
+	return lesson_count() >= trained_lessons
+
+
+func trained_scale() -> float:
+	return trained_mult if is_trained() else 1.0
 
 
 func training_total() -> int:

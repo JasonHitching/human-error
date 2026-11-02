@@ -12,12 +12,13 @@ var commendations: Dictionary = {}  # "balance" (spendable) and "earned" (lifeti
 var unlocked: Array = []  # unlocked perk/unlock ids
 var tier: int = 1
 var owned_perks: Array = []  # perk ids bought with commendations
+var automations: int = 0  # careers ended by being automated (the win)
 
 
 func to_dict() -> Dictionary:
 	return {
 		"version": version, "stats": stats.to_dict(), "commendations": commendations,
-		"unlocked": unlocked, "tier": tier, "owned_perks": owned_perks,
+		"unlocked": unlocked, "tier": tier, "owned_perks": owned_perks, "automations": automations,
 	}
 
 
@@ -35,6 +36,7 @@ static func from_dict(d: Dictionary) -> Meta:
 		for v: Variant in u:
 			m.unlocked.append(str(v))
 	m.tier = maxi(1, int(d.get("tier", 1)))
+	m.automations = maxi(0, int(d.get("automations", 0)))
 	var op: Variant = d.get("owned_perks", [])
 	if op is Array:
 		for v: Variant in op:
@@ -80,6 +82,10 @@ static func score(summary: Dictionary, rules: Dictionary) -> Dictionary:
 			continue
 		total += pts
 		lines.append(String(texts.get(p[0], "{n} x: +{pts}")).replace("{n}", str(n)).replace("{pts}", str(pts)))
+	var ab := int(summary.get("automation_bonus", 0))
+	if ab > 0:
+		total += ab
+		lines.append(String(texts.get("automated", "Automated: the bots took your job. +{pts}")).replace("{pts}", str(ab)))
 	return {"total": total, "lines": lines}
 
 

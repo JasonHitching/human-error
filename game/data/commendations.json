@@ -10,6 +10,7 @@
   "clean": "{n} shifts with zero complaints: suspiciously good. +{pts}",
   "streak": "Best streak {n} days on target: have a sticker. +{pts}",
   "lessons": "{n} lessons learned by the bots (mostly the hard way). +{pts}",
-  "twists": "{n} twist days endured without crying. +{pts}"
+  "twists": "{n} twist days endured without crying. +{pts}",
+  "automated": "Automated: the bots now do your job. Nobody checked. +{pts}"
  }
 }

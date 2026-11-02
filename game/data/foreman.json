@@ -38,6 +38,12 @@
   "Personal best. Frame it, I won't.",
   "Fine. That was your best. The bots are impressed."
  ],
+ "automated": [
+  "Good news: the bots are trained. Bad news: so is the spreadsheet saying they don't need you. You're automated.",
+  "Corporate ran the numbers. The bots now do your job, mostly correctly. Congratulations, you are obsolete.",
+  "You trained your replacements so well that I can't find a reason to keep you. Have a plant. Take the stairs.",
+  "The bots passed their review. You, however, are now a line item. Promotion pending. Somewhere else."
+ ],
  "complaint": [
   "A customer got a dented gift. Guess whose desk.",
   "Complaint filed. Under your name. In pen.",
