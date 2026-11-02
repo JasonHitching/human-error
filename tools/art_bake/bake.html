@@ -1,0 +1,29 @@
+<!doctype html><html><body style="margin:0;background:transparent">
+<canvas id="c" width="512" height="512"></canvas>
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search);
+const name = q.get('m'), size = +(q.get('s')||512), yaw = +(q.get('yaw')||45), pitch = +(q.get('pitch')||35.264);
+const canvas = document.getElementById('c'); canvas.width = size; canvas.height = size;
+const r = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true, preserveDrawingBuffer:true});
+r.setClearColor(0x000000, 0); r.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a6, 1.35));
+const sun = new THREE.DirectionalLight(0xfff3e0, 2.2); sun.position.set(-4, 7, 5); scene.add(sun);
+new GLTFLoader().load('/models/' + name + '.glb', (g) => {
+  const obj = g.scene; scene.add(obj);
+  const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
+  obj.position.sub(c);
+  const pivot = new THREE.Group(); scene.remove(obj); pivot.add(obj); scene.add(pivot); pivot.rotation.y = THREE.MathUtils.degToRad(yaw);
+  const cam = new THREE.OrthographicCamera(-1,1,1,-1,0.1,100);
+  const p = THREE.MathUtils.degToRad(pitch), d = 20; cam.position.set(0, Math.sin(p)*d, Math.cos(p)*d); cam.lookAt(0,0,0);
+  // fit: project box corners
+  const corners = []; for (const x of [-.5,.5]) for (const y of [-.5,.5]) for (const z of [-.5,.5]) corners.push(new THREE.Vector3(x*sz.x,y*sz.y,z*sz.z));
+  pivot.updateMatrixWorld(true); cam.updateMatrixWorld(true);
+  let m = 0; for (const v of corners) { v.applyMatrix4(pivot.matrixWorld).applyMatrix4(cam.matrixWorldInverse); m = Math.max(m, Math.abs(v.x), Math.abs(v.y)); }
+  m *= 1.08; cam.left=-m; cam.right=m; cam.top=m; cam.bottom=-m; cam.updateProjectionMatrix();
+  r.render(scene, cam); document.title = 'done';
+}, undefined, (e) => { document.title = 'error ' + e; });
+</script></body></html>
