@@ -1,4 +1,5 @@
 {
+ "twist_chance": 0.7,
  "twists": [
   {"id": "heatwave", "name": "Heatwave", "icon": "~", "heat_mult": 1.2, "overclock_mult": 1.25,
    "line": "Heatwave. The machines are sweating. So am I. Mostly because of you."},

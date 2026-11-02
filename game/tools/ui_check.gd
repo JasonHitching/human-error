@@ -567,6 +567,8 @@ func _process(_delta: float) -> bool:
 			_check_home("after run-end")
 			_main._home.visible = false
 			_check_glyphs()
+			_main._career.twists = Twists.new(_main._career.seed, 3)  # fresh cache,
+			_main._career.twists.twist_chance = 1.0  # forced twist
 			_main._career.day = 3  # first twist day
 			_main._show_day()
 		22:

@@ -158,7 +158,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 	var lessons_total := 0
 	var rookies_total := 0
 	var taken := {}  # offer kind -> careers that took it
-	var twist_days := {}  # twist id ("none" when no twist) -> [days, failed]
+	var twist_days := {}  # twist id -> [days, failed]
+	var ys := TwistStats.new()
 	var qa := QaStats.new()
 	var rules := Meta.load_commendation_rules()
 	var comm_total := 0
@@ -174,11 +175,13 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 				f.step()
 			qa.add(f, c.day)
 			var res := c.end_day(f)
-			var tid: String = f.twist_id if f.twist_id != "" else "none"
-			var td: Array = twist_days.get(tid, [0, 0])
-			td[0] += 1
-			td[1] += 0 if res["hit"] else 1
-			twist_days[tid] = td
+			if c.day >= cfg.twist_start_day:
+				ys.add(c.day, f.twist_id != "", not res["hit"])
+			if f.twist_id != "":
+				var td: Array = twist_days.get(f.twist_id, [0, 0])
+				td[0] += 1
+				td[1] += 0 if res["hit"] else 1
+				twist_days[f.twist_id] = td
 			if not res["hit"]:
 				var top := ""
 				var best := -1
@@ -229,6 +232,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 	for k: String in keys:
 		var td: Array = twist_days[k]
 		print("  twists: %-14s days %4d failed-days %.1f%%" % [k, td[0], 100.0 * td[1] / td[0]])
+	for line in ys.report_lines():
+		print(line)
 	var parts: Array[String] = []
 	for k: String in fail_causes:
 		parts.append("%s %d" % [k, fail_causes[k]])
