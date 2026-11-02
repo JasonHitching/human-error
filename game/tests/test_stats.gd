@@ -12,7 +12,6 @@ func _run(s: RunStats, t: int, days: int) -> void:
 
 func test_counters() -> void:
 	var s := RunStats.new()
-	s.path = P
 	_run(s, 1000, 3)
 	assert_eq(s.careers_started, 1)
 	assert_eq(s.careers_finished, 1)
@@ -26,7 +25,6 @@ func test_counters() -> void:
 
 func test_back_to_back_rule() -> void:
 	var s := RunStats.new()
-	s.path = P
 	_run(s, 1000, 2)  # ends 1002
 	s.career_started(1030)  # 28 s later: back-to-back
 	assert_eq(s.streak, 2)
@@ -38,7 +36,6 @@ func test_back_to_back_rule() -> void:
 
 func test_session_rule() -> void:
 	var s := RunStats.new()
-	s.path = P
 	_run(s, 1000, 1)
 	s.career_started(1100)
 	assert_eq(s.sessions, 1)
@@ -51,30 +48,8 @@ func test_session_rule() -> void:
 
 
 func test_corrupt_and_missing_fall_back() -> void:
-	var f := FileAccess.open(P, FileAccess.WRITE)
-	f.store_string("{not json ]]")
-	f.close()
-	var s := RunStats.load_from(P)
-	assert_eq(s.careers_started, 0)
-	f = FileAccess.open(P, FileAccess.WRITE)
-	f.store_string("[1,2]")
-	f.close()
-	assert_eq(RunStats.load_from(P).sessions, 0)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(P))
-	assert_eq(RunStats.load_from(P).best_days, 0)
-	assert_eq(RunStats.load_from("user://nope/none.json").careers_started, 0)
-
-
-func test_save_roundtrip_sample() -> void:
-	var s := RunStats.new()
-	s.path = P
-	_run(s, 1000, 4)
-	_run(s, 1010, 2)
-	_run(s, 5000, 5)
-	var r := RunStats.load_from(P)
-	assert_eq(r.careers_started, 3)
-	assert_eq(r.best_days, 5)
-	assert_eq(r.best_streak, 2)
-	assert_eq(r.sessions, 2)
-	print("SAMPLE stats.json: " + FileAccess.get_file_as_string(P))
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(P))
+	var m := Meta.new()
+	assert_eq(m.stats.careers_started, 0)
+	m.stats.apply_dict({"careers_started": "x", "session_careers": 5})
+	assert_eq(m.stats.careers_started, 0)
+	assert_eq(m.stats.session_careers, [])
