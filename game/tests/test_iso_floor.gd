@@ -3,22 +3,22 @@ extends TestCase
 
 
 func _floor(tier: int) -> IsoFloor:
-	var c := SimConfig.load_tier(tier)
+	var c := SimConfig.load_mode("core") if tier == 0 else SimConfig.load_tier(tier)
 	var iso := IsoFloor.new()
 	iso.setup(c.machines, c.links, c.floor_art)
 	return iso
 
 
 func test_every_machine_has_a_distinct_cell_both_tiers() -> void:
-	for tier in [1, 2]:
-		var c := SimConfig.load_tier(tier)
+	for tier in [0, 1, 2]:
+		var c := SimConfig.load_mode("core") if tier == 0 else SimConfig.load_tier(tier)
 		var iso := _floor(tier)
 		assert_eq(iso.cells.size(), c.machines.size(), "tier %d cells" % tier)
 		assert_eq(iso.by_cell.size(), c.machines.size(), "tier %d distinct cells" % tier)
 
 
 func test_paths_join_linked_machines_with_adjacent_cells() -> void:
-	for tier in [1, 2]:
+	for tier in [0, 1, 2]:
 		var iso := _floor(tier)
 		for key: String in iso.paths:
 			var p: Array = iso.paths[key]
@@ -30,7 +30,7 @@ func test_paths_join_linked_machines_with_adjacent_cells() -> void:
 
 
 func test_belt_cells_are_free_and_have_a_sprite() -> void:
-	for tier in [1, 2]:
+	for tier in [0, 1, 2]:
 		var iso := _floor(tier)
 		for c: Vector2i in iso.edges:
 			assert_true(not iso.by_cell.has(c), "belt on a machine cell %s" % c)
@@ -67,7 +67,7 @@ func test_item_anchor_sits_on_belt_top_surface_centre() -> void:
 
 
 func test_bots_and_worker_never_stand_on_belts_both_tiers() -> void:
-	for tier in [1, 2]:
+	for tier in [0, 1, 2]:
 		var iso := _floor(tier)
 		var stands: Dictionary = {}
 		for id: String in iso.cells:
@@ -86,7 +86,7 @@ func test_bots_and_worker_never_stand_on_belts_both_tiers() -> void:
 
 
 func test_machines_face_their_belts_both_tiers() -> void:
-	for tier in [1, 2]:
+	for tier in [0, 1, 2]:
 		var iso := _floor(tier)
 		for msg in iso.facing_mismatches():
 			failures.append("tier %d: %s" % [tier, msg])
@@ -95,3 +95,12 @@ func test_machines_face_their_belts_both_tiers() -> void:
 				continue
 			var path := "res://assets/sprites/%s.png" % iso.machine_sprite(id, iso.types[id])
 			assert_true(FileAccess.file_exists(path), "tier %d %s: missing facing sprite %s" % [tier, id, path])
+
+
+func test_core_factory_opens_whole_and_big_factories_open_close_up() -> void:
+	var cam := FloorCamera.new()
+	cam.set_view(Vector2(390, 700))
+	var core := _floor(0).content_rect()
+	assert_near(cam.opening_zoom(core), cam.fit_zoom(core), 0.0001, "core opens on the whole factory")
+	assert_true(cam.opening_zoom(core) >= FloorCamera.READABLE_FIT, "readable")
+	assert_eq(cam.opening_zoom(_floor(1).content_rect()), cam.start_zoom(), "tier 1 unchanged")

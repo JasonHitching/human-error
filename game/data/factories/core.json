@@ -1,0 +1,120 @@
+{
+  "stairs": [
+    0.08,
+    0.06
+  ],
+  "machines": [
+    {
+      "id": "hopper",
+      "type": "generator",
+      "pos": [
+        0.3,
+        0.1
+      ],
+      "output": "raw",
+      "input_cap": 0,
+      "output_cap": 2,
+      "process_time": 1.0,
+      "heat_per_sec": 1.0,
+      "cool_per_sec": 3.0,
+      "gx": 0,
+      "gy": 0
+    },
+    {
+      "id": "machine",
+      "type": "assembler",
+      "pos": [
+        0.7,
+        0.3
+      ],
+      "input": "raw",
+      "output": "product",
+      "input_cap": 4,
+      "output_cap": 2,
+      "process_time": 2.0,
+      "heat_per_sec": 2.4,
+      "cool_per_sec": 4.0,
+      "gx": 0,
+      "gy": 4
+    },
+    {
+      "id": "qa_desk",
+      "type": "qa",
+      "pos": [
+        0.7,
+        0.6
+      ],
+      "input": "product",
+      "input_cap": 8,
+      "output_cap": 0,
+      "process_time": 1.0,
+      "heat_per_sec": 0.0,
+      "cool_per_sec": 3.0,
+      "gx": 4,
+      "gy": 4
+    },
+    {
+      "id": "shipping",
+      "type": "warehouse",
+      "pos": [
+        0.5,
+        0.85
+      ],
+      "input": "product",
+      "input_cap": 4,
+      "output_cap": 0,
+      "process_time": 0.5,
+      "heat_per_sec": 0.0,
+      "cool_per_sec": 3.0,
+      "gx": 4,
+      "gy": 8
+    }
+  ],
+  "links": [
+    {
+      "from": "hopper",
+      "to": "machine",
+      "transit_time": 0.6
+    },
+    {
+      "from": "machine",
+      "to": "qa_desk",
+      "transit_time": 0.6
+    },
+    {
+      "from": "qa_desk",
+      "to": "shipping",
+      "transit_time": 0.6
+    }
+  ],
+  "floor": {
+    "grid": [
+      5,
+      9
+    ],
+    "stairs_g": [
+      -1,
+      2
+    ],
+    "scrap_g": [
+      4,
+      0
+    ],
+    "props": [
+      {
+        "s": "crate",
+        "g": [
+          0,
+          8
+        ]
+      },
+      {
+        "s": "crate_stack",
+        "g": [
+          1,
+          8
+        ]
+      }
+    ]
+  }
+}

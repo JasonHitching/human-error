@@ -48,6 +48,8 @@ func _init(p_config: SimConfig, p_seed: int, p_perks: Array = []) -> void:
 		var t: Dictionary = defs[i]
 		defs[i] = defs[j]
 		defs[j] = t
+	if config.bots_dealt > 0:
+		defs = defs.slice(0, config.bots_dealt)
 	for d: Dictionary in defs:
 		roster.append(Bot.from_dict(d, config.train_factor, config.learn_mult, config.trained_lessons, config.trained_mistake_mult))
 	_forgive_left = 1 if meta_perks.has("forgive") else 0

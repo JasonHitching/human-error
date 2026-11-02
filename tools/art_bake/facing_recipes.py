@@ -6,7 +6,7 @@ Variants needed = every distinct belt-edge set in game/data/factories (see test_
 import json, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 VARIANTS = {
-    "generator": ["se_sw"],
+    "generator": ["se_sw", "ne_sw"],
     "processor": ["ne_se", "nw_sw", "nw_se"],
     "assembler": ["ne_nw_se", "ne_se", "ne_sw"],
     "warehouse": ["ne_sw"],

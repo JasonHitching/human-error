@@ -8,6 +8,7 @@ const MIN_ZOOM := 0.3
 const MAX_ZOOM := 2.0
 const START_ZOOM := 1.0  # opening zoom: machines readable, factory extends past the screen
 const MARGIN := 80.0
+const READABLE_FIT := 0.4  # smallest whole-factory zoom that still reads (small layouts open at it)
 const KEY_PAN := 420.0  # screen px per second
 const KEY_ZOOM := 1.6  # zoom factor per second
 
@@ -45,6 +46,13 @@ func fit_zoom(content: Rect2) -> float:
 ## Starting zoom: a readable close-up, never the squashed whole-factory overview.
 func start_zoom() -> float:
 	return clampf(START_ZOOM, MIN_ZOOM, MAX_ZOOM)
+
+
+## Opening zoom for a layout: a small factory opens showing all of it (when that is still readable),
+## a big one opens at the close-up start zoom.
+func opening_zoom(content: Rect2) -> float:
+	var fit := fit_zoom(content)
+	return minf(fit, start_zoom()) if fit >= READABLE_FIT else start_zoom()
 
 
 func reset(content: Rect2, z: float) -> void:
