@@ -282,7 +282,53 @@ func _check_floor_chars() -> void:
 		_fails.append("worker never walked away from the stairs")
 	f.crew_busy = false
 	f.worker.place(Worker.Location.FLOOR)
+	_check_fx(v)
 	_check_focus(v)
+
+
+## Effects: forced jam + overheat + full queue draw without errors, stay under the particle budget,
+## and layout (machine rects, belt rects) is identical with effects off.
+func _check_fx(v: FactoryView) -> void:
+	var f: Factory = v.factory
+	var was := FloorFx.enabled
+	var jam: Machine = null
+	var hot: Machine = null
+	for m in f.machines:
+		if m.type == "processor" and jam == null:
+			jam = m
+		elif m.type == "processor" and hot == null:
+			hot = m
+	jam.state = Machine.State.JAMMED
+	hot.heat = 95.0
+	hot.state = Machine.State.OVERHEATED
+	FloorFx.enabled = true
+	var on: Array[Rect2] = []
+	for i in 400:
+		v._process(0.1)
+		if v._fx.live_count() > 40:
+			_fails.append("fx particle budget exceeded: %d" % v._fx.live_count())
+			break
+	for m in f.machines:
+		on.append(v.machine_rect(m))
+	for c in v.belt_cells():
+		on.append(v.belt_rect(c))
+	FloorFx.enabled = false
+	v._process(0.1)
+	var i := 0
+	for m in f.machines:
+		if v.machine_rect(m) != on[i]:
+			_fails.append("fx off changed layout of %s" % m.id)
+		i += 1
+	for c in v.belt_cells():
+		if v.belt_rect(c) != on[i]:
+			_fails.append("fx off changed belt layout")
+		i += 1
+	if v._fx.live_count() != 0:
+		_fails.append("fx off still has live particles")
+	FloorFx.enabled = was
+	jam.state = Machine.State.IDLE
+	hot.state = Machine.State.IDLE
+	hot.heat = 0.0
 
 
 ## Focus move ends with the machine inside the safe (non-UI) rect; input cancels it.
@@ -512,6 +558,11 @@ func _check_sprites_sfx() -> void:
 	st.sound_btn.pressed.emit()
 	st.haptics_btn.pressed.emit()
 	st.haptics_btn.pressed.emit()
+	var fx_was := FloorFx.enabled
+	st.effects_btn.pressed.emit()
+	if FloorFx.enabled == fx_was:
+		_fails.append("effects toggle did not toggle")
+	st.effects_btn.pressed.emit()
 	st.close()
 	var feel: Feel = _main._feel  # forced streak then a forced complaint: draw every effect
 	for i in 21:

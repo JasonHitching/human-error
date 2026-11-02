@@ -92,6 +92,7 @@ func _ready() -> void:
 	_settings.z_index = 30
 	_settings.sound_toggled.connect(_toggle_mute)
 	_settings.haptics_toggled.connect(_toggle_haptics)
+	_settings.effects_toggled.connect(_toggle_effects)
 	_settings.home_pressed.connect(func() -> void:
 		_settings.close()
 		_open_home())
@@ -268,6 +269,12 @@ func _toggle_mute() -> void:
 
 func _toggle_haptics() -> void:
 	Haptics.enabled = not Haptics.enabled
+	_refresh_mute()
+	_save_best()
+
+
+func _toggle_effects() -> void:
+	FloorFx.enabled = not FloorFx.enabled
 	_refresh_mute()
 	_save_best()
 
@@ -645,6 +652,7 @@ func _flash(text: String) -> void:
 
 
 func _load_save() -> void:
+	FloorFx.enabled = SimConfig.load_tier(1).ambient_effects
 	if not FileAccess.file_exists(BEST_PATH):
 		return
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(BEST_PATH))
@@ -652,9 +660,10 @@ func _load_save() -> void:
 		_best_days = int((parsed as Dictionary).get("best_days", 0))
 		_muted = bool((parsed as Dictionary).get("muted", false))
 		Haptics.enabled = bool((parsed as Dictionary).get("haptics", true))
+		FloorFx.enabled = bool((parsed as Dictionary).get("effects", FloorFx.enabled))
 
 
 func _save_best() -> void:
 	var f := FileAccess.open(BEST_PATH, FileAccess.WRITE)
 	if f != null:
-		f.store_string(JSON.stringify({"best_days": _meta.best_for(1) if _meta != null else _best_days, "muted": _muted, "haptics": Haptics.enabled}))
+		f.store_string(JSON.stringify({"best_days": _meta.best_for(1) if _meta != null else _best_days, "muted": _muted, "haptics": Haptics.enabled, "effects": FloorFx.enabled}))
