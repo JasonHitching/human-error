@@ -32,6 +32,7 @@ var _mute_btn: Button
 var _muted: bool = false
 var _haptics_btn: Button
 var _feel := Feel.new()
+var _meta: Meta
 var _stats: RunStats
 var _front_since: float = 0.0
 var _last_qn: int = 0
@@ -45,7 +46,8 @@ func _ready() -> void:
 		push_error("config invalid: %s" % str(_config.errors))
 		return
 	_load_save()
-	_stats = RunStats.load_from()
+	_meta = SaveIO.load_meta()
+	_stats = _meta.stats
 	_sfx = Sfx.new()
 	add_child(_sfx)
 	_sfx.set_muted(_muted)
@@ -90,6 +92,7 @@ func _new_career(seed_value: int) -> void:
 	_decoy_tip_shown = false
 	_career = Career.new(_config, seed_value)
 	_stats.career_started(int(Time.get_unix_time_from_system()))
+	SaveIO.write_meta(_meta)
 	_show_day()
 
 
@@ -321,6 +324,8 @@ func _end_shift() -> void:
 	_stats.shift_ended(now, int(res["complaints"]))
 	if res["fired"]:
 		_stats.career_finished(now, _career.day)
+	SaveIO.write_meta(_meta)
+	if res["fired"]:
 		_phase = Phase.FIRED
 		var days := _career.day
 		var new_best := days > _best_days

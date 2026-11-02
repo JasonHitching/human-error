@@ -1,9 +1,8 @@
 class_name RunStats
 extends RefCounted
-## Local run stats persisted to user://stats.json. Pure data + file IO, nothing leaves the device.
+## Local run stats: pure data (no IO). Persisted inside Meta via SaveIO; nothing leaves the device.
 ## Time is always passed in (unix seconds) so tests are deterministic.
 
-const PATH := "user://stats.json"
 const BACK_TO_BACK_SECS := 30
 const SESSION_GAP_SECS := 600
 
@@ -21,21 +20,9 @@ var careers_in_session: int = 0
 var session_careers: Array = []  # careers_in_session of past sessions
 var streak: int = 0
 var best_streak: int = 0
-var path: String = PATH
 
 
-static func load_from(p: String = PATH) -> RunStats:
-	var s := RunStats.new()
-	s.path = p
-	if not FileAccess.file_exists(p):
-		return s
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(p))
-	if parsed is Dictionary:
-		s._apply(parsed as Dictionary)
-	return s
-
-
-func _apply(d: Dictionary) -> void:
+func apply_dict(d: Dictionary) -> void:
 	careers_started = maxi(0, int(d.get("careers_started", 0)))
 	careers_finished = maxi(0, int(d.get("careers_finished", 0)))
 	best_days = maxi(0, int(d.get("best_days", 0)))
@@ -67,12 +54,6 @@ func to_dict() -> Dictionary:
 	}
 
 
-func save() -> void:
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f != null:
-		f.store_string(JSON.stringify(to_dict()))
-
-
 func _touch(now: int) -> void:
 	if sessions == 0 or now - last_event_unix > SESSION_GAP_SECS:
 		if sessions > 0:
@@ -91,7 +72,6 @@ func career_started(now: int) -> void:
 	else:
 		streak = 1
 	best_streak = maxi(best_streak, streak)
-	save()
 
 
 func shift_ended(now: int, complaints: int) -> void:
@@ -99,7 +79,6 @@ func shift_ended(now: int, complaints: int) -> void:
 	shifts_played += 1
 	total_days += 1
 	total_complaints += complaints
-	save()
 
 
 func career_finished(now: int, days: int) -> void:
@@ -108,7 +87,6 @@ func career_finished(now: int, days: int) -> void:
 	finished_days += days
 	best_days = maxi(best_days, days)
 	last_career_end_unix = now
-	save()
 
 
 func avg_days() -> float:
