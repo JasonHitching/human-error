@@ -6,7 +6,7 @@ extends RefCounted
 const HW := 64.0
 const HH := 37.0
 ## Baked-pixel anchors (ground cell centre) per sprite family, from docs/ART_PIPELINE.md.
-const ANCHORS := {"machine_": Vector2(192, 292), "desk_hatch": Vector2(192, 292), "belt_": Vector2(128, 126), "floor_tile": Vector2(128, 74), "crate_stack": Vector2(128, 170), "crate": Vector2(64, 84), "scrap_bin": Vector2(128, 170), "reject_bin": Vector2(128, 170), "fence": Vector2(128, 126), "wall_back_plain": Vector2(96, 270), "wall_back": Vector2(160, 330), "shadow_machine": Vector2(160, 60)}
+const ANCHORS := {"machine_": Vector2(192, 292), "desk_hatch": Vector2(192, 292), "belt_": Vector2(128, 126), "floor_tile": Vector2(128, 74), "crate_stack": Vector2(128, 170), "crate": Vector2(64, 84), "scrap_bin": Vector2(128, 170), "reject_bin": Vector2(128, 170), "fence": Vector2(128, 126), "wall_back_plain": Vector2(96, 270), "wall_back": Vector2(160, 330), "shadow_machine": Vector2(160, 60), "press": Vector2(150, 205)}
 ## Belt top surface rise above the ground cell centre (baked px; measured: left/right corner row 65 vs anchor 126).
 const BELT_RISE := 61.0
 const DIRS := {"se": Vector2i(1, 0), "sw": Vector2i(0, 1), "nw": Vector2i(-1, 0), "ne": Vector2i(0, -1)}
@@ -62,6 +62,10 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 		var a: Vector2i = cells.get(String(l["from"]), Vector2i.ZERO)
 		var b: Vector2i = cells.get(String(l["to"]), Vector2i.ZERO)
 		var path := route(a, b)
+		var stub := _press_stub(String(l["from"]), a, b)
+		if stub != Vector2i.ZERO:
+			path = [a]
+			path.append_array(route(a + stub, b))
 		paths[key] = path
 		for i in range(1, path.size()):
 			var d := path[i] - path[i - 1]
@@ -114,6 +118,35 @@ func _edge(c: Vector2i, e: String) -> void:
 
 
 ## Cells from a to b inclusive: along gx then gy; the other order if a machine is in the way.
+## Processors use the press sprite, whose belt runs straight through: the output leaves on the side
+## opposite the input (one cell straight on) and any bend is on the belt cell after it.
+## Returns that first step (Vector2i.ZERO = not a processor, no input yet, or the cell is taken).
+func _press_stub(from_id: String, a: Vector2i, b: Vector2i) -> Vector2i:
+	if types.get(from_id, "") != "processor":
+		return Vector2i.ZERO
+	for key: String in paths:
+		var p: Array = paths[key]
+		if key.ends_with(">" + from_id) and p.size() >= 2:
+			var d: Vector2i = p[p.size() - 1] - p[p.size() - 2]
+			if a + d == b or by_cell.has(a + d):
+				return Vector2i.ZERO
+			return d
+	return Vector2i.ZERO
+
+
+## Axis of processor `id`'s press sprite belt: "gy" (SW-NE, as drawn), "gx" (SE-NW, drawn flipped),
+## or "" when its belts don't run straight through (static facing sprite instead).
+func press_axis(id: String) -> String:
+	if types.get(id, "") != "processor":
+		return ""
+	var o := machine_openings(id)
+	if o == ["ne", "sw"]:
+		return "gy"
+	if o == ["nw", "se"]:
+		return "gx"
+	return ""
+
+
 func route(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
 	for gx_first in [true, false]:
 		var out: Array[Vector2i] = [a]
