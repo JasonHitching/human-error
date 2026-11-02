@@ -7,49 +7,29 @@ signal haptics_toggled
 signal effects_toggled
 signal home_pressed
 
-var sound_btn: Button
-var haptics_btn: Button
-var effects_btn: Button
-var home_btn: Button
-var close_btn: Button
+const SCENE := preload("res://scenes/ui/settings_overlay.tscn")
+
+# Layout lives in scenes/ui/settings_overlay.tscn; this script themes buttons and wires signals.
+@onready var sound_btn: Button = %SoundBtn
+@onready var haptics_btn: Button = %HapticsBtn
+@onready var effects_btn: Button = %EffectsBtn
+@onready var home_btn: Button = %HomeBtn
+@onready var close_btn: Button = %CloseBtn
+
+
+static func create() -> SettingsOverlay:
+	return SCENE.instantiate() as SettingsOverlay
 
 
 func _ready() -> void:
-	color = Color(0, 0, 0, 0.7)
-	visible = false
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var center := CenterContainer.new()
-	add_child(center)
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var panel := PanelContainer.new()
-	var sb := UiTheme.box(UiTheme.SURFACE, UiTheme.LINE, 16.0)
-	sb.set_content_margin_all(UiTheme.px(16.0))
-	panel.add_theme_stylebox_override("panel", sb)
-	center.add_child(panel)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", int(UiTheme.px(8.0)))
-	panel.add_child(box)
-	var title := Label.new()
-	title.text = "Settings"
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", UiTheme.TEXT)
-	box.add_child(title)
-	sound_btn = _btn(box, "secondary", sound_toggled.emit)
-	haptics_btn = _btn(box, "secondary", haptics_toggled.emit)
-	effects_btn = _btn(box, "secondary", effects_toggled.emit)
-	home_btn = _btn(box, "secondary", home_pressed.emit)
-	home_btn.text = "Back to home"
-	close_btn = _btn(box, "primary", close)
-	close_btn.text = "Close"
-
-
-func _btn(box: Control, kind: String, cb: Callable) -> Button:
-	var b := Button.new()
-	b.custom_minimum_size = Vector2(UiTheme.px(240.0), UiTheme.px(48.0))
-	UiTheme.style_button(b, kind, 28)
-	b.pressed.connect(cb)
-	box.add_child(b)
-	return b
+	for b: Button in [sound_btn, haptics_btn, effects_btn, home_btn]:
+		UiTheme.style_button(b, "secondary", 28)
+	UiTheme.style_button(close_btn, "primary", 28)
+	sound_btn.pressed.connect(sound_toggled.emit)
+	haptics_btn.pressed.connect(haptics_toggled.emit)
+	effects_btn.pressed.connect(effects_toggled.emit)
+	home_btn.pressed.connect(home_pressed.emit)
+	close_btn.pressed.connect(close)
 
 
 func open(sound_on: bool, haptics_on: bool) -> void:

@@ -11,125 +11,76 @@ signal settings_pressed
 signal perk_bought(id: String)
 signal tier_picked(tier: int)
 
-const HOW_TO := "Swipe right: ship good ones. Swipe left: reject defects.\nBots call for help. Go down to fix, come back up to inspect."
+const SCENE := preload("res://scenes/ui/home.tscn")
 const PERKS_SHOWN := 4
 
-var start_btn: Button
-var stats_btn: Button
-var daily_btn: Button
-var tutorial_btn: Button  # "How to play"
-var perks_btn: Button  # "All perks"
-var cog: Button
-var tier_box: HBoxContainer  # one button per unlocked tier (hidden at tier 1)
-var perks_box: GridContainer  # the 4 shown perk cards
-var perks_overlay: Control
-var how_overlay: Control
-var replay_btn: Button
-var _col: VBoxContainer
-var _tiles: HBoxContainer
-var _all_grid: GridContainer
+# Layout lives in scenes/ui/home.tscn; this script fills in state and wires signals.
+@onready var start_btn: Button = %StartBtn
+@onready var stats_btn: Button = %StatsBtn
+@onready var daily_btn: Button = %DailyBtn
+@onready var tutorial_btn: Button = %TutorialBtn  # "How to play"
+@onready var perks_btn: Button = %PerksBtn  # "All perks"
+@onready var cog: Button = %Cog
+@onready var tier_box: HBoxContainer = %TierBox  # one button per unlocked tier (hidden at tier 1)
+@onready var perks_box: GridContainer = %PerksBox  # the 4 shown perk cards
+@onready var perks_overlay: Control = %PerksOverlay
+@onready var how_overlay: Control = %HowOverlay
+@onready var replay_btn: Button = %ReplayBtn
+@onready var _tiles: HBoxContainer = %Tiles
+@onready var _all_grid: GridContainer = %AllGrid
+@onready var _hat: Control = %Hat
 var _daily_pill: Dictionary = {"text": "Play", "gold": true}
+
+
+static func create() -> Home:
+	return SCENE.instantiate() as Home
 
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var scr := UiKit.screen(self, true)
-	(scr[0] as Control).visible = true
-	_col = scr[1]
-	_col.alignment = BoxContainer.ALIGNMENT_BEGIN
-	_col.add_theme_constant_override("separation", roundi(UiTheme.px(6.0)))
-	_build_header()
-	_tiles = UiKit.hbox(_col, 8.0)
-	tier_box = UiKit.hbox(_col, 8.0)
-	start_btn = UiKit.button(_col, "Start career", "primary", 66.0, 34)
-	start_btn.custom_minimum_size.x = 240.0
+	%Title.add_theme_font_override("font", UiKit.bold())
+	%PerksTitle.add_theme_font_override("font", UiKit.bold())
+	UiTheme.style_button(cog, "icon")
+	cog.pressed.connect(settings_pressed.emit)
+	cog.draw.connect(func() -> void: UiTheme.draw_cog(cog, cog.size * 0.5, cog.size.y * 0.27))
+	_hat.draw.connect(_draw_hat)
+	UiTheme.style_button(start_btn, "primary", 34)
 	start_btn.pressed.connect(start_pressed.emit)
-	daily_btn = UiKit.button(_col, "Daily", "secondary", 50.0, 24)
-	daily_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	UiTheme.style_button(daily_btn, "secondary", 24)
 	for st in ["normal", "hover", "pressed", "focus"]:
 		(daily_btn.get_theme_stylebox(st) as StyleBoxFlat).content_margin_left = UiTheme.px(14.0)
 	daily_btn.pressed.connect(daily_pressed.emit)
 	daily_btn.draw.connect(_draw_daily_pill)
-	_col.add_child(UiKit.label("Perks", 26, UiTheme.TEXT, true, HORIZONTAL_ALIGNMENT_LEFT, false))
-	perks_box = _grid(_col)
-	var foot := UiKit.hbox(_col, 8.0)
-	perks_btn = UiKit.button(foot, "All perks", "secondary", 46.0, 22)
+	for b: Button in [perks_btn, stats_btn, tutorial_btn]:
+		UiTheme.style_button(b, "secondary", 22)
 	perks_btn.pressed.connect(func() -> void: perks_overlay.visible = true)
-	stats_btn = UiKit.button(foot, "Stats", "secondary", 46.0, 22)
 	stats_btn.pressed.connect(stats_pressed.emit)
-	tutorial_btn = UiKit.button(foot, "How to play", "secondary", 46.0, 22)
 	tutorial_btn.pressed.connect(func() -> void: how_overlay.visible = true)
-	_build_perks_overlay()
-	_build_how_overlay()
-	visible = false
-
-
-func _build_header() -> void:
-	var top := UiKit.hbox(_col, 0.0)
-	var pad := Control.new()  # balances the cog so the title stays centred
-	pad.custom_minimum_size.x = UiTheme.min_target() + 4.0
-	top.add_child(pad)
-	var title := UiKit.label("HUMAN ERROR", 52, UiTheme.TEXT, true, HORIZONTAL_ALIGNMENT_CENTER, false)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(title)
-	cog = Button.new()
-	cog.focus_mode = Control.FOCUS_NONE
-	cog.custom_minimum_size = Vector2.ONE * (UiTheme.min_target() + 4.0)
-	cog.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	UiTheme.style_button(cog, "icon")
-	cog.pressed.connect(settings_pressed.emit)
-	cog.draw.connect(func() -> void: UiTheme.draw_cog(cog, cog.size * 0.5, cog.size.y * 0.27))
-	top.add_child(cog)
-	var hat := Control.new()
-	hat.custom_minimum_size = Vector2(0, UiTheme.px(14.0))
-	hat.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hat.draw.connect(func() -> void:
-		var c := Vector2(hat.size.x * 0.5, hat.size.y)
-		var r := UiTheme.px(12.0)
-		var pts := PackedVector2Array()
-		var base := c.y - UiTheme.px(3.0)
-		for i in 13:
-			var t := float(i) / 12.0
-			pts.append(Vector2(c.x - r + r * 2.0 * t, base - sin(PI * t) * r * 0.9))
-		hat.draw_colored_polygon(pts, UiTheme.GOLD)
-		hat.draw_rect(Rect2(c + Vector2(-r * 1.5, -UiTheme.px(3.0)), Vector2(r * 3.0, UiTheme.px(3.0))), UiTheme.GOLD))
-	_col.add_child(hat)
-	_col.add_child(UiKit.label("Your coworkers are AI. They're terrible.", 20, UiTheme.TEXT_DIM))
-
-
-func _grid(parent: Control) -> GridContainer:
-	var g := GridContainer.new()
-	g.columns = 2
-	g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	g.add_theme_constant_override("h_separation", roundi(UiTheme.px(8.0)))
-	g.add_theme_constant_override("v_separation", roundi(UiTheme.px(8.0)))
-	parent.add_child(g)
-	return g
-
-
-func _build_perks_overlay() -> void:
-	var s := UiKit.screen(self, true)
-	perks_overlay = s[0]
-	perks_overlay.z_index = 5
-	(s[1] as Control).add_child(UiKit.label("All perks", 40, UiTheme.TEXT, true))
-	_all_grid = _grid(s[1])
-	UiKit.button(s[1], "Close", "secondary", 56.0, 28).pressed.connect(func() -> void: perks_overlay.visible = false)
-
-
-func _build_how_overlay() -> void:
-	var s := UiKit.screen(self, true)
-	how_overlay = s[0]
-	how_overlay.z_index = 5
-	var col: VBoxContainer = s[1]
-	col.add_child(UiKit.label("How to play", 40, UiTheme.TEXT, true))
-	var c := UiKit.card(col, null, 8.0, 16.0)
-	c.add_child(UiKit.label(HOW_TO, 26, UiTheme.TEXT, false, HORIZONTAL_ALIGNMENT_LEFT))
-	replay_btn = UiKit.button(col, "Replay tutorial", "secondary", 56.0, 26)
+	for b: Button in [%PerksClose, %HowClose]:
+		UiTheme.style_button(b, "secondary", 28)
+		b.pressed.connect(func() -> void: _close_overlays())
+	UiTheme.style_button(replay_btn, "secondary", 26)
 	replay_btn.pressed.connect(func() -> void:
 		how_overlay.visible = false
 		tutorial_pressed.emit())
-	UiKit.button(col, "Close", "secondary", 56.0, 28).pressed.connect(func() -> void: how_overlay.visible = false)
+	visible = false
+
+
+func _close_overlays() -> void:
+	perks_overlay.visible = false
+	how_overlay.visible = false
+
+
+func _draw_hat() -> void:
+	var c := Vector2(_hat.size.x * 0.5, _hat.size.y)
+	var r := UiTheme.px(12.0)
+	var pts := PackedVector2Array()
+	var base := c.y - UiTheme.px(3.0)
+	for i in 13:
+		var t := float(i) / 12.0
+		pts.append(Vector2(c.x - r + r * 2.0 * t, base - sin(PI * t) * r * 0.9))
+	_hat.draw_colored_polygon(pts, UiTheme.GOLD)
+	_hat.draw_rect(Rect2(c + Vector2(-r * 1.5, -UiTheme.px(3.0)), Vector2(r * 3.0, UiTheme.px(3.0))), UiTheme.GOLD)
 
 
 func setup(m: Meta, today: String = "", quota: int = 0) -> void:
