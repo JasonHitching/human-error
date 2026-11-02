@@ -4,26 +4,90 @@
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-const q = new URLSearchParams(location.search);
-const name = q.get('m'), size = +(q.get('s')||512), yaw = +(q.get('yaw')||45), pitch = +(q.get('pitch')||35.264);
-const canvas = document.getElementById('c'); canvas.width = size; canvas.height = size;
+const canvas = document.getElementById('c');
 const r = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true, preserveDrawingBuffer:true});
 r.setClearColor(0x000000, 0); r.outputColorSpace = THREE.SRGBColorSpace;
-const scene = new THREE.Scene();
-scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a6, 1.35));
-const sun = new THREE.DirectionalLight(0xfff3e0, 2.2); sun.position.set(-4, 7, 5); scene.add(sun);
-new GLTFLoader().load('/models/' + name + '.glb', (g) => {
-  const obj = g.scene; scene.add(obj);
-  const box = new THREE.Box3().setFromObject(obj), c = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3());
-  obj.position.sub(c);
-  const pivot = new THREE.Group(); scene.remove(obj); pivot.add(obj); scene.add(pivot); pivot.rotation.y = THREE.MathUtils.degToRad(yaw);
-  const cam = new THREE.OrthographicCamera(-1,1,1,-1,0.1,100);
-  const p = THREE.MathUtils.degToRad(pitch), d = 20; cam.position.set(0, Math.sin(p)*d, Math.cos(p)*d); cam.lookAt(0,0,0);
-  // fit: project box corners
-  const corners = []; for (const x of [-.5,.5]) for (const y of [-.5,.5]) for (const z of [-.5,.5]) corners.push(new THREE.Vector3(x*sz.x,y*sz.y,z*sz.z));
-  pivot.updateMatrixWorld(true); cam.updateMatrixWorld(true);
-  let m = 0; for (const v of corners) { v.applyMatrix4(pivot.matrixWorld).applyMatrix4(cam.matrixWorldInverse); m = Math.max(m, Math.abs(v.x), Math.abs(v.y)); }
-  m *= 1.08; cam.left=-m; cam.right=m; cam.top=m; cam.bottom=-m; cam.updateProjectionMatrix();
-  r.render(scene, cam); document.title = 'done';
-}, undefined, (e) => { document.title = 'error ' + e; });
+const loader = new GLTFLoader(), cache = {};
+const load = (n) => cache[n] ||= new Promise((ok, no) => loader.load('/models/' + n + '.glb', g => ok(g.scene), undefined, no));
+const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05, ...o });
+const box = (w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); return o; };
+// Procedural toy bot (ground at y=0, ~1.5 units tall, faces +z)
+function bot(color, panic) {
+  const g = new THREE.Group(), body = mat(color), dark = mat(0x2b2f3a), eye = new THREE.MeshBasicMaterial({ color: panic ? 0xff3b3b : 0xffffff });
+  const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 20), dark); wheel.rotation.z = Math.PI / 2; wheel.position.set(0, 0.34, 0); g.add(wheel);
+  g.add(box(0.95, 0.75, 0.8, body, 0, 0.95, 0));
+  g.add(box(0.75, 0.55, 0.7, body, 0, 1.6, 0));
+  g.add(box(0.1, 0.1, 0.05, eye, -0.2, 1.65, 0.36)); g.add(box(0.1, 0.1, 0.05, eye, 0.2, 1.65, 0.36));
+  g.add(box(0.05, 0.4, 0.05, dark, 0, 2.05, 0)); const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 8), mat(panic ? 0xff3b3b : 0xf3f1ec)); tip.position.set(0, 2.3, 0); g.add(tip);
+  g.add(box(0.6, 0.12, 0.05, dark, 0, 0.95, 0.41));
+  return g;
+}
+// Procedural belt cell (1x1): dark slab, darker track inset along the open sides, pale rails on closed sides. arms: ne=+x se=+z sw=-x nw=-z
+function belt(arms) {
+  const g = new THREE.Group(), slab = mat(0x3f3e44), track = mat(0x2a2a30), rail = mat(0x9ea3c0, { roughness: 0.4 });
+  g.add(box(1, 0.3, 1, slab, 0, 0.15, 0)); g.add(box(0.5, 0.02, 0.5, track, 0, 0.31, 0));
+  const D = { ne: [1, 0], se: [0, 1], sw: [-1, 0], nw: [0, -1] };
+  for (const k in D) { const [dx, dz] = D[k];
+    if (arms.includes(k)) g.add(box(dx ? 0.5 : 0.5, 0.02, dz ? 0.5 : 0.5, track, dx * 0.25, 0.31, dz * 0.25));
+    else g.add(box(dx ? 0.07 : 1, 0.12, dz ? 0.07 : 1, rail, dx * 0.465, 0.35, dz * 0.465)); }
+  return g;
+}
+// Back-wall strip along x, faces +z. len cells; window adds a glazed opening (the window up to the QA office).
+function wall(len, win) {
+  const g = new THREE.Group(), panel = mat(0x4d5466), cap = mat(0x8a90a6), base = mat(0x333845), frame = mat(0x9aa0b8), glass = new THREE.MeshBasicMaterial({ color: 0x86b3cf });
+  g.add(box(len, 1.5, 0.14, panel, 0, 0.75, 0)); g.add(box(len, 0.06, 0.2, cap, 0, 1.53, 0)); g.add(box(len, 0.14, 0.18, base, 0, 0.07, 0.02));
+  for (let i = 1; i < len; i++) g.add(box(0.03, 1.4, 0.16, base, -len / 2 + i, 0.75, 0.01)); // panel seams
+  if (win) { g.add(box(0.78, 0.58, 0.18, frame, 0, 0.95, 0.02)); g.add(box(0.66, 0.46, 0.2, glass, 0, 0.95, 0.02)); g.add(box(0.03, 0.46, 0.21, frame, 0, 0.95, 0.02)); }
+  return g;
+}
+function fence() {
+  const g = new THREE.Group(), post = mat(0x9ea3c0), rail = mat(0x7d839c);
+  for (const x of [-0.42, 0.42]) g.add(box(0.1, 0.55, 0.1, post, x, 0.275, 0));
+  g.add(box(0.9, 0.06, 0.05, rail, 0, 0.48, 0)); g.add(box(0.9, 0.06, 0.05, rail, 0, 0.28, 0));
+  return g;
+}
+function worker() {
+  const g = new THREE.Group(), skin = mat(0xf1c8a0), vest = mat(0xff8c1a), pants = mat(0x3d4a63), hat = mat(0xf7c948), dark = mat(0x2b2f3a);
+  g.add(box(0.22, 0.6, 0.26, pants, -0.17, 0.3, 0)); g.add(box(0.22, 0.6, 0.26, pants, 0.17, 0.3, 0));
+  g.add(box(0.26, 0.1, 0.34, dark, -0.17, 0.05, 0.04)); g.add(box(0.26, 0.1, 0.34, dark, 0.17, 0.05, 0.04));
+  g.add(box(0.7, 0.75, 0.42, vest, 0, 0.98, 0)); g.add(box(0.72, 0.1, 0.44, mat(0xe6e6e6), 0, 0.85, 0));
+  g.add(box(0.18, 0.6, 0.2, skin, -0.46, 0.95, 0)); g.add(box(0.18, 0.6, 0.2, skin, 0.46, 0.95, 0));
+  g.add(box(0.5, 0.45, 0.45, skin, 0, 1.58, 0));
+  g.add(box(0.07, 0.07, 0.04, dark, -0.12, 1.62, 0.23)); g.add(box(0.07, 0.07, 0.04, dark, 0.12, 1.62, 0.23));
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), hat); dome.position.set(0, 1.76, 0); g.add(dome);
+  g.add(box(0.5, 0.06, 0.3, hat, 0, 1.78, 0.28));
+  return g;
+}
+// cfg: {W,H,ax,ay,ppu,yaw,pitch}; recipe: {parts:[{model|proc,pos,rot_y_deg,scale,tint}], shadow?:true}
+window.bake = async (cfg, rec) => {
+  const { W, H, ax, ay, ppu, yaw, pitch } = cfg;
+  canvas.width = W; canvas.height = H; r.setSize(W, H, false); r.setPixelRatio(1);
+  if (rec.shadow) { // flat soft ellipse drawn in 2D: black 35% alpha
+    const c2 = document.createElement('canvas'); c2.width = W; c2.height = H; const x = c2.getContext('2d');
+    const g = x.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, W / 2); g.addColorStop(0, 'rgba(0,0,0,.35)'); g.addColorStop(.55, 'rgba(0,0,0,.28)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.save(); x.translate(W / 2, H / 2); x.scale(1, H / W); x.translate(-W / 2, -H / 2); x.fillStyle = g; x.fillRect(0, 0, W, W); x.restore();
+    return c2.toDataURL('image/png');
+  }
+  const scene = new THREE.Scene();
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a6, 1.35));
+  const sun = new THREE.DirectionalLight(0xfff3e0, 2.2); sun.position.set(-4, 7, 5); scene.add(sun);
+  const world = new THREE.Group(); world.rotation.y = THREE.MathUtils.degToRad(yaw); scene.add(world);
+  for (const p of rec.parts) {
+    let o;
+    if (p.proc === 'bot') o = bot(p.color, !!p.panic); else if (p.proc === 'worker') o = worker(); else if (p.proc === 'fence') o = fence(); else if (p.proc === 'wall') o = wall(p.len, p.window); else if (p.proc === 'belt') o = belt(p.arms);
+    else { o = (await load(p.model)).clone(true); } // kit pieces: ground at y=0, 1 cell = 1 unit, centred on x/z
+    o.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); if (p.tint) m.material.color.set(p.tint); if (p.only && !p.only.includes(m.name) && !p.only.includes(m.material.name)) { /* no-op */ } } });
+    const s = p.scale ?? 1; if (Array.isArray(s)) o.scale.multiply(new THREE.Vector3(...s)); else o.scale.multiplyScalar(s);
+    const [px, py, pz] = p.pos || [0, 0, 0]; o.position.add(new THREE.Vector3(px, py, pz));
+    o.rotation.y = THREE.MathUtils.degToRad(p.rot_y_deg || 0);
+    world.add(o);
+  }
+  // camera: ground point (0,0,0) lands on pixel (ax, ay); ppu pixels per world unit
+  const cam = new THREE.OrthographicCamera(-ax / ppu, (W - ax) / ppu, ay / ppu, -(H - ay) / ppu, -50, 100);
+  const pr = THREE.MathUtils.degToRad(pitch); cam.position.set(0, Math.sin(pr) * 20, Math.cos(pr) * 20); cam.lookAt(0, 0, 0);
+  r.render(scene, cam);
+  return canvas.toDataURL('image/png');
+};
+window.bounds = async (n) => { const o = (await load(n)).clone(true); o.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(o); return [b.min.toArray(), b.max.toArray()].map(a => a.map(v => +v.toFixed(2))); };
+document.title = 'ready';
 </script></body></html>
