@@ -30,3 +30,6 @@ One line each. Newest at the bottom. Don't re-argue settled decisions without ne
 | 24 | Defects on the front only (flip-to-check deferred to M4) | Fast, fair, readable first |
 | 25 | Prototype built by an autonomous chain M2→M7 with Opus checkpoints per milestone (`docs/CHAIN.md`) | Minimal input from Jason; quality gates + re-planning at each checkpoint |
 | 26 | Bots are wheeled robots (no walk cycles); the worker walks with travel time (M3) | Cheap art; distance adds route decisions |
+| 27 | The floor is a 2D isometric world larger than the screen, with a 2D camera (pan, zoom, focus). Not 3D, no 3D nodes. Spec: `docs/UI_STYLE.md` "Isometric floor" | Feels like operating a growing factory, not reading a diagram |
+| 28 | Supersedes #5 for UI: screen-space UI uses Control nodes, Containers and anchors in editable `.tscn` scenes; code supplies behaviour and state, not layout. World visuals (machines, belts, bots) stay mostly code-driven | Jason can tune layout/typography in the Godot editor |
+| 29 | UI verification is headless by default (`ui_check.gd`, tests). Screenshots only when an issue asks, one per changed screen at most | Screenshots cost many credits |

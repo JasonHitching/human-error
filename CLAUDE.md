@@ -42,7 +42,8 @@ docs/                 design, roadmap, decisions
 - Sim never references view/ui. View calls sim only via its public API.
 - All randomness via the sim's seeded RNG. Fixed timestep. No `randf()`/`randi()` globals.
 - Tuning numbers live in `game/data/*.json`, not in code.
-- Build visuals in code; keep `.tscn` files minimal.
+- World visuals are built in code. Screen UI uses Control/Container/anchor `.tscn` scenes editable in the Godot editor (decision #28). The game is 2D isometric with a 2D camera, never 3D (`docs/UI_STYLE.md`).
+- Don't take screenshots unless the issue asks (credit cost); verify headlessly.
 - Use static typing in GDScript. Keep files small and single-purpose.
 - No new dependencies, addons, backend, networking, ads or monetisation without approval.
 - No unrelated refactors. Update docs only when architecture/decisions change.
