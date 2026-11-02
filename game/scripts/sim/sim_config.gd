@@ -38,6 +38,7 @@ var transition_seconds: float = 0.8
 var walk_speed: float = 0.0  # floor layout units per second (<= 0: instant)
 var stairs := Vector2(0.08, 0.06)  # floor layout position of the stairs
 var complaint_penalty: int = 3
+var debug_overlay: bool = false  # UI only: show the career seed label
 var quick_eye_mult: float = 0.8
 var bigger_desk_bonus: int = 2
 var overclock_speed_mult: float = 1.3
@@ -171,6 +172,7 @@ func _load_balance(b: Dictionary) -> void:
 	inspect_seconds = _opt(b, "inspect_seconds", inspect_seconds, 0.1, 100.0)
 	transition_seconds = _opt(b, "transition_seconds", transition_seconds, 0.0, 100.0)
 	walk_speed = _opt(b, "walk_speed", walk_speed, 0.0, 100.0)
+	debug_overlay = bool(b.get("debug_overlay", false))
 	complaint_penalty = int(_opt(b, "complaint_penalty", complaint_penalty, 0.0, 1000.0))
 	quick_eye_mult = _opt(b, "quick_eye_mult", quick_eye_mult, 0.1, 1.0)
 	bigger_desk_bonus = int(_opt(b, "bigger_desk_bonus", bigger_desk_bonus, 1.0, 100.0))

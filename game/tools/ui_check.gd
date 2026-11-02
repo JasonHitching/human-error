@@ -308,6 +308,7 @@ func _check_layouts() -> void:
 				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
 			if b.size.x < 120.0 or b.size.y < 80.0:
 				_fails.append("[%s] button '%s' too small %s" % [tag, b.text, b.size])
+		_check_buttons(tag + " office", _main)
 		f.worker.place(Worker.Location.FLOOR)
 		sw.sync(0.0)
 		var a: Rect2 = v.area
@@ -343,7 +344,7 @@ func _check_layouts() -> void:
 				_fails.append("[%s] scrap bin overlaps a machine" % tag)
 		var wp := v.worker_pos()
 		_within(Rect2(wp - Vector2(22, 22), Vector2(44, 44)), a, "[%s] worker" % tag)
-		for b: Button in [sw.back_btn, sw.worst_btn, _main._mute_btn]:
+		for b: Button in [sw.back_btn, sw.worst_btn]:
 			if not vp.encloses(b.get_global_rect()):
 				_fails.append("[%s] button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
 			if b.size.x < 80.0 or b.size.y < 80.0 or ((b == sw.back_btn or b == sw.worst_btn) and b.size.x < 120.0):
@@ -355,6 +356,7 @@ func _check_layouts() -> void:
 		for m in v.factory.machines:
 			if m.type != "qa" and m.type != "warehouse" and not v.machine_rect(m).encloses(v.queue_badge_rect(m)):
 				_fails.append("[%s] %s queue badge outside machine rect" % [tag, m.id])
+		_check_buttons(tag + " floor", _main)
 		_check_jitter(tag)
 	_main.size = old
 	_main._fit()
@@ -418,29 +420,52 @@ func _check_sprites_sfx() -> void:
 			_fails.append("sfx '%s' renders nothing" % k)
 	sfx.start()
 	sfx.play("ship")  # must not error headless
-	var mb: Button = _main._mute_btn
-	if not mb.is_visible_in_tree() or mb.size.x < 80.0 or mb.size.y < 80.0:
-		_fails.append("mute button missing/too small: %s" % mb.size)
-	if not Rect2(Vector2.ZERO, _main.size).encloses(mb.get_global_rect()):
-		_fails.append("mute button off-screen: %s" % mb.get_global_rect())
-	var hb: Button = _main._haptics_btn
-	if not hb.is_visible_in_tree() or hb.size.x < 120.0 or hb.size.y < 80.0 or mb.size.x < 120.0:
-		_fails.append("sound/haptics toggles missing/too small: %s %s" % [mb.size, hb.size])
-	if not Rect2(Vector2.ZERO, _main.size).encloses(hb.get_global_rect()) or hb.get_global_rect().intersects(mb.get_global_rect()):
-		_fails.append("haptics button off-screen or overlapping: %s" % hb.get_global_rect())
-	hb.pressed.emit()
-	hb.pressed.emit()
+	var st: SettingsOverlay = _main._settings
+	_main._hud.top_bar.cog.pressed.emit()
+	if not st.visible:
+		_fails.append("settings cog did not open the overlay")
+	var was: bool = sfx.muted
+	st.sound_btn.pressed.emit()
+	if sfx.muted == was:
+		_fails.append("sound toggle did not toggle")
+	st.sound_btn.pressed.emit()
+	st.haptics_btn.pressed.emit()
+	st.haptics_btn.pressed.emit()
+	st.close()
 	var feel: Feel = _main._feel  # forced streak then a forced complaint: draw every effect
 	for i in 21:
 		feel.on_call(i % 2 == 0, true, true, false)
 	feel.on_call(true, false, false, true)
 	_main._desk.queue_redraw()
 	await_redraw()
-	var before: bool = sfx.muted
-	mb.pressed.emit()
-	if sfx.muted == before:
-		_fails.append("mute button did not toggle")
-	mb.pressed.emit()
+
+
+## Overlap + minimum-target check over every visible button under `root`.
+## No two visible buttons intersect; none outside the viewport; smaller side >= 44 mock px.
+func _check_buttons(tag: String, root: Node) -> void:
+	var vp := Rect2(Vector2.ZERO, _main.size)
+	var bs: Array[Button] = []
+	for n in root.find_children("*", "Button", true, false):
+		if (n as Button).is_visible_in_tree() and not _in_overlay(n):
+			bs.append(n)
+	var need := UiTheme.min_target() * minf(_main.size.x / UiTheme.DESIGN_W, 1.0) - 0.5
+	for i in bs.size():
+		var r := bs[i].get_global_rect()
+		if not vp.encloses(r):
+			_fails.append("[%s] button '%s' outside viewport %s" % [tag, bs[i].text, r])
+		if minf(r.size.x, r.size.y) < need:
+			_fails.append("[%s] button '%s' below min target: %s" % [tag, bs[i].text, r.size])
+		for j in range(i + 1, bs.size()):
+			if r.intersects(bs[j].get_global_rect()):
+				_fails.append("[%s] buttons '%s' and '%s' overlap" % [tag, bs[i].text, bs[j].text])
+
+
+func _in_overlay(n: Node) -> bool:
+	var h: Hud = _main._hud
+	for o: Node in [h.banner, h.review, h.fired, h.stats_overlay, _main._home, _main._night]:
+		if o.is_ancestor_of(n):
+			return true
+	return false
 
 
 func await_redraw() -> void:
@@ -567,7 +592,12 @@ func _process(_delta: float) -> bool:
 			_check_sprites_sfx()
 			_check_layouts()
 			_check_tier_two()
+			_main._hud.top_bar.cog.pressed.emit()  # checked next frame, once laid out
 		5:
+			_check_buttons("settings", _main._settings)
+			_main._settings.close_btn.pressed.emit()
+			if _main._settings.visible:
+				_fails.append("settings Close did not close")
 			Sprites.clear_cache()
 			if _main._phase != _main.Phase.PLAYING:
 				_fails.append("shift did not start after banner tap")
