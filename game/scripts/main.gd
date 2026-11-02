@@ -2,7 +2,6 @@ extends Control
 ## Drives a Career: Foreman banner -> shift -> review/training -> next day ... -> fired.
 
 const BEST_PATH := "user://best.json"
-const HUD_TOP := 110.0
 const SWIPE_MIN := 80.0
 const COLOUR_NAME := "blue"  # matches QaDeskView.COL_BODY
 const HINT := "Swipe right: ship good ones. Swipe left: reject defects.\nBots call for help. Go down to fix, come back up to inspect."
@@ -31,9 +30,8 @@ var _scan_btn: Button
 var _flip_btn: Button
 var _lamp_btn: Button
 var _sfx: Sfx
-var _mute_btn: Button
+var _settings: SettingsOverlay
 var _muted: bool = false
-var _haptics_btn: Button
 var _feel := Feel.new()
 var _meta: Meta
 var _home: Home
@@ -59,7 +57,7 @@ func _ready() -> void:
 	add_child(_sfx)
 	_sfx.set_muted(_muted)
 	_screens = ScreenSwitch.new()
-	_screens.hud_top = HUD_TOP
+	_screens.hud_top = TopBar.height() + 36.0
 	add_child(_screens)
 	_screens.refused.connect(_flash)
 	_view = FactoryView.new()
@@ -92,15 +90,16 @@ func _ready() -> void:
 	_lamp_btn.add_theme_font_size_override("font_size", 24)
 	_lamp_btn.pressed.connect(_lamp)
 	_screens.office_page.add_child(_lamp_btn)
-	_mute_btn = Button.new()
-	_mute_btn.add_theme_font_size_override("font_size", 28)
-	_mute_btn.pressed.connect(_toggle_mute)
-	add_child(_mute_btn)
-	_haptics_btn = Button.new()
-	_haptics_btn.add_theme_font_size_override("font_size", 22)
-	_haptics_btn.pressed.connect(_toggle_haptics)
-	add_child(_haptics_btn)
-	_refresh_mute()
+	_hud.debug_overlay = _config.debug_overlay
+	_settings = SettingsOverlay.new()
+	add_child(_settings)
+	_settings.z_index = 30
+	_settings.sound_toggled.connect(_toggle_mute)
+	_settings.haptics_toggled.connect(_toggle_haptics)
+	_settings.home_pressed.connect(func() -> void:
+		_settings.close()
+		_open_home())
+	_hud.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled))
 	_home = Home.new()
 	add_child(_home)
 	_home.start_pressed.connect(_home_start)
@@ -236,11 +235,7 @@ func _toggle_haptics() -> void:
 
 
 func _refresh_mute() -> void:
-	var icon := Sprites.tex("icon_mute" if _muted else "icon_sound")
-	_mute_btn.icon = icon
-	_mute_btn.text = "Muted" if _muted else "Sound"
-	_mute_btn.expand_icon = false
-	_haptics_btn.text = "Haptics on" if Haptics.enabled else "Haptics off"
+	_settings.refresh(not _muted, Haptics.enabled)
 
 
 func _begin_shift() -> void:
@@ -357,11 +352,6 @@ func _fit() -> void:
 		return
 	_screens.layout()
 	var strip := _screens.desk_rect()
-	if _mute_btn != null:
-		_mute_btn.size = Vector2(120, 80)
-		_mute_btn.position = Vector2(size.x - _mute_btn.size.x - 8.0, size.y - 168.0)
-		_haptics_btn.size = Vector2(150, 80)
-		_haptics_btn.position = _mute_btn.position - Vector2(_haptics_btn.size.x + 8.0, 0.0)
 	if _ship_btn != null:
 		var w := (size.x - 20.0 - 10.0 * 5.0) / 5.0
 		var y := strip.end.y - 104.0

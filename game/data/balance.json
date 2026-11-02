@@ -1,5 +1,6 @@
 {
   "tick_rate": 10,
+  "debug_overlay": false,
   "shift_seconds": 120,
   "target": 100,
   "ramp_start": 0.0,
