@@ -2,15 +2,20 @@ class_name FactoryView
 extends Node2D
 ## Draws the factory. Reads sim state only; never mutates it.
 
-const MACHINE_H := 96.0
-const AVATAR_R := 11.0
-const BELT := 4.0
+const MIN_S := 0.6  # below this the floor scrolls instead of shrinking
+const MAX_S := 1.5
+const RECT_W := 120.0  # machine hit rect, logical px (sprite is wider; 8 px gaps between neighbours)
+const RECT_H := 130.0
+const RECT_UP := 110.0  # rect top above the ground centre
 const NAMES := {"generator": "Generator", "proc_a": "Press A", "proc_b": "Press B", "proc_c": "Press C", "proc_d": "Press D", "assembler": "Assembler", "assembler_a": "Assembler A", "assembler_b": "Assembler B", "warehouse": "Warehouse"}
 const COL_BELT := Color("343A46")
 
 var factory: Factory
 var board: StatusBoard  # light ring colours (same language as the office monitor)
-var area := Rect2(0, 0, 100, 100)  # screen rect the unit layout maps into
+var area := Rect2(0, 0, 100, 100):  # screen rect the iso floor is fitted into
+	set(v):
+		area = v
+		_relayout()
 var alpha: float = 0.0  # 0..1 progress between ticks
 var _link_ticks: Dictionary = {}  # "from>to" -> ticks
 var _tick_rate: int = 10
@@ -18,7 +23,11 @@ var _font: Font = ThemeDB.fallback_font
 var _bubbles: Array[Dictionary] = []  # {id, text, left}
 var _event_idx: int = 0
 var _time: float = 0.0
-var _machine_w: float = 0.34
+var _iso := IsoFloor.new()
+var _s: float = 1.0  # logical px -> screen px
+var _origin := Vector2.ZERO
+var scroll_y: float = 0.0
+var _max_scroll: float = 0.0
 var _scrap_runs: Dictionary = {}  # machine id -> seconds into the scrap-bin roll
 var _pulse: Dictionary = {}  # machine id -> seconds left of the fix pulse
 var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
@@ -33,7 +42,9 @@ const SPARK_N := 12
 func setup(f: Factory, config: SimConfig) -> void:
 	factory = f
 	_tick_rate = config.tick_rate
-	_machine_w = config.machine_w
+	_iso.setup(config.machines, config.links, config.floor_art)
+	scroll_y = 0.0
+	_relayout()
 	_link_ticks.clear()
 	_bubbles.clear()
 	_event_idx = 0
@@ -48,57 +59,112 @@ func setup(f: Factory, config: SimConfig) -> void:
 	queue_redraw()
 
 
-## One layout source: every floor rect below derives from `area` (and these pure functions of it).
+func _relayout() -> void:
+	if factory == null:
+		return
+	var cr := _iso.content_rect()
+	_s = clampf(minf(area.size.x / cr.size.x, area.size.y / cr.size.y), MIN_S, MAX_S)
+	var ch := cr.size.y * _s
+	_max_scroll = maxf(0.0, ch - area.size.y)
+	scroll_y = clampf(scroll_y, 0.0, _max_scroll)
+	var top := area.position.y + (area.size.y - ch) * 0.5 if _max_scroll <= 0.0 else area.position.y - scroll_y
+	_origin = Vector2(area.position.x + area.size.x * 0.5 - (cr.position.x + cr.size.x * 0.5) * _s, top - cr.position.y * _s)
+
+
+func can_scroll() -> bool:
+	return _max_scroll > 0.0
+
+
+func scroll_by(dy: float) -> void:
+	scroll_y = clampf(scroll_y - dy, 0.0, _max_scroll)
+	_relayout()
+
+
+## Screen position of a (fractional) grid cell centre.
+func ground(g: Vector2) -> Vector2:
+	return _origin + IsoFloor.to_local(g) * _s
+
+
+func machine_ground(m: Machine) -> Vector2:
+	return ground(Vector2(_iso.cells.get(m.id, Vector2i.ZERO)))
+
+
 func machine_h() -> float:
-	return MACHINE_H * clampf(area.size.x / 720.0, 0.85, 1.0)
+	return RECT_H * _s
 
 
 func machine_rect(m: Machine) -> Rect2:
-	var w := area.size.x * _machine_w
-	var h := machine_h()
-	var c := area.position + Vector2(m.pos.x * area.size.x, m.pos.y * area.size.y)
-	return Rect2(c - Vector2(w, h) * 0.5, Vector2(w, h))
+	var c := machine_ground(m)
+	return Rect2(c + Vector2(-RECT_W * 0.5, -RECT_UP) * _s, Vector2(RECT_W, RECT_H) * _s)
 
 
-## Heat bar, inside the machine card (4 px, along the bottom).
+## Heat bar, along the bottom of the machine rect.
 func heat_rect(m: Machine) -> Rect2:
 	var r := machine_rect(m)
-	var k := machine_h() / MACHINE_H
-	return Rect2(r.position + Vector2(12, r.size.y - 14.0 * k), Vector2(r.size.x - 24, 4))
+	return Rect2(Vector2(r.get_center().x - 35.0 * _s, r.end.y - 14.0 * _s), Vector2(70.0 * _s, 5.0))
 
 
-## Bot avatar centre inside the card (bottom-left); the avatar is drawn here.
+## Bot standing beside the machine (front right); the sprite is centred here.
 func bot_anchor(m: Machine) -> Vector2:
-	var r := machine_rect(m)
-	var k := machine_h() / MACHINE_H
-	return r.position + Vector2(12.0 + AVATAR_R, 56.0 * k)
+	return machine_ground(m) + Vector2(66.0, 6.0) * _s
 
 
-## Bot name text box, right of the avatar, inside the card.
+## Chip under the machine with its name and bot.
 func badge_rect(m: Machine) -> Rect2:
+	var c := machine_ground(m)
+	var w := _font.get_string_size(_badge_text(m), HORIZONTAL_ALIGNMENT_LEFT, -1, _chip_fs()).x + 14.0
+	return Rect2(Vector2(c.x - w * 0.5, c.y + 24.0 * _s), Vector2(w, 22.0))
+
+
+func _badge_text(m: Machine) -> String:
+	return friendly_name(m) + (" - " + m.bot.name if m.bot != null else "")
+
+
+func _chip_fs() -> int:
+	return roundi(clampf(15.0 * _s, 13.0, 17.0))
+
+
+## Machine status chip, just above the machine rect.
+func status_rect(m: Machine) -> Rect2:
+	var st := _status(m)
 	var r := machine_rect(m)
-	var k := machine_h() / MACHINE_H
-	var w := _font.get_string_size(m.bot.name if m.bot != null else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-	return Rect2(r.position + Vector2(12.0 + AVATAR_R * 2.0 + 6.0, 46.0 * k), Vector2(minf(w + 4.0, r.size.x * 0.5), 20))
+	var w := _font.get_string_size(String(st["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, _chip_fs()).x + 16.0
+	return Rect2(Vector2(r.get_center().x - w * 0.5, r.position.y - 26.0), Vector2(w, 24.0))
 
 
-## Queue-position badge (1/2/3) of a queued fix, inside the machine card (bottom right).
+## Queue-position badge (1/2/3) of a queued fix, inside the machine rect (top right).
 func queue_badge_rect(m: Machine) -> Rect2:
 	var r := machine_rect(m)
-	var k := machine_h() / MACHINE_H
-	return Rect2(r.position + Vector2(r.size.x - 40, 44.0 * k), Vector2(28, 28))
+	return Rect2(r.position + Vector2(r.size.x - 34.0, 4.0), Vector2(30, 30))
 
 
-func machine_at(p: Vector2) -> Machine:
+## Front-most machine under p (largest ground y wins). `grow` widens the rects (used by tests).
+func machine_at(p: Vector2, grow: float = 0.0) -> Machine:
+	var best: Machine = null
 	for m in factory.machines:
-		if m.type != "qa" and machine_rect(m).has_point(p):
-			return m
-	return null
+		if m.type != "qa" and machine_rect(m).grow(grow).has_point(p):
+			if best == null or machine_ground(m).y > machine_ground(best).y:
+				best = m
+	return best
 
 
-## Scrap bin rect, bottom right of the play area.
+## Scrap bin rect.
 func scrap_rect() -> Rect2:
-	return Rect2(area.end - Vector2(84, 96), Vector2(76, 84))
+	var c := ground(Vector2(_iso.scrap_cell))
+	return Rect2(c + Vector2(-40.0, -56.0) * _s, Vector2(80.0, 76.0) * _s)
+
+
+func belt_cells() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for c: Vector2i in _iso.edges:
+		out.append(c)
+	return out
+
+
+## Screen rect of one belt tile's diamond.
+func belt_rect(c: Vector2i) -> Rect2:
+	var g := ground(Vector2(c))
+	return Rect2(g - Vector2(IsoFloor.HW, IsoFloor.HH) * _s, Vector2(IsoFloor.HW * 2.0, IsoFloor.HH * 2.0) * _s)
 
 
 ## Show a speech bubble for each mistake event. Line pick is by event index (deterministic).
@@ -171,14 +237,26 @@ func _spawn_sparks(c: Vector2) -> void:
 		_sparks.append({"p": c, "v": Vector2(cos(a), sin(a)) * (70.0 + 30.0 * float(i % 3)), "life": 0.5})
 
 
-## Floor layout units (sim) -> screen position in the floor area.
+## Sim layout units -> screen. Shepard interpolation of the machines' screen spots (exact at each
+## machine and at the stairs), so the worker walks between the iso machines.
 func layout_to_px(p: Vector2) -> Vector2:
-	return area.position + Vector2(p.x * area.size.x, p.y * area.size.y)
+	var num := Vector2.ZERO
+	var den := 0.0
+	var pts: Array = [[factory.worker.stairs, ground(_iso.stairs_cell)]]
+	for m in factory.machines:
+		pts.append([m.pos, machine_ground(m) + Vector2(0, 34.0) * _s])
+	for e: Array in pts:
+		var d2 := p.distance_squared_to(e[0])
+		if d2 < 1e-8:
+			return e[1]
+		num += (e[1] as Vector2) / d2
+		den += 1.0 / d2
+	return num / den
 
 
 ## Where the stairs/lift are (the sim's stairs position).
 func stairs_pos() -> Vector2:
-	return layout_to_px(factory.worker.stairs) if factory != null else area.position
+	return ground(_iso.stairs_cell) if factory != null else area.position
 
 
 func worker_visible() -> bool:
@@ -198,7 +276,7 @@ func _clamp_in(p: Vector2, margin: float) -> Vector2:
 	return Vector2(clampf(p.x, area.position.x + margin, area.end.x - margin), clampf(p.y, area.position.y + margin, area.end.y - margin))
 
 
-## The avatar's spot, or the scrap-run path (a small robot runs to the bin).
+## The bot's spot, or the scrap-run path (a small robot runs to the bin).
 func bot_pos(m: Machine) -> Vector2:
 	var p := bot_anchor(m)
 	if _scrap_runs.has(m.id):
@@ -209,47 +287,132 @@ func bot_pos(m: Machine) -> Vector2:
 	return _clamp_in(p, BotView.HALF + 4.0)
 
 
+## Draws sprite `n` with its anchor on screen point g. False (nothing drawn) when the sprite is missing.
+func _spr(n: String, g: Vector2, flip: bool = false, mod: Color = Color.WHITE) -> bool:
+	var t := Sprites.tex(n)
+	if t == null:
+		return false
+	var f := 0.5 * _s
+	var sz := t.get_size() * f
+	var tl := g - IsoFloor.anchor(n) * f
+	if flip:
+		draw_texture_rect(t, Rect2(tl + Vector2(sz.x, 0), Vector2(-sz.x, sz.y)), false, mod)
+	else:
+		draw_texture_rect(t, Rect2(tl, sz), false, mod)
+	return true
+
+
+func _diamond(g: Vector2, k: float = 1.0) -> PackedVector2Array:
+	var hw := IsoFloor.HW * _s * k
+	var hh := IsoFloor.HH * _s * k
+	return PackedVector2Array([g + Vector2(0, -hh), g + Vector2(hw, 0), g + Vector2(0, hh), g + Vector2(-hw, 0)])
+
+
 func _draw() -> void:
 	if factory == null:
 		return
 	draw_rect(area, UiTheme.BG)
-	_draw_links()
-	_draw_scrap()
+	_draw_ground()
+	var list: Array[Dictionary] = []
 	for m in factory.machines:
-		if m.type == "qa":
-			_draw_hatch(m)
-		else:
-			_draw_machine(m)
+		list.append({"y": machine_ground(m).y, "k": 0, "m": m})
+		if m.bot != null:
+			list.append({"y": bot_pos(m).y + 24.0 * _s, "k": 3, "m": m})
+	for pr: Dictionary in _iso.props:
+		var pg := ground(Vector2(float((pr["g"] as Array)[0]), float((pr["g"] as Array)[1])))
+		list.append({"y": pg.y, "k": 1, "p": pr, "g": pg})
+	list.append({"y": ground(Vector2(_iso.scrap_cell)).y, "k": 2})
+	for it in factory.items_in_transit():
+		var pi := _item_pos(it)
+		list.append({"y": pi.y + 2.0, "k": 5, "p": pi, "junk": it["junk"]})
+	if worker_visible():
+		list.append({"y": worker_pos().y + 24.0 * _s, "k": 4})
+	list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["y"]) < float(b["y"]))
+	for e in list:
+		match int(e["k"]):
+			0:
+				var m: Machine = e["m"]
+				if m.type == "qa":
+					_draw_hatch(m)
+				else:
+					_draw_machine(m)
+			1:
+				var pn := String((e["p"] as Dictionary)["s"])
+				_spr("shadow_machine", e["g"], false, Color(1, 1, 1, 0.6))
+				_spr(pn, e["g"], pn == "fence" and int((e["p"] as Dictionary)["g"][0]) % 2 == 1)
+			2:
+				_draw_scrap()
+			3:
+				var bm: Machine = e["m"]
+				var panic := bm.is_faulted() or bm.misrouted
+				BotView.draw(self, bot_pos(bm), bm.bot.color, 1 if panic else 0, _time, 0.0, 0.0, bm.bot.name.to_lower(), 1.7 * _s)
+			4:
+				WorkerView.draw(self, worker_pos(), _time, _worker_walking(), factory.crew_busy and not _worker_walking(), 1.7 * _s)
+			5:
+				var pp: Vector2 = e["p"]
+				if e["junk"]:
+					draw_rect(Rect2(pp - Vector2(5, 5) * _s, Vector2(10, 10) * _s), UiTheme.TEXT_FAINT)
+				else:
+					draw_circle(pp, 5.0 * _s, UiTheme.TEXT)
+	for m in factory.machines:
+		_draw_chips(m)
 	for b in _bubbles:
 		_draw_bubble(b)
 	for sp in _sparks:
 		if sp["life"] > 0.0:
 			draw_circle(sp["p"], 3.0, Color(UiTheme.GOLD, clampf(sp["life"] * 2.0, 0.0, 1.0)))
-	if worker_visible():
-		WorkerView.draw(self, worker_pos(), _time, _worker_walking(), factory.crew_busy and not _worker_walking())
 
 
-## Right-angle belt between two machines: down from the source, across, down into the target.
-func _belt_path(a: Machine, b: Machine) -> PackedVector2Array:
-	var ra := _box_of(a)
-	var rb := _box_of(b)
-	var p0 := Vector2(ra.get_center().x, ra.end.y)
-	var p1 := Vector2(rb.get_center().x, rb.position.y)
-	var my := roundf((p0.y + p1.y) * 0.5)
-	if absf(p0.x - p1.x) < 1.0:
-		return PackedVector2Array([p0, p1])
-	return PackedVector2Array([p0, Vector2(p0.x, my), Vector2(p1.x, my), p1])
+## Floor tiles, back walls and belt tiles: flat things that never need depth sorting.
+func _draw_ground() -> void:
+	var ar := area.grow(1.0)
+	var gr := _iso.grid
+	# back walls (NW and NE edges); only whole sprites inside the floor area are drawn
+	for i in range(1, gr.y):
+		var wn := "wall_back" if i == 1 else "wall_back_plain"
+		if i == 2:
+			continue
+		_wall(wn, ground(Vector2(-1, i)), false, ar)
+	for i in range(1, gr.x):
+		_wall("wall_back_plain", ground(Vector2(i, -1)), true, ar)
+	for gx in gr.x:
+		for gy in gr.y:
+			var g := ground(Vector2(gx, gy))
+			if not ar.encloses(Rect2(g - Vector2(IsoFloor.HW, IsoFloor.HH) * _s, Vector2(IsoFloor.HW, IsoFloor.HH) * 2.0 * _s)):
+				continue
+			if not _spr("floor_tile_alt" if (gx + gy) % 2 == 1 else "floor_tile", g):
+				draw_colored_polygon(_diamond(g, 0.98), UiTheme.SURFACE_DIM if (gx + gy) % 2 == 0 else UiTheme.BG.lightened(0.04))
+	for c: Vector2i in _iso.edges:
+		var bs := _iso.belt_sprite(c)
+		if not _spr(String(bs["name"]), ground(Vector2(c)), bool(bs["flip"])):
+			draw_colored_polygon(_diamond(ground(Vector2(c)), 0.8), COL_BELT)
 
 
-func _box_of(m: Machine) -> Rect2:
-	return hatch_rect(m) if m.type == "qa" else machine_rect(m)
+func _wall(n: String, g: Vector2, flip: bool, ar: Rect2) -> void:
+	var t := Sprites.tex(n)
+	if t == null:
+		return
+	var f := 0.5 * _s
+	var tl := g - IsoFloor.anchor(n) * f
+	if ar.encloses(Rect2(tl, t.get_size() * f)):
+		_spr(n, g, flip)
 
 
-func _scrap_path(a: Machine) -> PackedVector2Array:
-	var ra := _box_of(a)
-	var sr := scrap_rect()
-	var gx := sr.get_center().x
-	return PackedVector2Array([Vector2(ra.end.x, ra.get_center().y), Vector2(gx, ra.get_center().y), Vector2(gx, sr.position.y)])
+## Screen position of an item in transit (along the belt cells, or straight to the scrap bin).
+func _item_pos(it: Dictionary) -> Vector2:
+	var key := "%s>%s" % [it["from"], it["via"]]
+	var ticks: float = _link_ticks[key]
+	var t := clampf(float(it["progress"]) + alpha / ticks, 0.0, 1.0)
+	var pts := PackedVector2Array()
+	if it["to"] == "scrap":
+		pts.append(machine_ground(factory.get_machine(String(it["from"]))))
+		pts.append(ground(Vector2(_iso.scrap_cell)))
+	else:
+		for c: Vector2i in _iso.paths.get(key, []):
+			pts.append(ground(Vector2(c)))
+	if pts.size() < 2:
+		return area.get_center()
+	return _along(pts, t) + Vector2(0, -6.0 * _s)
 
 
 ## Point a fraction t along a polyline (by length).
@@ -266,29 +429,17 @@ func _along(pts: PackedVector2Array, t: float) -> Vector2:
 	return pts[pts.size() - 1]
 
 
-func _draw_links() -> void:
-	var paths := {}
-	for key: String in _link_ticks:
-		var ids := key.split(">")
-		var path := _belt_path(factory.get_machine(ids[0]), factory.get_machine(ids[1]))
-		paths[key] = path
-		draw_polyline(path, COL_BELT, BELT)
-	for it in factory.items_in_transit():
-		var ticks: float = _link_ticks["%s>%s" % [it["from"], it["via"]]]
-		var t := clampf(float(it["progress"]) + alpha / ticks, 0.0, 1.0)
-		var path: PackedVector2Array = _scrap_path(factory.get_machine(String(it["from"]))) if it["to"] == "scrap" else paths["%s>%s" % [it["from"], it["via"]]]
-		var p := _along(path, t)
-		if it["junk"]:
-			draw_rect(Rect2(p - Vector2(5, 5), Vector2(10, 10)), UiTheme.TEXT_FAINT)
-		else:
-			draw_circle(p, 5.0, UiTheme.TEXT)
-
-
 func _draw_scrap() -> void:
 	var sr := scrap_rect()
-	draw_style_box(UiTheme.box(UiTheme.SURFACE_DIM, UiTheme.LINE, 10.0), sr)
-	_text("Scrap", sr.position + Vector2(10, 26), 15, UiTheme.TEXT_DIM, sr.size.x - 12)
-	_text(str(factory.scrapped), sr.position + Vector2(10, 62), 28, UiTheme.TEXT, sr.size.x - 12)
+	var g := ground(Vector2(_iso.scrap_cell))
+	_spr("shadow_machine", g, false, Color(1, 1, 1, 0.6))
+	if not _spr("scrap_bin", g):
+		draw_style_box(UiTheme.box(UiTheme.SURFACE_DIM, UiTheme.LINE, 10.0), sr)
+	var label := "Scrap %d" % factory.scrapped
+	var w := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, _chip_fs()).x + 14.0
+	var cr := Rect2(Vector2(sr.get_center().x - w * 0.5, sr.end.y + 2.0), Vector2(w, 22))
+	draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), cr)
+	_text(label, cr.position + Vector2(7, 16), _chip_fs(), UiTheme.TEXT, w)
 
 
 ## Friendly card name for a machine id.
@@ -296,7 +447,7 @@ static func friendly_name(m: Machine) -> String:
 	return String(NAMES.get(m.id, m.id))
 
 
-## Card status: {text, kind} with kind 0 = fine, 1 = warn, 2 = crit.
+## Status: {text, kind} with kind 0 = fine, 1 = warn, 2 = crit.
 func _status(m: Machine) -> Dictionary:
 	if m.state == Machine.State.JAMMED:
 		return {"text": "JAMMED", "kind": 2}
@@ -316,75 +467,79 @@ func _status(m: Machine) -> Dictionary:
 
 
 func _draw_machine(m: Machine) -> void:
+	var g := machine_ground(m)
 	var r := machine_rect(m)
-	var k := machine_h() / MACHINE_H
+	var kind: int = _status(m)["kind"]
+	if m.venting or factory.crew_target == m.id or _pulse.has(m.id):
+		var grow := 1.0 + (sin(float(_pulse.get(m.id, 0.0)) / PULSE_TIME * PI) * 0.15 if _pulse.has(m.id) else 0.0)
+		var ring := _diamond(g, 1.0 * grow)
+		ring.append(ring[0])
+		draw_polyline(ring, UiTheme.TEXT, 3.0)
+	_spr("shadow_machine", g)
+	if not _spr("machine_" + ("processor" if m.type == "processor" else m.type), g):
+		var sb := UiTheme.card(kind == 1, kind == 2)
+		if kind == 2:
+			sb.set_border_width_all(3)
+		draw_style_box(sb, r)
+		_text(friendly_name(m), r.position + Vector2(10, 28), 18, UiTheme.TEXT, r.size.x - 20)
+
+
+## Heat bar, queue badge, status chip and name chip: the readable layer on top of the sprites.
+func _draw_chips(m: Machine) -> void:
+	if m.type == "qa":
+		return
+	var fs := _chip_fs()
 	var st := _status(m)
 	var kind: int = st["kind"]
-	if _pulse.has(m.id):
-		r = r.grow(sin(float(_pulse[m.id]) / PULSE_TIME * PI) * 6.0)
-	var sb := UiTheme.card(kind == 1, kind == 2)
-	if kind == 2:
-		sb.set_border_width_all(3)
-	if m.venting or factory.crew_target == m.id:
-		sb.border_color = UiTheme.TEXT
-		sb.set_border_width_all(3)
-	draw_style_box(sb, r)
-	var sz := clampf(r.size.x / 245.0, 0.72, 1.0)
-	_text(friendly_name(m), r.position + Vector2(12, 28.0 * k), roundi(21.0 * sz), UiTheme.TEXT, r.size.x - 24)
-	# status: grey dot when fine, filled badge otherwise
-	if kind == 0:
-		draw_circle(r.position + Vector2(r.size.x - 20, 22.0 * k), 6.0, UiTheme.PIP_LINE)
-	else:
-		var fs := roundi(14.0 * sz)
-		var tw := _font.get_string_size(st["text"], HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-		var bd := Rect2(r.position + Vector2(r.size.x - tw - 26, 8.0 * k), Vector2(tw + 16, 24))
-		UiTheme.draw_pill(self, bd, UiTheme.CRIT if kind == 2 else UiTheme.WARN)
-		_text(st["text"], bd.position + Vector2(8, 17), fs, UiTheme.BG, tw + 2)
+	if kind != 0:
+		var sr := status_rect(m)
+		UiTheme.draw_pill(self, sr, UiTheme.CRIT if kind == 2 else UiTheme.WARN)
+		_text(st["text"], sr.position + Vector2(8, 17), fs, UiTheme.BG, sr.size.x - 10)
+	var bd := badge_rect(m)
+	draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), bd)
+	_text(_badge_text(m), bd.position + Vector2(7, 16), fs, UiTheme.TEXT_DIM, bd.size.x - 10)
 	if m.type == "warehouse":
-		_text("%d shipped" % factory.shipped, r.position + Vector2(12, 62.0 * k), 17, UiTheme.TEXT_DIM, r.size.x - 24)
-	if m.bot != null:
-		var c := bot_anchor(m)
-		if _pulse.has(m.id) or r.size != machine_rect(m).size:
-			c += r.position - machine_rect(m).position
-		draw_circle(c, AVATAR_R, m.bot.color)
-		_text(m.bot.name.substr(0, 1).to_upper(), c + Vector2(-5, 6), 16, UiTheme.BG, 14.0)
-		var bd := badge_rect(m)
-		_text(m.bot.name, bd.position + Vector2(0, 16), 16, UiTheme.TEXT_DIM, bd.size.x)
-		if kind == 2:
-			_text("tap to fix", bd.position + Vector2(bd.size.x + 8, 16), roundi(14.0 * sz), UiTheme.CRIT_TEXT, r.size.x - bd.end.x + r.position.x - 12)
-		if _scrap_runs.has(m.id):
-			BotView.draw(self, bot_pos(m), m.bot.color, 1, _time, 0.0, 0.0, m.bot.name.to_lower())
+		_text("%d shipped" % factory.shipped, bd.position + Vector2(0, 40), fs, UiTheme.TEXT_DIM, bd.size.x)
+	elif kind == 2 and m.bot != null:
+		_text("tap to fix", bd.position + Vector2(0, 40), fs, UiTheme.CRIT_TEXT, bd.size.x)
 	var qi := factory.crew_queue.find(m.id)
 	if qi >= 0:
 		var qb := queue_badge_rect(m)
 		draw_circle(qb.get_center(), qb.size.x * 0.5, UiTheme.TEXT)
-		_text(str(qi + 1), qb.position + Vector2(9, 21), 20, UiTheme.BG, qb.size.x)
-	var bar := heat_rect(m)
-	var hf := clampf(m.heat / 100.0, 0.0, 1.0)
-	var hc := UiTheme.CRIT if m.is_faulted() else (UiTheme.WARN if hf >= 0.7 else UiTheme.TEXT_FAINT)
-	UiTheme.draw_bar(self, bar, hf, hc)
-	if factory.crew_busy and factory.crew_target == m.id:
-		var cb := Rect2(bar.position + Vector2(0, -8), bar.size)
-		UiTheme.draw_bar(self, cb, factory.crew_progress, UiTheme.ACCENT)
+		_text(str(qi + 1), qb.position + Vector2(10, 22), 20, UiTheme.BG, qb.size.x)
+	if m.type != "warehouse":
+		var bar := heat_rect(m)
+		var hf := clampf(m.heat / 100.0, 0.0, 1.0)
+		var hc := UiTheme.CRIT if m.is_faulted() else (UiTheme.WARN if hf >= 0.7 else UiTheme.TEXT_FAINT)
+		UiTheme.draw_bar(self, bar, hf, hc)
+		if factory.crew_busy and factory.crew_target == m.id:
+			UiTheme.draw_bar(self, Rect2(bar.position + Vector2(0, -8), bar.size), factory.crew_progress, UiTheme.ACCENT)
 
 
-## The QA desk is upstairs: on the floor it is a dashed hatch in the line that products go up through.
+## The QA desk is upstairs: on the floor it is the hatch products go up through.
 func hatch_rect(m: Machine) -> Rect2:
-	var c := area.position + Vector2(m.pos.x * area.size.x, m.pos.y * area.size.y)
-	return Rect2(c - Vector2(100, 22), Vector2(200, 44))
+	var c := machine_ground(m)
+	return Rect2(c + Vector2(-64.0, -70.0) * _s, Vector2(128.0, 100.0) * _s)
 
 
 func _draw_hatch(m: Machine) -> void:
+	var g := machine_ground(m)
 	var r := hatch_rect(m)
 	if _bounce > 0.0:
+		g.y += sin(_bounce / 0.3 * PI) * 5.0
 		r.position.y += sin(_bounce / 0.3 * PI) * 5.0
+	_spr("shadow_machine", g)
+	if _spr("desk_hatch", g):
+		var lr := Rect2(Vector2(r.get_center().x - 60.0 * _s, r.end.y + 4.0), Vector2(120.0 * _s, 22))
+		draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), lr)
+		_text("UP TO QA DESK", lr.position + Vector2(6, 16), maxi(11, roundi(13.0 * _s)), UiTheme.TEXT_DIM, lr.size.x - 8)
+		return
 	draw_rect(r, UiTheme.SURFACE_DIM)
 	var col := UiTheme.TEXT_FAINT
 	var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
 	for i in 4:
 		_dashed(corners[i], corners[(i + 1) % 4], col)
-	UiTheme.draw_arrow(self, Vector2(r.position.x + 22, r.get_center().y), 7.0, -1, UiTheme.TEXT_DIM)
-	_text("UP TO QA DESK", r.position + Vector2(40, 28), 15, UiTheme.TEXT_DIM, r.size.x - 48)
+	_text("UP TO QA DESK", r.position + Vector2(10, 28), 15, UiTheme.TEXT_DIM, r.size.x - 16)
 
 
 func _dashed(a: Vector2, b: Vector2, col: Color) -> void:
@@ -406,7 +561,7 @@ func _draw_bubble(b: Dictionary) -> void:
 		return
 	var r := machine_rect(m)
 	var w := minf(area.size.x * 0.6, 240.0)
-	var box := Rect2(r.get_center().x - w * 0.5, r.position.y - 46, w, 38)
+	var box := Rect2(r.get_center().x - w * 0.5, r.position.y - 68, w, 38)
 	box.position.x = clampf(box.position.x, area.position.x + 2, area.end.x - w - 2)
 	box.position.y = maxf(box.position.y, area.position.y + 2)
 	draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), box)

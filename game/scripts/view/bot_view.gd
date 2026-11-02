@@ -8,7 +8,7 @@ const HALF := 20.0  # drawn extent from the centre, for bounds checks
 
 
 ## Draw a bot centred at pos. bot_name (lower-cased) selects an optional sprite. mood: 0 normal, 1 panic. squash: 0..1 (mistake), roll: -1..1 lean.
-static func draw(ci: CanvasItem, pos: Vector2, col: Color, mood: int, t: float, squash: float, roll: float, bot_name: String = "") -> void:
+static func draw(ci: CanvasItem, pos: Vector2, col: Color, mood: int, t: float, squash: float, roll: float, bot_name: String = "", size_k: float = 1.0) -> void:
 	var tilt := squash * 0.35 + roll * 0.08
 	var sc := Vector2(1.0 + squash * 0.25, 1.0 - squash * 0.25)
 	var xf := Transform2D(tilt, sc, 0.0, pos)
@@ -20,7 +20,7 @@ static func draw(ci: CanvasItem, pos: Vector2, col: Color, mood: int, t: float, 
 	names.append("bot_" + bot_name)
 	if bot_name != "":
 		# Sprites are drawn upright (no tilt) so no canvas transform is needed.
-		var s := HALF * 2.4 * sc
+		var s := HALF * 2.4 * sc * size_k
 		if Sprites.draw_fit(ci, Sprites.first(names), Rect2(pos - s * 0.5, s)):
 			return
 	var dark := col.darkened(0.4)

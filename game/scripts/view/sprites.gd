@@ -6,9 +6,12 @@ extends RefCounted
 const DIR := "res://assets/sprites/"
 
 static var _cache: Dictionary = {}  # name -> Texture2D or null
+static var disabled: bool = false  # test hook: every sprite reads as missing (fallback drawing)
 
 
 static func tex(sprite_name: String) -> Texture2D:
+	if disabled:
+		return null
 	if _cache.has(sprite_name):
 		return _cache[sprite_name]
 	var t: Texture2D = null
