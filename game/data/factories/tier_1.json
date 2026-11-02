@@ -35,7 +35,7 @@
       "heat_per_sec": 2.8,
       "cool_per_sec": 4.0,
       "gx": 0,
-      "gy": 3
+      "gy": 4
     },
     {
       "id": "proc_b",
@@ -51,7 +51,7 @@
       "process_time": 2.5,
       "heat_per_sec": 2.8,
       "cool_per_sec": 4.0,
-      "gx": 3,
+      "gx": 4,
       "gy": 0
     },
     {

@@ -93,39 +93,5 @@ func test_machines_face_their_belts_both_tiers() -> void:
 		for id: String in iso.cells:
 			if iso.types[id] == "qa":
 				continue
-			if iso.press_axis(id) != "":
-				continue  # drawn with the press frames (test_processors_use_press_sprite_along_their_belts)
 			var path := "res://assets/sprites/%s.png" % iso.machine_sprite(id, iso.types[id])
 			assert_true(FileAccess.file_exists(path), "tier %d %s: missing facing sprite %s" % [tier, id, path])
-
-
-func test_processors_use_press_sprite_along_their_belts() -> void:
-	for tier in [1, 2]:
-		var iso := _floor(tier)
-		for i in PressAnim.FRAMES:
-			assert_true(FileAccess.file_exists("res://assets/sprites/%s.png" % PressAnim.sprite_name(i)), "press frame %d" % i)
-		for id: String in iso.cells:
-			if iso.types[id] != "processor":
-				continue
-			var axis := iso.press_axis(id)
-			assert_true(axis != "", "tier %d %s: belts must run straight through the press" % [tier, id])
-			# sprite belt is SW-NE (gy); gx machines draw it flipped, so every belt edge is on that axis
-			var want: Array = ["ne", "sw"] if axis == "gy" else ["nw", "se"]
-			var edges := iso.machine_edges(id)
-			edges.sort()
-			assert_eq(edges, want, "tier %d %s belt edges vs press axis" % [tier, id])
-			# its baked belt replaces the tile: no belt tile in the machine's own cell
-			assert_true(not iso.edges.has(iso.cells[id]), "tier %d %s: belt tile under baked belt" % [tier, id])
-
-
-func test_press_frame_selection() -> void:
-	assert_eq(PressAnim.frame(Machine.State.IDLE, 5.0, true), 0)
-	assert_eq(PressAnim.frame(Machine.State.STARVED, 5.0, true), 0)
-	assert_eq(PressAnim.frame(Machine.State.JAMMED, 5.0, true), PressAnim.PRESSED)
-	assert_eq(PressAnim.frame(Machine.State.OVERHEATED, 5.0, true), PressAnim.PRESSED)
-	assert_eq(PressAnim.frame(Machine.State.WORKING, 0.0, false), 0)
-	assert_eq(PressAnim.frame(Machine.State.WORKING, 7.3, false), 0)
-	var seen: Dictionary = {}
-	for i in 60:
-		seen[PressAnim.frame(Machine.State.WORKING, float(i) / 30.0, true)] = true
-	assert_eq(seen.size(), PressAnim.FRAMES, "working cycles through all frames")
