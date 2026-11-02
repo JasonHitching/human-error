@@ -37,6 +37,9 @@ var _bounce: float = 0.0
 var _fx := FloorFx.new()
 var _fx_kinds := PackedInt32Array()
 var _fx_tops := PackedVector2Array()
+var _bottleneck: String = ""  # machine limiting throughput (FlowReadout), refreshed each draw
+var _links: Array = []  # {from, to, path: Array[Vector2i]} for chevrons and belt queues
+var _chevrons: Array[Dictionary] = []  # {a, b, key}: one arrow per belt step, cell-local
 const SCRAP_RUN := 2.4
 const PULSE_TIME := 0.3
 const SPARK_N := 12
@@ -62,6 +65,18 @@ func setup(f: Factory, config: SimConfig) -> void:
 	_fx.reset(f.machines.size())
 	_fx_kinds.resize(f.machines.size())
 	_fx_tops.resize(f.machines.size())
+	_links.clear()
+	_chevrons.clear()
+	var seen := {}
+	for l in config.links:
+		var key := "%s>%s" % [l["from"], l["to"]]
+		var pth: Array = _iso.paths.get(key, [])
+		_links.append({"from": String(l["from"]), "to": String(l["to"]), "path": pth})
+		for i in range(1, pth.size()):
+			var st := "%s%s" % [pth[i - 1], pth[i]]
+			if not seen.has(st):
+				seen[st] = true
+				_chevrons.append({"a": pth[i - 1], "b": pth[i], "from": String(l["from"]), "to": String(l["to"])})
 	for l in config.links:
 		_link_ticks["%s>%s" % [l["from"], l["to"]]] = maxf(1.0, float(l["transit_time"]) * config.tick_rate)
 	queue_redraw()
@@ -118,6 +133,16 @@ func show_overview() -> void:
 	_fit_size = area.size
 	_relayout()
 	queue_redraw()
+
+
+## Id of the machine limiting throughput ("" when the line flows freely).
+func bottleneck_id() -> String:
+	return FlowReadout.bottleneck(factory) if factory != null else ""
+
+
+## Items queued on the belt from -> to.
+func belt_queue(from_id: String, to_id: String) -> int:
+	return FlowReadout.queued_on(factory, from_id, to_id) if factory != null else 0
 
 
 func camera() -> FloorCamera:
@@ -402,6 +427,7 @@ func _draw() -> void:
 	RenderingServer.canvas_item_set_clip(get_canvas_item(), true)  # effects never leave the floor area
 	RenderingServer.canvas_item_set_custom_rect(get_canvas_item(), true, area)
 	draw_rect(area, UiTheme.BG)
+	_bottleneck = FlowReadout.bottleneck(factory)
 	_draw_ground()
 	var list: Array[Dictionary] = []
 	for m in factory.machines:
@@ -491,10 +517,66 @@ func _draw_fx_ground() -> void:
 		var ph := fposmod(_time * 0.5, 1.0)
 		for c: Vector2i in _iso.edges:
 			FloorFx.draw_belt_motion(self, ground(Vector2(c)), _iso.edges[c], _s, ph)
+	_draw_chevrons()
+	_draw_belt_queues()
 	var lm := _lamp_machine()
 	if lm != null:
 		_fx.draw_lamp(self, machine_ground(lm), _s, _time, area)
 		_fx.draw_dust(self, machine_ground(lm), _s, _time, area)
+
+
+## One arrow per belt step, pointing the way the items go. Amber when the belt is backing up, red when full.
+func _draw_chevrons() -> void:
+	for ch in _chevrons:
+		var a := ground(Vector2(ch["a"]))
+		var b := ground(Vector2(ch["b"]))
+		var d := (b - a).normalized()
+		var n := Vector2(-d.y, d.x)
+		var c := (a + b) * 0.5
+		var col := Color(1, 1, 1, 0.4)
+		var to := factory.get_machine(String(ch["to"]))
+		if FlowReadout.queued_on(factory, String(ch["from"]), String(ch["to"])) >= 2:
+			col = Color(UiTheme.WARN, 0.9)
+			if to != null and to.input_cap > 0 and to.input_count >= to.input_cap:
+				col = Color(UiTheme.CRIT, 0.9)
+		var k := 7.0 * _s
+		draw_polyline(PackedVector2Array([c - d * k * 0.6 + n * k * 0.8, c + d * k * 0.6, c - d * k * 0.6 - n * k * 0.8]), col, maxf(2.0, 2.5 * _s))
+
+
+## Items held back at a sender (receiver full) bunch up on the belt cells just before the receiver.
+func _draw_belt_queues() -> void:
+	for l: Dictionary in _links:
+		var a := factory.get_machine(String(l["from"]))
+		var b := factory.get_machine(String(l["to"]))
+		if a == null or b == null or b.input_cap <= 0 or b.input_count < b.input_cap or a.output_count <= 0:
+			continue
+		var pth: Array = l["path"]
+		var n := mini(a.output_count, 2 * maxi(pth.size() - 2, 0))
+		for i in n:
+			var cell: Vector2i = pth[pth.size() - 2 - i / 2]
+			var off := Vector2(-9.0, 0) if i % 2 == 0 else Vector2(9.0, 0)
+			var p := ground(Vector2(cell)) + off * _s + Vector2(0, -4.0 * _s)
+			if not _spr("crate", p + Vector2(0, 6.0 * _s), false, Color(1.0, 0.85, 0.6), 0.4):
+				draw_circle(p, 5.0 * _s, UiTheme.WARN)
+
+
+## Input-queue pips under a machine: one per slot, filled = waiting items. Amber when backed up, red when full.
+func _draw_input_pips(m: Machine) -> void:
+	if m.input_cap <= 0 or m.type == "qa":
+		return
+	var n := mini(m.input_cap, 12)
+	var fill := FlowReadout.input_fill(m)
+	var col := UiTheme.CRIT if fill >= 1.0 else (UiTheme.WARN if fill >= FlowReadout.FULL_FILL else UiTheme.TEXT_DIM)
+	var g := machine_ground(m) + Vector2(0, 16.0 * _s)
+	var step := 8.0 * _s
+	var x0 := -step * float(n - 1) * 0.5
+	var filled := roundi(fill * n)
+	for i in n:
+		var pc := g + Vector2(x0 + step * i, 0)
+		if i < filled:
+			draw_circle(pc, maxf(2.5, 3.0 * _s), col)
+		else:
+			draw_arc(pc, maxf(2.5, 3.0 * _s), 0.0, TAU, 8, Color(UiTheme.TEXT_FAINT, 0.7), 1.0)
 
 
 func _lamp_machine() -> Machine:
@@ -606,7 +688,16 @@ func _draw_machine(m: Machine) -> void:
 		ring.append(ring[0])
 		draw_polyline(ring, UiTheme.TEXT, 3.0)
 	_spr("shadow_machine", g)
-	if not _spr("machine_" + ("processor" if m.type == "processor" else m.type), g):
+	if m.id == _bottleneck and kind == 0:
+		var br := _diamond(g, 1.08)
+		br.append(br[0])
+		draw_polyline(br, UiTheme.WARN, 3.0)
+	var tint := Color.WHITE
+	if m.state == Machine.State.STARVED and m.type != "generator":
+		tint = Color(1, 1, 1, 0.6)  # starved: dim
+	elif m.state == Machine.State.BLOCKED:
+		tint = Color(1.0, 0.9, 0.75)  # blocked: items pile up upstream
+	if not _spr("machine_" + ("processor" if m.type == "processor" else m.type), g, false, tint):
 		var sb := UiTheme.card(kind == 1, kind == 2)
 		if kind == 2:
 			sb.set_border_width_all(3)
@@ -621,6 +712,7 @@ func _draw_chips(m: Machine) -> void:
 	var fs := _chip_fs()
 	var st := _status(m)
 	var kind: int = st["kind"]
+	_draw_input_pips(m)
 	if kind != 0:
 		var sr := status_rect(m)
 		UiTheme.draw_pill(self, sr, UiTheme.CRIT if kind == 2 else UiTheme.WARN)
