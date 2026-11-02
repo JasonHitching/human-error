@@ -1,0 +1,44 @@
+{
+ "min_away_seconds": 120,
+ "cap_seconds": 28800,
+ "max_commendations": 12,
+ "per_bot_hour": 0.5,
+ "per_lesson_mult": 0.15,
+ "jitter": 0.15,
+ "mess_steps": [3.0, 5.0, 8.0],
+ "max_mess": 3,
+ "report_lines": 4,
+ "lines": {
+  "intro": [
+   "Night report: the bots ran the floor. Nobody was in charge. It went about as you'd expect.",
+   "While you slept the bots held a meeting. It was mostly about snacks.",
+   "The night shift clocked in {hours} hours. The Foreman supervised from a very comfy chair."
+  ],
+  "earn": [
+   "The bots made {commendations} commendations. The Foreman took credit for {credit}.",
+   "{commendations} commendations earned overnight. Nobody asked how.",
+   "Overnight output: {commendations} commendations and one suspicious puddle."
+  ],
+  "bot": [
+   "{bot} worked through the night and only broke things a little.",
+   "{bot} ran {bot_hours} hours of shifts. Mostly in circles.",
+   "{bot} learned something. We're all very nervous."
+  ],
+  "mess_0": [
+   "The floor is spotless. This is deeply unsettling.",
+   "No mess. The Foreman has checked twice."
+  ],
+  "mess_1": [
+   "There's a small mess waiting for you. One machine is sulking.",
+   "A little mess on the floor. It's probably fine."
+  ],
+  "mess_2": [
+   "Two machines are not speaking to you this morning.",
+   "The night shift left a mess. Two messes, actually."
+  ],
+  "mess_3": [
+   "The floor is a disaster. The bots call it 'a learning opportunity'.",
+   "Three machines are jammed. The bots blame each other and a ghost."
+  ]
+ }
+}

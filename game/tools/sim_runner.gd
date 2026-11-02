@@ -23,8 +23,10 @@ func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	career = args.has("--career")
 	var perks_arg := "none"
+	var night_arg := -1
 	for i in args.size() - 1:
 		match args[i]:
+			"--night": night_arg = int(args[i + 1])
 			"--seed": seed_start = int(args[i + 1])
 			"--runs": runs = int(args[i + 1])
 			"--shift-seconds": shift = float(args[i + 1])
@@ -35,7 +37,11 @@ func _init() -> void:
 		print("unknown player: ", bot)
 		quit(1)
 		return
+	if night_arg >= 0 and not career:
+		_print_night(cfg, night_arg, seed_start)
+		return
 	if career:
+		_night_secs = night_arg if night_arg >= 0 else int(NightShift.load_rules().get("cap_seconds", 28800))
 		_run_career(cfg, bot, seed_start, runs, _parse_perks(perks_arg))
 		return
 	var totals: Array[int] = []
@@ -136,6 +142,19 @@ func _init() -> void:
 	quit(0)
 
 
+var _night_secs := 0
+
+
+## --night <seconds>: the default roster's estimate (also in careers: that absence is applied after every shift).
+func _print_night(cfg: SimConfig, secs: int, seed: int) -> void:
+	var c := Career.new(cfg, seed)
+	var est := NightShift.estimate(c.roster, secs, seed)
+	print("night shift away=%ds -> commendations %d, mess_level %d" % [secs, est["commendations"], est["mess_level"]])
+	for l: String in est["lines"]:
+		print("  ", l)
+	quit(0)
+
+
 func _parse_perks(arg: String) -> Array:
 	if arg == "none" or arg == "":
 		return []
@@ -201,6 +220,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, per
 			if c.automated:
 				break
 			c.next_day()
+			c.night_mess = int(NightShift.estimate(c.roster, _night_secs, c.seed * 31 + c.day)["mess_level"])
 		if c.automated:
 			auto_days.append(c.automated_day)
 		lessons_total += c.lessons_learned
