@@ -87,9 +87,8 @@ func _ready() -> void:
 	_flip_btn = _desk_button("Flip", "secondary", 24, _flip)
 	_lamp_btn = _desk_button("X-ray", "secondary", 24, _lamp)
 	_hud.debug_overlay = _config.debug_overlay
-	_settings = SettingsOverlay.new()
+	_settings = SettingsOverlay.create()
 	add_child(_settings)
-	_settings.z_index = 30
 	_settings.sound_toggled.connect(_toggle_mute)
 	_settings.haptics_toggled.connect(_toggle_haptics)
 	_settings.effects_toggled.connect(_toggle_effects)
@@ -97,7 +96,7 @@ func _ready() -> void:
 		_settings.close()
 		_open_home())
 	_hud.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled))
-	_home = Home.new()
+	_home = Home.create()
 	add_child(_home)
 	_home.start_pressed.connect(_home_start)
 	_home.tier_picked.connect(func(t: int) -> void:

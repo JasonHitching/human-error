@@ -553,6 +553,7 @@ func _check_sprites_sfx() -> void:
 	_main._hud.top_bar.cog.pressed.emit()
 	if not st.visible:
 		_fails.append("settings cog did not open the overlay")
+	_check_buttons("settings", st, true)
 	var was: bool = sfx.muted
 	st.sound_btn.pressed.emit()
 	if sfx.muted == was:
@@ -672,6 +673,10 @@ func _check_home(tag: String, placed: bool = true) -> void:
 		if b.size.x < 100.0 or b.size.y < UiTheme.min_target() * minf(vp.size.x / UiTheme.DESIGN_W, 1.0) - 0.5:
 			_fails.append("[%s] Home button '%s' too small %s" % [tag, b.text, b.size])
 	_check_buttons("Home " + tag, h, true)
+	for o: Control in [h.perks_overlay, h.how_overlay]:
+		o.visible = true
+		_check_buttons("Home %s %s" % [o.name, tag], o, true)
+		o.visible = false
 
 
 func _check_tutorial() -> void:

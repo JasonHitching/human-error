@@ -1,0 +1,87 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_overlay.gd" id="1_set"]
+
+[sub_resource type="StyleBoxFlat" id="panel"]
+content_margin_left = 30.0
+content_margin_top = 30.0
+content_margin_right = 30.0
+content_margin_bottom = 30.0
+bg_color = Color(0.1176, 0.1294, 0.1608, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.2275, 0.2471, 0.2941, 1)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[node name="SettingsOverlay" type="ColorRect"]
+visible = false
+z_index = 30
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+script = ExtResource("1_set")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Center"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("panel")
+
+[node name="Box" type="VBoxContainer" parent="Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="Title" type="Label" parent="Center/Panel/Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.953, 0.945, 0.925, 1)
+theme_override_font_sizes/font_size = 32
+text = "Settings"
+
+[node name="SoundBtn" type="Button" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(443, 89)
+layout_mode = 2
+focus_mode = 0
+text = "Sound: on"
+
+[node name="HapticsBtn" type="Button" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(443, 89)
+layout_mode = 2
+focus_mode = 0
+text = "Haptics: on"
+
+[node name="EffectsBtn" type="Button" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(443, 89)
+layout_mode = 2
+focus_mode = 0
+text = "Effects: on"
+
+[node name="HomeBtn" type="Button" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(443, 89)
+layout_mode = 2
+focus_mode = 0
+text = "Back to home"
+
+[node name="CloseBtn" type="Button" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(443, 89)
+layout_mode = 2
+focus_mode = 0
+text = "Close"

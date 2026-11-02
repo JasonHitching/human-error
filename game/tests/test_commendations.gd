@@ -53,7 +53,7 @@ func test_career_summary() -> void:
 
 func test_home_builds() -> void:
 	for bal: int in [0, 5, 999999]:
-		var h := Home.new()
+		var h := Home.create()
 		var m := Meta.new()
 		m.commendations["balance"] = bal
 		Engine.get_main_loop().root.add_child(h)
