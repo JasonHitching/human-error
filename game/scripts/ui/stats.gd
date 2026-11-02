@@ -22,25 +22,34 @@ var streak: int = 0
 var best_streak: int = 0
 
 
+## Corrupt-save-safe int: numbers and numeric strings convert, anything else is 0.
+static func to_int(v: Variant) -> int:
+	if v is int or v is float or v is bool:
+		return int(v)
+	if v is String and (v as String).is_valid_int():
+		return int(v)
+	return 0
+
+
 func apply_dict(d: Dictionary) -> void:
-	careers_started = maxi(0, int(d.get("careers_started", 0)))
-	careers_finished = maxi(0, int(d.get("careers_finished", 0)))
-	best_days = maxi(0, int(d.get("best_days", 0)))
-	total_days = maxi(0, int(d.get("total_days", 0)))
-	finished_days = maxi(0, int(d.get("finished_days", 0)))
-	shifts_played = maxi(0, int(d.get("shifts_played", 0)))
-	total_complaints = maxi(0, int(d.get("total_complaints", 0)))
-	last_career_end_unix = maxi(0, int(d.get("last_career_end_unix", 0)))
-	last_event_unix = maxi(0, int(d.get("last_event_unix", 0)))
-	sessions = maxi(0, int(d.get("sessions", 0)))
-	careers_in_session = maxi(0, int(d.get("careers_in_session", 0)))
-	streak = maxi(0, int(d.get("streak", 0)))
-	best_streak = maxi(0, int(d.get("best_streak", 0)))
+	careers_started = maxi(0, RunStats.to_int(d.get("careers_started", 0)))
+	careers_finished = maxi(0, RunStats.to_int(d.get("careers_finished", 0)))
+	best_days = maxi(0, RunStats.to_int(d.get("best_days", 0)))
+	total_days = maxi(0, RunStats.to_int(d.get("total_days", 0)))
+	finished_days = maxi(0, RunStats.to_int(d.get("finished_days", 0)))
+	shifts_played = maxi(0, RunStats.to_int(d.get("shifts_played", 0)))
+	total_complaints = maxi(0, RunStats.to_int(d.get("total_complaints", 0)))
+	last_career_end_unix = maxi(0, RunStats.to_int(d.get("last_career_end_unix", 0)))
+	last_event_unix = maxi(0, RunStats.to_int(d.get("last_event_unix", 0)))
+	sessions = maxi(0, RunStats.to_int(d.get("sessions", 0)))
+	careers_in_session = maxi(0, RunStats.to_int(d.get("careers_in_session", 0)))
+	streak = maxi(0, RunStats.to_int(d.get("streak", 0)))
+	best_streak = maxi(0, RunStats.to_int(d.get("best_streak", 0)))
 	session_careers = []
 	var sc: Variant = d.get("session_careers", [])
 	if sc is Array:
 		for v: Variant in sc:
-			session_careers.append(maxi(0, int(v)))
+			session_careers.append(maxi(0, RunStats.to_int(v)))
 
 
 func to_dict() -> Dictionary:

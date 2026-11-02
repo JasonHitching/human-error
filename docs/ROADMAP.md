@@ -63,12 +63,23 @@ Status: ☐ not started · ◐ in progress · ☑ done
 
 | Phase | Goal | Issues |
 |---|---|---|
-| ☐ 1 Save | Versioned save file, stats migrated | #84 |
-| ☐ 2 Home | Commendations, Home screen | #85 |
-| ☐ 3 Perks | Spend commendations on starting bonuses | #86 |
-| ☐ 4 Automation | Train your replacement = the win | #87 |
-| ☐ 5 Tiers | Layouts as data, tier 2 | #88 |
-| ☐ Checkpoint M5 | Gates, report, plan M6 | #89 |
+| ☑ 1 Save | Versioned save file, stats migrated | #84 |
+| ☑ 2 Home | Commendations, Home screen | #85 |
+| ☑ 3 Perks | Spend commendations on starting bonuses | #86 |
+| ☑ 4 Automation | Train your replacement = the win | #87 |
+| ☑ 5 Tiers | Layouts as data, tier 2 | #88 |
+| ☑ Checkpoint M5 | Gates, report, plan M6 | #89 |
 
-## M6–M7
-See `docs/VISION.md`. Each is planned by the previous checkpoint (`docs/CHAIN.md`).
+## M6 — Night Shift & Daily
+
+| Phase | Goal | Issues |
+|---|---|---|
+| ☐ 1 Twist yardstick | Optional twists, same-day-number comparison | #101 |
+| ☐ 2 Night shift | Offline earnings, Foreman report, next-day mess | #100 |
+| ☐ 3 Daily | Date-seeded daily career, local best | #99 |
+| ☐ 4 Tools | Flip-to-check-back, X-ray lamp | #98 |
+| ☐ 5 Tutorial | Guided day 1 | #97 |
+| ☐ Checkpoint M6 | Gates, report, plan M7 | #96 |
+
+## M7
+See `docs/VISION.md`. Planned by the M6 checkpoint (`docs/CHAIN.md`).
