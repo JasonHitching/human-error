@@ -72,6 +72,7 @@ func _ready() -> void:
 	_hud.offer_pressed.connect(_pick_offer)
 	_hud.continue_pressed.connect(_next_day)
 	_hud.restart_pressed.connect(_open_home)
+	_hud.again_pressed.connect(_home_start)
 	_hud.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed, _daily_date))
 	_ship_btn = _inspect_button("Ship", true)
@@ -96,12 +97,13 @@ func _ready() -> void:
 	_home.tier_picked.connect(func(t: int) -> void:
 		_meta.pick_tier(t)
 		SaveIO.write_meta(_meta)
-		_home.setup(_meta, _today()))
+		_home_refresh())
 	_home.perk_bought.connect(func(id: String) -> void:
 		if _meta.buy(id):
 			SaveIO.write_meta(_meta)
-		_home.setup(_meta, _today()))
+		_home_refresh())
 	_home.daily_pressed.connect(_daily_start)
+	_home.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled))
 	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.stats_overlay.z_index = 20  # stats opens above Home
 	_night = NightReport.new()
@@ -156,7 +158,7 @@ func _tutorial_tick() -> void:
 func _night_collected() -> void:
 	_meta.collect_night()
 	SaveIO.write_meta(_meta)
-	_home.setup(_meta, _today())
+	_home_refresh()
 
 
 func _notification(what: int) -> void:
@@ -173,8 +175,12 @@ func _today() -> String:
 	return Time.get_date_string_from_system()  # local date
 
 
+func _home_refresh() -> void:
+	_home.setup(_meta, _today(), SimConfig.load_tier(_meta.picked_tier).target_base)
+
+
 func _open_home() -> void:
-	_home.setup(_meta, _today())
+	_home_refresh()
 	_home.visible = true
 
 
@@ -480,13 +486,24 @@ func _end_shift() -> void:
 		var bd := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty))
 		var praise := _career.foreman_line("new_best") if new_best else ""
 		var auto := bool(res["automated"])
-		_hud.show_fired(days, _career.foreman_line("automated" if auto else "fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise), RunEnd.awards_text(awarded), "AUTOMATED (you win)" if auto else "FIRED")
+		_hud.show_fired(days, _career.foreman_line("automated" if auto else "fired"), bd, RunEnd.teaser(days, _best_days, new_best, praise), RunEnd.awards_text(awarded), "AUTOMATED (you win)" if auto else "FIRED", _fired_info(res, awarded))
 		return
 	_phase = Phase.REVIEW
 	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])
 	var extra := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty)) if not res["hit"] else "Streak: %d days on target" % RunEnd.hit_streak(_career.history)
 	extra += "\n" + RunEnd.progress_line(res, _config.bonus_threshold) + "\n" + RunEnd.training_lines(_career.roster)
 	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers, extra)
+
+
+func _fired_info(res: Dictionary, awarded: Dictionary) -> Dictionary:
+	var colors := {}
+	for b: Bot in _career.roster:
+		colors[b.name] = b.color
+	var info := {"best": _best_days, "colors": colors, "award_total": int(awarded.get("total", 0))}
+	if not res.is_empty():
+		info["score"] = int(res["shipped"])
+		info["target"] = int(res["target"])
+	return info
 
 
 func _pick_offer(index: int) -> void:
@@ -524,7 +541,7 @@ func _end_automated() -> void:
 	_phase = Phase.FIRED
 	var days := _career.day
 	var new_best := _note_best(days)
-	_hud.show_fired(days, _career.foreman_line("automated"), "", RunEnd.teaser(days, _best_days, new_best, ""), RunEnd.awards_text(awarded), "AUTOMATED (you win)")
+	_hud.show_fired(days, _career.foreman_line("automated"), "", RunEnd.teaser(days, _best_days, new_best, ""), RunEnd.awards_text(awarded), "AUTOMATED (you win)", _fired_info({}, awarded))
 
 
 func _next_day() -> void:

@@ -5,7 +5,8 @@ extends Control
 signal start_pressed
 signal continue_pressed
 signal offer_pressed(index: int)
-signal restart_pressed
+signal restart_pressed  # fired: Home link
+signal again_pressed  # fired: One more career
 signal replay_pressed
 signal stats_pressed
 signal settings_pressed
@@ -19,14 +20,12 @@ var _flash: Label
 var _seed: Label
 var _twist: Label
 var _banner_label: Label
-var _review_label: Label
 var _review_box: VBoxContainer
-var _fired_label: Label
-var _awards_label: Label
+var _fired_box: VBoxContainer
 var _retry_btn: Button
-var stats_btn: Button
+var stats_btn: Button  # Stats link on the run-end screen
 var stats_overlay: Control
-var _stats_label: Label
+var _stats_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -45,30 +44,16 @@ func _ready() -> void:
 	var bb := _overlay()
 	banner = bb[0]
 	_banner_label = _big(bb[1])
-	_button(bb[1], "Tap to start", start_pressed.emit)
+	_button(bb[1], "Tap to start", start_pressed.emit, "primary")
 	var rb := _overlay()
 	review = rb[0]
 	_review_box = rb[1]
-	_review_label = _big(_review_box)
 	var fb := _overlay()
 	fired = fb[0]
-	_fired_label = _big(fb[1])
-	_fired_label.add_theme_font_size_override("font_size", 28)
-	_awards_label = _big(fb[1])
-	_awards_label.add_theme_font_size_override("font_size", 20)
-	_retry_btn = _button(fb[1], "Continue", restart_pressed.emit)
-	_retry_btn.custom_minimum_size = Vector2(440, 140)
-	_retry_btn.add_theme_font_size_override("font_size", 40)
-	var rp := _button(fb[1], "Replay this seed", replay_pressed.emit)
-	rp.custom_minimum_size = Vector2(440, 80)
-	rp.add_theme_font_size_override("font_size", 22)
-	stats_btn = _button(fb[1], "Stats", stats_pressed.emit)
-	stats_btn.custom_minimum_size = Vector2(440, 80)
-	stats_btn.add_theme_font_size_override("font_size", 22)
+	_fired_box = fb[1]
 	var sb := _overlay()
 	stats_overlay = sb[0]
-	_stats_label = _big(sb[1])
-	_button(sb[1], "Close", hide_stats)
+	_stats_box = sb[1]
 	resized.connect(_layout)
 	_layout()
 
@@ -82,40 +67,20 @@ func _label(size: int, align: HorizontalAlignment) -> Label:
 	return l
 
 
-## Full-screen dim overlay with a centred VBox. Returns [overlay, box].
+## Full-screen overlay with a scrolling column. Returns [overlay, column].
 func _overlay() -> Array:
-	var o := ColorRect.new()
-	o.color = Color(0, 0, 0, 0.82)
-	o.visible = false
-	add_child(o)
-	o.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var center := CenterContainer.new()
-	o.add_child(center)
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 20)
-	center.add_child(box)
-	return [o, box]
+	return UiKit.screen(self, true)
 
 
 func _big(box: Control) -> Label:
-	var l := Label.new()
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.custom_minimum_size = Vector2(440, 0)
-	l.add_theme_font_size_override("font_size", 32)
+	var l := UiKit.label("", 32)
 	box.add_child(l)
 	return l
 
 
-func _button(box: Control, text: String, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.custom_minimum_size = Vector2(440, 90)
-	b.add_theme_font_size_override("font_size", 28)
-	b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+func _button(box: Control, text: String, cb: Callable, kind: String = "secondary") -> Button:
+	var b := UiKit.button(box, text, kind, 72.0 if kind == "primary" else 56.0, 30 if kind == "primary" else 26)
 	b.pressed.connect(cb)
-	box.add_child(b)
 	return b
 
 
@@ -157,50 +122,49 @@ func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, sp
 
 
 func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra: String = "") -> void:
-	var qa_lines := ""
+	var notes: Array[String] = []
 	if String(res.get("spec_change", "")) != "":
-		qa_lines += "\n" + String(res["spec_change"])
+		notes.append(String(res["spec_change"]))
 	var rk: Dictionary = res.get("rookie", {})
-	var extras := false
 	if not rk.is_empty():
-		qa_lines += "\nRookie: %s%s" % [rk["name"], "" if String(rk["replaced"]) == "" else " (replaces %s)" % rk["replaced"]]
-		extras = true
+		notes.append("Rookie: %s%s" % [rk["name"], "" if String(rk["replaced"]) == "" else " (replaces %s)" % rk["replaced"]])
 	var ls: Array = res.get("lessons", [])
 	for i in mini(ls.size(), 2):
-		qa_lines += "\n%s learned: no more %s" % [ls[i]["bot"], String(ls[i]["mistake"]).replace("_", " ")]
-		extras = true
+		notes.append("%s learned: no more %s" % [ls[i]["bot"], String(ls[i]["mistake"]).replace("_", " ")])
 	if ls.size() > 2:
-		qa_lines += "\n+%d more lessons" % (ls.size() - 2)
-	_review_label.add_theme_font_size_override("font_size", 26 if extras else 32)
+		notes.append("+%d more lessons" % (ls.size() - 2))
 	if int(res.get("subtle_scanned", 0)) + int(res.get("subtle_shipped", 0)) > 0:
-		qa_lines += "\nHairline faults: caught %d by scanning, shipped %d" % [res.get("subtle_caught", 0), res.get("subtle_shipped", 0)]
-	_review_label.text = "Day over\nScore %d / %d - %s\nCaught %d · Complaints %d · Wasted %d\nStrikes %d%s%s\n\n%s" % [res["shipped"], res["target"], "HIT" if res["hit"] else "MISS", res["caught"], res["complaints"], res["wasted"], res["strikes"], _missed_line(res), qa_lines, line]
-	if extra != "":
-		_review_label.text += "\n" + extra
-	if res.get("probation", false):
-		_review_label.text = _review_label.text.replace("Strikes %d" % res["strikes"], "Probation: no strike")
-	for n in _review_box.get_children():
-		if n != _review_label:
-			_review_box.remove_child(n)
-			n.queue_free()
-	if int(res["points"]) > 0 and not offers.is_empty():
-		_review_label.text += "\nTraining points: %d - pick one:" % res["points"]
-		for i in offers.size():
-			var idx := i
-			_button(_review_box, String(offers[i]["text"]), func() -> void: offer_pressed.emit(idx))
-	_button(_review_box, "Continue", continue_pressed.emit)
+		notes.append("Hairline faults: caught %d by scanning, shipped %d" % [res.get("subtle_caught", 0), res.get("subtle_shipped", 0)])
+	var missed := _missed_line(res)
+	if missed != "":
+		notes.append(missed.strip_edges())
+	ResultCards.review(_review_box, res, line, offers, extra, notes, func(i: int) -> void: offer_pressed.emit(i), continue_pressed.emit)
 	_show_only(review)
 
 
-func show_fired(days: int, line: String, breakdown: String, teaser: String, awards: String = "", title: String = "FIRED") -> void:
-	_fired_label.text = title + "\nDays survived: %d\n\n%s\n\n%s\n%s" % [days, breakdown, teaser, line]
-	_awards_label.text = awards
-	_awards_label.visible = awards != ""
+## info (optional): score, target, best, colors {bot name: Color}, award_total.
+func show_fired(days: int, line: String, breakdown: String, teaser: String, awards: String = "", title: String = "FIRED", info: Dictionary = {}) -> void:
+	_retry_btn = ResultCards.fired(_fired_box, title, days, line, breakdown, teaser, awards, info, again_pressed.emit, replay_pressed.emit, restart_pressed.emit, stats_pressed.emit)
+	stats_btn = _stats_link()
 	_show_only(fired)
 
 
+func _stats_link() -> Button:
+	for b in _fired_box.find_children("*", "Button", true, false):
+		if (b as Button).text == "Stats":
+			return b
+	return null
+
+
 func show_stats(text: String) -> void:
-	_stats_label.text = text
+	UiKit.clear(_stats_box)
+	var lines := text.split("\n", false)
+	_stats_box.add_child(UiKit.label("Stats", 40, UiTheme.TEXT, true))
+	var c := UiKit.card(_stats_box, null, 8.0, 14.0)
+	for l in lines.slice(1):
+		var kv := l.split(": ", true, 1)
+		UiKit.row(c, kv[0], kv[1] if kv.size() > 1 else "")
+	_button(_stats_box, "Close", hide_stats)
 	stats_overlay.visible = true
 
 
@@ -225,4 +189,14 @@ func _missed_line(res: Dictionary) -> String:
 	var parts: Array[String] = []
 	for k in m:
 		parts.append("%s x%d" % [String(k).replace("_", " "), int(m[k])])
-	return "\nMissed: " + ", ".join(parts)
+	return "Missed: " + ", ".join(parts)
+
+
+## All label text under a node, joined by newlines (tests and ui_check).
+static func text_of(n: Node) -> String:
+	var out: Array[String] = []
+	for l in n.find_children("*", "Label", true, false):
+		out.append((l as Label).text)
+	for b in n.find_children("*", "Button", true, false):
+		out.append((b as Button).text)
+	return "\n".join(out)
