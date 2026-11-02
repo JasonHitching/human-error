@@ -282,6 +282,26 @@ func _check_floor_chars() -> void:
 		_fails.append("worker never walked away from the stairs")
 	f.crew_busy = false
 	f.worker.place(Worker.Location.FLOOR)
+	_check_focus(v)
+
+
+## Focus move ends with the machine inside the safe (non-UI) rect; input cancels it.
+func _check_focus(v: FactoryView) -> void:
+	for m in v.factory.machines:
+		if m.type == "qa":
+			continue
+		v.focus_machine(m.id)
+		for i in 60:
+			v._process(0.02)
+		var sr := v.safe_rect()
+		sr.position += v.area.position
+		if not sr.encloses(v.machine_rect(m)):
+			_fails.append("focus %s: machine rect %s not inside safe rect %s" % [m.id, v.machine_rect(m), sr])
+	v.focus_machine(v.factory.machines[0].id)
+	v.pan_by(Vector2(1, 1))
+	if v.camera().moving:
+		_fails.append("pan input did not cancel the focus move")
+	v.select("")
 
 
 const SIZES: Array[Vector2i] = [Vector2i(720, 1280), Vector2i(390, 844), Vector2i(360, 800), Vector2i(430, 932), Vector2i(768, 1024)]

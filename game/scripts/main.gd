@@ -17,6 +17,7 @@ var _desk: QaDeskView
 var _screens: ScreenSwitch
 var _swipe_from := Vector2(-1, -1)
 var _hud: Hud
+var _info: MachineInfo
 var _phase: Phase = Phase.BANNER
 var _acc: float = 0.0
 var _best_days: int = 0
@@ -63,6 +64,10 @@ func _ready() -> void:
 	_screens.refused.connect(_flash)
 	_view = FactoryView.new()
 	_screens.add_view(_screens.floor_page, _view)
+	_info = MachineInfo.new()
+	_screens.floor_page.add_child(_info)
+	_screens.wall.light_tapped.connect(func(id: String) -> void: _view.focus_machine(id))  # alert tap
+	_screens.worst_btn.pressed.connect(_focus_worst)
 	_desk = QaDeskView.new()
 	_desk.feel = _feel
 	_screens.add_view(_screens.office_page, _desk)
@@ -403,6 +408,7 @@ func _fit() -> void:
 			row[i].position = rects[i].position
 	if _view != null:
 		_view.area = _screens.floor_rect()
+		_info.place(_view.area)
 
 
 func _process(delta: float) -> void:
@@ -440,6 +446,7 @@ func _process(delta: float) -> void:
 	_flip_btn.visible = _phase == Phase.PLAYING
 	_lamp_btn.visible = _phase == Phase.PLAYING
 	_view.alpha = clampf(_acc / dt, 0.0, 1.0) if _phase == Phase.PLAYING else 0.0
+	_info.show_machine(_factory.get_machine(_view.selected) if _view.selected != "" else null)
 	if _phase == Phase.PLAYING and _factory.worker_location() == Worker.Location.FLOOR:
 		_view.keys(delta)
 	_screens.wall.poll()
@@ -595,9 +602,22 @@ func _release() -> void:
 		_factory.release_action()
 
 
+## "Fix worst first": the sim queued (or started) the worst machine; bring it into view.
+func _focus_worst() -> void:
+	if _factory == null:
+		return
+	var id: String = _factory.crew_queue.back() if not _factory.crew_queue.is_empty() else (_factory.crew_target if _factory.crew_busy else "")
+	if id != "":
+		_view.focus_machine(id)
+
+
 func _tap(p: Vector2) -> void:
 	var m := _view.machine_at(p)
-	if m == null or _factory.worker_location() != Worker.Location.FLOOR:
+	if m == null:
+		_view.select("")
+		return
+	_view.focus_machine(m.id)
+	if _factory.worker_location() != Worker.Location.FLOOR:
 		return
 	_apply_tap(m.id)
 

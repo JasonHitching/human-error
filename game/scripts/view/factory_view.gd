@@ -27,6 +27,7 @@ var _origin := Vector2.ZERO
 var _cam := FloorCamera.new()
 var _cam_ready := false
 var _fit_size := Vector2.ZERO
+var selected: String = ""  # machine id; highlighted and labelled
 var _scrap_runs: Dictionary = {}  # machine id -> seconds into the scrap-bin roll
 var _pulse: Dictionary = {}  # machine id -> seconds left of the fix pulse
 var _sparks: Array[Dictionary] = []  # fixed pool: {p, v, life}
@@ -43,6 +44,8 @@ func setup(f: Factory, config: SimConfig) -> void:
 	_tick_rate = config.tick_rate
 	_iso.setup(config.machines, config.links, config.floor_art)
 	_cam_ready = false
+	selected = ""
+	_cam.cancel()
 	_relayout()
 	_link_ticks.clear()
 	_bubbles.clear()
@@ -55,6 +58,31 @@ func setup(f: Factory, config: SimConfig) -> void:
 	_bounce = 0.0
 	for l in config.links:
 		_link_ticks["%s>%s" % [l["from"], l["to"]]] = maxf(1.0, float(l["transit_time"]) * config.tick_rate)
+	queue_redraw()
+
+
+## Bottom strip of the floor area reserved for the screen-space machine info panel.
+const PANEL_H := 72.0
+const SAFE_PAD := 8.0
+
+
+## Part of the floor that is clear of UI (view coords, relative to `area`).
+func safe_rect() -> Rect2:
+	return Rect2(Vector2(SAFE_PAD, SAFE_PAD), Vector2(area.size.x - 2.0 * SAFE_PAD, area.size.y - PANEL_H - 2.0 * SAFE_PAD))
+
+
+func select(id: String) -> void:
+	selected = id
+	queue_redraw()
+
+
+## Select a machine and tween the camera so it ends inside the safe rect.
+func focus_machine(id: String) -> void:
+	if factory == null or not _iso.cells.has(id):
+		return
+	selected = id
+	var w := IsoFloor.to_local(Vector2(_iso.cells[id])) + Vector2(0, RECT_H * 0.5 - RECT_UP)
+	_cam.focus_on(w, safe_rect())
 	queue_redraw()
 
 
@@ -79,6 +107,7 @@ func camera() -> FloorCamera:
 
 ## Drag-pan by a screen delta.
 func pan_by(delta: Vector2) -> void:
+	_cam.cancel()
 	_cam.pan_screen(delta)
 	_relayout()
 	queue_redraw()
@@ -86,6 +115,7 @@ func pan_by(delta: Vector2) -> void:
 
 ## Wheel/pinch/key zoom around a screen point (absolute coordinates).
 func zoom_by(factor: float, at: Vector2) -> void:
+	_cam.cancel()
 	_cam.zoom_at(factor, at - area.position)
 	_relayout()
 	queue_redraw()
@@ -230,6 +260,9 @@ func _process(d: float) -> void:
 	_bubbles = _bubbles.filter(func(b: Dictionary) -> bool: return b["left"] > 0.0)
 	if factory != null:
 		_update_juice(d)
+		if _cam.moving:
+			_cam.step(d)
+			_relayout()
 	queue_redraw()
 
 
@@ -498,6 +531,10 @@ func _draw_machine(m: Machine) -> void:
 	var g := machine_ground(m)
 	var r := machine_rect(m)
 	var kind: int = _status(m)["kind"]
+	if m.id == selected:
+		var sel := _diamond(g, 1.15)
+		sel.append(sel[0])
+		draw_polyline(sel, UiTheme.ACCENT, 4.0)
 	if m.venting or factory.crew_target == m.id or _pulse.has(m.id):
 		var grow := 1.0 + (sin(float(_pulse.get(m.id, 0.0)) / PULSE_TIME * PI) * 0.15 if _pulse.has(m.id) else 0.0)
 		var ring := _diamond(g, 1.0 * grow)
@@ -524,8 +561,9 @@ func _draw_chips(m: Machine) -> void:
 		UiTheme.draw_pill(self, sr, UiTheme.CRIT if kind == 2 else UiTheme.WARN)
 		_text(st["text"], sr.position + Vector2(8, 17), fs, UiTheme.BG, sr.size.x - 10)
 	var bd := badge_rect(m)
-	draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), bd)
-	_text(_badge_text(m), bd.position + Vector2(7, 16), fs, UiTheme.TEXT_DIM, bd.size.x - 10)
+	if m.id == selected or kind != 0:  # no permanent labels on healthy machines
+		draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), bd)
+		_text(_badge_text(m), bd.position + Vector2(7, 16), fs, UiTheme.TEXT_DIM, bd.size.x - 10)
 	if m.type == "warehouse":
 		_text("%d shipped" % factory.shipped, bd.position + Vector2(0, 40), fs, UiTheme.TEXT_DIM, bd.size.x)
 	elif kind == 2 and m.bot != null:
