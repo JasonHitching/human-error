@@ -402,6 +402,7 @@ func bot_pos(m: Machine) -> Vector2:
 
 ## Draws sprite `n` with its anchor on screen point g. False (nothing drawn) when the sprite is missing.
 func _spr(n: String, g: Vector2, flip: bool = false, mod: Color = Color.WHITE, scale: float = 1.0) -> bool:
+	n = _iso.resolve_sprite(n)
 	var t := Sprites.tex(n)
 	if t == null:
 		return false

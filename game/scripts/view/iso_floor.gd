@@ -18,6 +18,7 @@ var by_cell: Dictionary = {}  # Vector2i -> machine id
 var edges: Dictionary = {}  # belt cell -> {edge name: true}
 var paths: Dictionary = {}  # "from>to" -> Array[Vector2i] (machine cell, belt cells, machine cell)
 var props: Array = []
+var sprite_set := ""  # optional art set folder under assets/sprites/ (e.g. "factory_kit"); "" = the normal set
 var grid := Vector2i(5, 5)
 var scrap_cell := Vector2i(0, 0)
 var stairs_cell := Vector2(-1, 1)
@@ -33,6 +34,7 @@ static func belt_top_offset() -> Vector2:
 
 
 static func anchor(sprite_name: String) -> Vector2:
+	sprite_name = sprite_name.get_file()  # "factory_kit/belt_x" shares the anchor of "belt_x"
 	for k: String in ANCHORS:
 		if sprite_name.begins_with(k):
 			return ANCHORS[k]
@@ -57,6 +59,7 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 	var st: Array = art.get("stairs_g", [-1, 1])
 	stairs_cell = Vector2(float(st[0]), float(st[1]))
 	props = art.get("props", [])
+	sprite_set = String(art.get("sprite_set", ""))
 	for l: Dictionary in links:
 		var key := "%s>%s" % [l["from"], l["to"]]
 		var a: Vector2i = cells.get(String(l["from"]), Vector2i.ZERO)
@@ -239,3 +242,16 @@ func content_rect() -> Rect2:
 	for c: Vector2i in edges:
 		r = r.merge(Rect2(to_local(Vector2(c)) - Vector2(HW, HH), Vector2(HW * 2.0, HH * 2.0)))
 	return r
+
+
+## Sprite families an art set replaces (floor, props, bots and shadows always use the normal set).
+static func in_set_family(n: String) -> bool:
+	return n.begins_with("machine_") or n.begins_with("belt_") or n == "desk_hatch"
+
+
+## Name to draw for `n`: "<sprite_set>/<n>" when the set has it, else `n` (fallback to the normal sprite).
+func resolve_sprite(n: String) -> String:
+	if sprite_set == "" or not in_set_family(n):
+		return n
+	var k := sprite_set + "/" + n
+	return k if Sprites.tex(k) != null else n

@@ -104,3 +104,29 @@ func test_core_factory_opens_whole_and_big_factories_open_close_up() -> void:
 	assert_near(cam.opening_zoom(core), cam.fit_zoom(core), 0.0001, "core opens on the whole factory")
 	assert_true(cam.opening_zoom(core) >= FloorCamera.READABLE_FIT, "readable")
 	assert_eq(cam.opening_zoom(_floor(1).content_rect()), cam.start_zoom(), "tier 1 unchanged")
+
+
+func _kit_names(iso: IsoFloor) -> Array[String]:
+	var out: Array[String] = []
+	for id: String in iso.cells:
+		var t: String = iso.types[id]
+		out.append("desk_hatch" if t == "qa" else iso.machine_sprite(id, t))
+	for c: Vector2i in iso.edges:
+		out.append(String(iso.belt_sprite(c)["name"]))
+	return out
+
+
+func test_core_floor_draws_only_factory_kit_machines_and_belts() -> void:
+	var iso := _floor(0)
+	assert_eq(iso.sprite_set, "factory_kit", "core.json picks the Factory Kit set")
+	assert_eq(iso.facing_mismatches().size(), 0, "core facings match")
+	for n in _kit_names(iso):
+		assert_eq(iso.resolve_sprite(n), "factory_kit/" + n, "core uses the kit sprite for " + n)
+	assert_eq(iso.resolve_sprite("floor_tile"), "floor_tile", "floor stays in the normal set")
+
+
+func test_full_mode_and_tiers_keep_the_normal_sprites() -> void:
+	for iso: IsoFloor in [_floor(1), _floor(2)]:
+		assert_eq(iso.sprite_set, "", "no sprite set")
+		for n in _kit_names(iso):
+			assert_eq(iso.resolve_sprite(n), n, "normal sprite for " + n)
