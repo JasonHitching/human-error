@@ -1,0 +1,67 @@
+{
+ "foreman_briefing": [
+  "Day {day}. Target: {target} widgets. Clock in, keep the line moving, and try not to think too hard about it.",
+  "Morning. {target} widgets today. The bots are warmed up and so is my patience.",
+  "Day {day} briefing: ship {target}. Reject the broken ones. Ship the rest. Simple.",
+  "Quota is {target}. I've seen worse crews. Not many, but I've seen them."
+ ],
+ "foreman_reaction": {
+  "hit": [
+   "Target met. I'll allow it.",
+   "You hit the number. Don't make a habit of it.",
+   "Acceptable work. Go home."
+  ],
+  "bonus": [
+   "Well over target. I'm suspicious, but pleased.",
+   "That's a bonus day. Don't tell the bots, they'll want credit.",
+   "Above and beyond. I almost smiled."
+  ],
+  "miss": [
+   "Short today. Tomorrow we do better.",
+   "Missed it. The board noticed, and so did I.",
+   "Not enough widgets. Sleep on it."
+  ]
+ },
+ "bot_clock_in": {
+  "Sparky": [
+   "Sparky here! Running hot and loving it.",
+   "Morning! I only overclocked twice yesterday. Probably.",
+   "Ready! Don't look at my temperature gauge."
+  ],
+  "Clank": [
+   "Clank. Reporting. Mostly intact.",
+   "Good morning. I have oiled myself. Somewhat.",
+   "Clank ready. Please ignore the rattling."
+  ],
+  "Loopy": [
+   "Hi hi hi! Where was I? Oh, work!",
+   "Loopy clocking in. Again. Did I clock out?",
+   "Morning! Or is it? It is. I think."
+  ],
+  "Dozer": [
+   "Dozer. Awake. Technically.",
+   "Five more minutes. Kidding. Mostly.",
+   "Dozer on the floor. Don't let me nap."
+  ],
+  "Rusty": [
+   "Rusty, present. My joints have opinions.",
+   "Another day, another squeak. Let's go.",
+   "Rusty here. I've seen this line break before."
+  ],
+  "Pip": [
+   "Pip! First week! Please be patient!",
+   "Hi! I'm Pip. Which button is which?",
+   "Pip ready! I think!"
+  ],
+  "Nudge": [
+   "Nudge here. Just nudging things along.",
+   "Morning! I nudged my coffee. It fell over.",
+   "Nudge ready. Mind the edges."
+  ],
+  "Bolt": [
+   "Bolt! Fast as ever!",
+   "Bolt clocking in. Speed first, questions later.",
+   "Morning! I'm already late, somehow."
+  ]
+ }
+}

@@ -13,7 +13,7 @@ signal replay_pressed
 signal stats_pressed
 signal settings_pressed
 
-var banner: Control
+var banner: ClockIn
 var review: DayReview
 var fired: RunEndScreen
 var top_bar: TopBar
@@ -37,10 +37,10 @@ func _ready() -> void:
 	_twist = layer.get_node("%TwistLabel")
 	_seed = layer.get_node("%SeedLabel")
 	top_bar.settings_pressed.connect(settings_pressed.emit)
-	var bb := _overlay()
-	banner = bb[0]
-	_banner_label = _big(bb[1])
-	_button(bb[1], "Tap to start", start_pressed.emit, "primary")
+	banner = ClockIn.create()
+	banner.clock_in_pressed.connect(start_pressed.emit)
+	add_child(banner)
+	_banner_label = banner.body
 	review = DayReview.create()
 	review.offer_chosen.connect(offer_pressed.emit)
 	review.continue_pressed.connect(continue_pressed.emit)
@@ -86,7 +86,7 @@ func set_flash(text: String) -> void:
 	_flash.text = text
 
 
-func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, spec_change: String = "", news: String = "") -> void:
+func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, spec_change: String = "", news: String = "", bot: String = "", bot_line: String = "") -> void:
 	var tw := ""
 	if news != "":
 		tw = "\n\n" + news
@@ -94,11 +94,11 @@ func show_banner(day: int, line: String, target: int, twist: Dictionary = {}, sp
 		tw += "\n\n" + spec_change
 	if not twist.is_empty():
 		tw += "\n\nTWIST: %s %s\n%s" % [twist.get("icon", ""), twist.get("name", ""), twist.get("line", "")]
-	_banner_label.text = "FOREMAN\nDay %d · target %d\n\n%s%s" % [day, target, line, tw]
+	banner.show_clock_in("Day %d · target %d\n\n%s%s" % [day, target, line, tw], bot, bot_line)
 	_show_only(banner)
 
 
-func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra: String = "") -> void:
+func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra: String = "", reaction: String = "") -> void:
 	var notes: Array[String] = []
 	if String(res.get("spec_change", "")) != "":
 		notes.append(String(res["spec_change"]))
@@ -115,7 +115,7 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra
 	var missed := _missed_line(res)
 	if missed != "":
 		notes.append(missed.strip_edges())
-	review.show_review(res, line, offers, extra, notes)
+	review.show_review(res, line if reaction == "" else line + "\n\n" + reaction, offers, extra, notes)
 	_show_only(review)
 
 

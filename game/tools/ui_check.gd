@@ -747,6 +747,10 @@ func _process(_delta: float) -> bool:
 			if hud.size != _main.size:
 				_fails.append("HUD size %s != screen %s" % [hud.size, _main.size])
 			_check_overlay("banner", hud.banner, true)
+			if not hud.banner.clock_in_btn.is_visible_in_tree() or hud.banner.clock_in_btn.text != "Clock in":
+				_fails.append("clock-in screen has no reachable Clock in button")
+			if hud.banner.body.text == "" or not hud.banner.find_child("BotLine", true, false).text.length() > 0:
+				_fails.append("clock-in screen lacks Foreman briefing or bot line")
 			_check_home("start")
 			_check_night()
 			_check_tutorial()
@@ -770,6 +774,8 @@ func _process(_delta: float) -> bool:
 			Sprites.clear_cache()
 			if _main._phase != _main.Phase.PLAYING:
 				_fails.append("shift did not start after banner tap")
+			if _main._career.phase != Career.PHASE_SHIFT:
+				_fails.append("career not in shift phase after clock-in")
 			_end_shift(_main._factory.target * 2)  # hit with bonus -> points to spend
 		8:
 			_check_overlay("review", hud.review, true)
