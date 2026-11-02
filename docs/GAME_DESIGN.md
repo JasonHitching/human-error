@@ -13,6 +13,24 @@ Portrait mobile game. You are the one human worker on a factory floor run by **b
 
 ---
 
+## Core reset (current target)
+
+The game got too busy: each milestone added systems and a day became a frantic rush. We strip back to a small, calm, charming core, prove it is fun, then return systems one at a time as **earned career rewards** (decision #30).
+
+**Status of earlier work:** M2–M6 are *built, switched off in core mode*. The code stays behind data switches; nothing is deleted.
+
+**Phase 1 of a career**
+- **Factory:** Hopper → Machine → QA desk → Shipping, joined by short conveyors. 2 bots. Art from the Kenney Factory Kit (CC0).
+- **Mistakes (only these):** jam (sudden); overclock/overheat + vent (predictable); sloppy work (QA defects).
+- **QA:** ship/reject, 2–3 obvious defect types, no decoys, no subtle or back-side defects, no spec changes.
+- **Day phases:** **Clock-in** (Foreman briefing + one bot line) → **Shift** (fewer, clearer incidents) → **End of day** (review + simple training choice).
+- **Later phases** add machines and systems as career rewards.
+- **Off for now:** misroute, wrong recipe, twists, rookies, bot learning, radio/supervise/auto-inspector, perks, commendations, night shift, daily, tier 2.
+
+The sections below describe the full systems; where they conflict with this section, this section wins.
+
+---
+
 ## M2 — The QA Desk (current target)
 
 **Playtest finding (M1):** too much idle time; bots err about every 11 s and fixes take 1–2 s, so the worker was idle about 85% of the time.
