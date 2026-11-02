@@ -114,7 +114,7 @@ func _relayout() -> void:
 	_cam.set_view(area.size)
 	if not _cam_ready or area.size != _fit_size:
 		_fit_size = area.size
-		_cam.reset(cr, _cam.start_zoom())
+		_cam.reset(cr, _cam.opening_zoom(cr))
 		_cam_ready = true
 	else:
 		_cam.set_bounds(cr)

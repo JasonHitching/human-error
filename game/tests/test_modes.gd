@@ -2,8 +2,12 @@ extends TestCase
 ## Game modes (data/modes/*.json): a switched-off system never fires.
 
 
-func _core() -> SimConfig:
-	return SimConfig.load_mode("core")
+func _core() -> SimConfig:  # every switch off, on the tier_1 layout (the real core layout is tested below)
+	var c := SimConfig.load_mode("full")
+	for k: String in SimConfig.FEATURES:
+		c.features[k] = false
+	c.decoy_chance = 0.0
+	return c
 
 
 func _only_on(id: String) -> SimConfig:
@@ -15,6 +19,7 @@ func _only_on(id: String) -> SimConfig:
 func test_modes_load() -> void:
 	assert_true(SimConfig.load_mode("full").is_valid())
 	assert_true(_core().is_valid())
+	assert_true(SimConfig.load_mode("core").is_valid())
 	assert_true(not SimConfig.load_mode("nope").is_valid())
 	for id: String in SimConfig.FEATURES:
 		assert_true(SimConfig.load_default().feature(id), id)
@@ -147,3 +152,35 @@ func test_meta_systems_off() -> void:
 	assert_true(m.night_check(1000 + 100000, Career.new(_core(), 1).roster, 1).is_empty())
 	var on := Meta.new()
 	assert_true(on.award({"days": 10, "automated": true, "automation_bonus": 30})["total"] > 0)
+
+
+func test_core_factory_two_machines_two_bots() -> void:
+	var c := SimConfig.load_mode("core")
+	assert_true(c.is_valid(), str(c.errors))
+	var working: Array[String] = []
+	for m: Dictionary in c.machines:
+		if m["type"] != "qa" and m["type"] != "warehouse":
+			working.append(String(m["id"]))
+	assert_eq(working.size(), 2)
+	var pool: Array[String] = []
+	for d: Dictionary in c.bot_defs:
+		pool.append(String(d["name"]))
+		assert_eq(float(d["rates"]["misroute"]), 0.0)
+		assert_eq(float(d["rates"]["wrong_recipe"]), 0.0)
+	var car := Career.new(c, 1)
+	assert_eq(car.roster.size(), 2)
+	for b in car.roster:
+		assert_true(pool.has(b.name), b.name)
+	var f := car.start_day()
+	for id in working:
+		assert_true(f.bot_for(id) != null, id)
+	# every machine is reachable along belts from the generator
+	var seen := {"hopper": true}
+	var todo: Array[String] = ["hopper"]
+	while not todo.is_empty():
+		var cur: String = todo.pop_back()
+		for l: Dictionary in c.links:
+			if l["from"] == cur and not seen.has(l["to"]):
+				seen[l["to"]] = true
+				todo.append(String(l["to"]))
+	assert_eq(seen.size(), c.machines.size())

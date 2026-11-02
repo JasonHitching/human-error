@@ -93,6 +93,7 @@ var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
 var errors: Array[String] = []
 var mode_name: String = "full"
+var bots_dealt: int = 0  # bots dealt to a career from the pool (0 = the whole pool)
 var features: Dictionary = {}  # feature id -> bool (see data/modes/*.json); a missing id counts as on
 
 
@@ -125,8 +126,13 @@ static func load_mode(name: String) -> SimConfig:
 	var bal := _read(BALANCE_PATH)
 	if not bal.has("__error") and mode.get("balance") is Dictionary:
 		bal = bal.merged(mode["balance"] as Dictionary, true)
-	var c := from_dicts(_read(fpath), bal, _read(BOTS_PATH))
+	var bots := _read(BOTS_PATH)
+	var pool: Variant = mode.get("bots")  # a mode may bring its own bot pool
+	if pool is Array and not (pool as Array).is_empty() and not bots.has("__error"):
+		bots["bots"] = pool
+	var c := from_dicts(_read(fpath), bal, bots)
 	c.mode_name = name
+	c.bots_dealt = int(mode.get("bots_dealt", 0))
 	var fs: Variant = mode.get("features", {})
 	if fs is Dictionary:
 		for k: Variant in (fs as Dictionary):

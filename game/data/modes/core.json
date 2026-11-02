@@ -16,6 +16,85 @@
     "daily": false,
     "tiers": false
   },
-  "factory": "tier_1",
-  "balance": {}
+  "factory": "core",
+  "balance": {},
+  "bots": [
+    {
+      "name": "Sparky",
+      "color": "#ffd23f",
+      "rates": {
+        "jam": 0.2,
+        "overclock": 0.8,
+        "misroute": 0,
+        "wrong_recipe": 0
+      },
+      "lines": [
+        "MAXIMUM EFFICIENCY!",
+        "Turbo mode!"
+      ],
+      "sloppy": 0.107,
+      "call_in": [
+        "Small fire. Medium fire. Please come.",
+        "Too much speed! Not enough me!"
+      ]
+    },
+    {
+      "name": "Clank",
+      "color": "#8d99ae",
+      "rates": {
+        "jam": 1.0,
+        "overclock": 0.15,
+        "misroute": 0,
+        "wrong_recipe": 0
+      },
+      "lines": [
+        "I have optimised the gears.",
+        "Fewer moving parts now."
+      ],
+      "sloppy": 0.073,
+      "call_in": [
+        "I optimised it. It stopped.",
+        "Have you tried hitting it?"
+      ]
+    },
+    {
+      "name": "Rusty",
+      "color": "#b5651d",
+      "rates": {
+        "jam": 0.5,
+        "overclock": 0.4,
+        "misroute": 0,
+        "wrong_recipe": 0
+      },
+      "lines": [
+        "It was like this when I got here.",
+        "Close enough."
+      ],
+      "sloppy": 0.303,
+      "call_in": [
+        "Something fell off. Probably fine.",
+        "I think I loosened it."
+      ]
+    },
+    {
+      "name": "Dozer",
+      "color": "#f77f00",
+      "rates": {
+        "jam": 0.25,
+        "overclock": 0.15,
+        "misroute": 0,
+        "wrong_recipe": 0
+      },
+      "lines": [
+        "Bulldozing through!",
+        "Whoops. Again."
+      ],
+      "sloppy": 0.242,
+      "call_in": [
+        "I leaned on it. Gently.",
+        "It was in the way."
+      ]
+    }
+  ],
+  "bots_dealt": 2
 }

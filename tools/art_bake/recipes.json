@@ -632,16 +632,27 @@
    ],
    "parts": [
     {
-     "proc": "belt",
-     "arms": [
-      "ne"
-     ]
+     "model": "conveyor"
     },
     {
-     "model": "box-large"
+     "model": "cover"
+    }
+   ]
+  },
+  "machine_generator_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "conveyor"
     },
     {
-     "model": "box-long"
+     "model": "cover-hopper",
+     "tint": "#8f9bc4"
     }
    ]
   }
