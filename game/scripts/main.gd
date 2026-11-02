@@ -88,6 +88,10 @@ func _ready() -> void:
 	_home = Home.new()
 	add_child(_home)
 	_home.start_pressed.connect(_home_start)
+	_home.perk_bought.connect(func(id: String) -> void:
+		if _meta.buy(id):
+			SaveIO.write_meta(_meta)
+		_home.setup(_meta))
 	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.stats_overlay.z_index = 20  # stats opens above Home
 	resized.connect(_fit)
@@ -109,7 +113,7 @@ func _home_start() -> void:
 
 func _new_career(seed_value: int) -> void:
 	_decoy_tip_shown = false
-	_career = Career.new(_config, seed_value)
+	_career = Career.new(_config, seed_value, _meta.owned_perks)
 	_stats.career_started(int(Time.get_unix_time_from_system()))
 	SaveIO.write_meta(_meta)
 	_show_day()
@@ -133,7 +137,7 @@ func _show_day() -> void:
 	_holding = false
 	_phase = Phase.BANNER
 	_hud.set_flash("")
-	_hud.show_banner(_career.day, _career.foreman_line("start"), _factory.target, _career.twist(), _factory.spec_change, _career.arrival_line())
+	_hud.show_banner(_career.day, _career.foreman_line("start"), _factory.target, _career.twist(), _factory.spec_change, _career.banner_news())
 	_fit()
 
 

@@ -17,19 +17,21 @@ func _init() -> void:
 	var career := false
 	var args := OS.get_cmdline_user_args()
 	career = args.has("--career")
+	var perks_arg := "none"
 	for i in args.size() - 1:
 		match args[i]:
 			"--seed": seed_start = int(args[i + 1])
 			"--runs": runs = int(args[i + 1])
 			"--shift-seconds": shift = float(args[i + 1])
 			"--player", "--bot": bot = args[i + 1]
+			"--perks": perks_arg = args[i + 1]
 	var ticks := int(shift * cfg.tick_rate)
 	if not Autoplayers.NAMES.has(bot):
 		print("unknown player: ", bot)
 		quit(1)
 		return
 	if career:
-		_run_career(cfg, bot, seed_start, runs)
+		_run_career(cfg, bot, seed_start, runs, _parse_perks(perks_arg))
 		return
 	var totals: Array[int] = []
 	var faults := {"OVERHEATED": 0, "JAMMED": 0}
@@ -129,7 +131,22 @@ func _init() -> void:
 	quit(0)
 
 
-func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> void:
+func _parse_perks(arg: String) -> Array:
+	if arg == "none" or arg == "":
+		return []
+	var out: Array = []
+	for p: Variant in Meta.load_perks().get("perks", []):
+		out.append(String((p as Dictionary)["id"]))
+	if arg == "all":
+		return out
+	var picked: Array = []
+	for id in arg.split(","):
+		if out.has(id):
+			picked.append(id)
+	return picked
+
+
+func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int, perks: Array = []) -> void:
 	const DAY_CAP := 30
 	var days: Array[int] = []
 	var fail_causes := {}
@@ -141,7 +158,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	var rules := Meta.load_commendation_rules()
 	var comm_total := 0
 	for r in runs:
-		var c := Career.new(cfg, seed_start + r)
+		var c := Career.new(cfg, seed_start + r, perks)
 		while not c.fired and c.day <= DAY_CAP:
 			var f := c.start_day()
 			var prng := Autoplayers.make_rng(c.seed * 1000 + c.day)
@@ -181,7 +198,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	var sum := 0
 	for d in days:
 		sum += d
-	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
+	print("career player=%s runs=%d seed=%d (days survived, cap %d)%s" % [player, runs, seed_start, DAY_CAP, "" if perks.is_empty() else " perks=" + ",".join(perks)])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
 	print("  days p10=%d" % days[days.size() / 10])
 	print("  commendations/career mean %.1f" % (float(comm_total) / runs))

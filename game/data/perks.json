@@ -1,0 +1,15 @@
+{
+ "perks": [
+  {"id": "grace", "name": "Extra grace", "cost": 40, "desc": "Day 2 is probation too, if you at least tried. Nobody reads the contract."},
+  {"id": "forgive", "name": "Forgiven strike", "cost": 60, "desc": "Your first near-miss never happened. HR lost the form."},
+  {"id": "shelf", "name": "Bigger shelf", "cost": 30, "desc": "One more slot on the overflow shelf. Stack it high."},
+  {"id": "repair", "name": "Greased hands", "cost": 35, "desc": "Repairs 10% faster. Mostly swearing, less fumbling."},
+  {"id": "lesson", "name": "Orientation", "cost": 45, "desc": "A random bot already learned one lesson. Rumour says it read the manual."},
+  {"id": "choice", "name": "Pick of the pile", "cost": 50, "desc": "One extra offer at every review. More options, same regret."}
+ ],
+ "repair_mult": 0.9,
+ "shelf_bonus": 1,
+ "grace_days": 1,
+ "near_miss": 0.5,
+ "extra_choices": 1
+}

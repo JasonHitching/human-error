@@ -24,11 +24,18 @@ var clean_shifts: int = 0  # shifts with zero complaints
 var twist_days_done: int = 0  # shifts played under a twist
 var perks: Dictionary = {}  # radio: bool, supervise: bot name, auto_inspect: bool (see offers())
 var offers_taken: Dictionary = {}  # offer kind -> times taken
+var meta_perks: Array = []  # owned permanent perk ids (data/perks.json)
+var _perk_defs: Dictionary = {}
+var _forgive_left: int = 0
+var _perk_note: String = ""
 var _lines: Dictionary = {}
 
 
-func _init(p_config: SimConfig, p_seed: int) -> void:
+func _init(p_config: SimConfig, p_seed: int, p_perks: Array = []) -> void:
 	config = p_config
+	meta_perks = p_perks.duplicate()
+	if not meta_perks.is_empty():
+		_perk_defs = Meta.load_perks()
 	seed = p_seed
 	rng.seed = p_seed
 	twists = Twists.new(p_seed, config.twist_start_day)
@@ -40,6 +47,14 @@ func _init(p_config: SimConfig, p_seed: int) -> void:
 		defs[j] = t
 	for d: Dictionary in defs:
 		roster.append(Bot.from_dict(d, config.train_factor, config.learn_mult))
+	_forgive_left = 1 if meta_perks.has("forgive") else 0
+	if meta_perks.has("lesson") and not roster.is_empty():
+		var pr := RandomNumberGenerator.new()  # separate stream: the career rng is untouched
+		pr.seed = p_seed * 131 + 17
+		var lb := roster[pr.randi_range(0, roster.size() - 1)]
+		var lm: String = Bot.MISTAKES[pr.randi_range(0, Bot.MISTAKES.size() - 1)]
+		lb.levels[lm] = lb.level(lm) + 1
+		_perk_note = "%s did the orientation (%s)." % [lb.name, lm]
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(FOREMAN_PATH))
 	if parsed is Dictionary:
 		_lines = parsed
@@ -75,7 +90,9 @@ func start_day() -> Factory:
 	f.apply_spec(qa_spec())
 	f.target = shift_target()
 	f.pacing.day = day
-	f.crew_speed = crew_speed
+	f.crew_speed = crew_speed * (float(_perk_defs.get("repair_mult", 0.9)) if meta_perks.has("repair") else 1.0)
+	if meta_perks.has("shelf"):
+		f.shelf_slots += int(_perk_defs.get("shelf_bonus", 1))
 	f.qa_capacity += qa_bonus
 	f.inspect_speed = inspect_speed
 	f.apply_perks(perks)
@@ -130,16 +147,20 @@ func end_day(f: Factory) -> Dictionary:
 	if f.twist_id != "":
 		twist_days_done += 1
 	var hit := score >= f.target
+	var near := float(score) >= float(f.target) * float(_perk_defs.get("near_miss", 0.5))  # perks only forgive an honest try
 	history.append({"day": day, "shipped": score, "target": f.target, "hit": hit})
 	if hit:
 		points += 1
 		if float(score) >= float(f.target) * config.bonus_threshold:
 			points += 1
-	elif day > config.probation_days:
-		strikes += 1
+	elif day > config.probation_days and not (near and meta_perks.has("grace") and day <= probation_days()):
+		if near and _forgive_left > 0:
+			_forgive_left -= 1
+		else:
+			strikes += 1
 		if strikes >= config.max_strikes:
 			fired = true
-	return {"probation": not hit and day <= config.probation_days, "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
+	return {"probation": not hit and (day <= config.probation_days or (near and meta_perks.has("grace") and day <= probation_days())), "hit": hit, "shipped": score, "target": f.target, "strikes": strikes, "fired": fired, "points": points, "caught": f.caught, "complaints": f.complaints, "wasted": f.wasted, "missed_by_type": f.missed_by_type.duplicate(), "spec_change": f.spec_change, "subtle_scanned": f.subtle_scanned, "subtle_caught": f.subtle_caught, "subtle_shipped": f.subtle_shipped, "bot_mistakes": Career.mistake_tally(f.mistake_log), "lessons": f.lessons.duplicate(), "rookie": arrival.duplicate()}
 
 
 ## Career summary for Meta.award. days = days survived (the day you were fired on counts).
@@ -178,6 +199,31 @@ static func mistake_tally(log: Array) -> Dictionary:
 	return out
 
 
+func probation_days() -> int:
+	return config.probation_days + (int(_perk_defs.get("grace_days", 1)) if meta_perks.has("grace") else 0)
+
+
+func offers_per_review() -> int:
+	return config.offers_per_review + (int(_perk_defs.get("extra_choices", 1)) if meta_perks.has("choice") else 0)
+
+
+## Day-1 banner news: owned perks, then today's rookie.
+func banner_news() -> String:
+	var parts: Array[String] = []
+	if day == 1 and not meta_perks.is_empty():
+		var names: Array[String] = []
+		for id: String in meta_perks:
+			var d := Meta.perk_def(id, _perk_defs)
+			names.append(String(d.get("name", id)))
+		parts.append("PERKS: " + ", ".join(names) + ".")
+		if _perk_note != "":
+			parts.append(_perk_note)
+	var a := arrival_line()
+	if a != "":
+		parts.append(a)
+	return " ".join(parts)
+
+
 func offers() -> Array[Dictionary]:
 	var cands: Array[Dictionary] = []
 	for b in roster:
@@ -208,7 +254,7 @@ func offers() -> Array[Dictionary]:
 		cands[j] = t
 	var out: Array[Dictionary] = []
 	for c in cands:
-		if out.size() >= config.offers_per_review:
+		if out.size() >= offers_per_review():
 			break
 		out.append(c)
 	return out
