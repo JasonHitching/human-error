@@ -606,7 +606,7 @@ func _release() -> void:
 func _focus_worst() -> void:
 	if _factory == null:
 		return
-	var id := _factory.crew_queue.back() if not _factory.crew_queue.is_empty() else (_factory.crew_target if _factory.crew_busy else "")
+	var id: String = _factory.crew_queue.back() if not _factory.crew_queue.is_empty() else (_factory.crew_target if _factory.crew_busy else "")
 	if id != "":
 		_view.focus_machine(id)
 
