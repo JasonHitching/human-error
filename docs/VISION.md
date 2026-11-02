@@ -42,6 +42,9 @@ Main aim: **a lost career still moves you forward**, and long-term training pays
 - Checkpoint M5 (#89). Stats screen already exists (#72/#80); a funniest-bot award can be added there later.
 - Planning notes (M4 checkpoint): perks must not make `none` viable; automation must be reachable for `human_careful` (5–30%) but rare for `greedy`. Deferred again to M6 with onboarding: flip-to-check-back, X-ray lamp, bigger desk/quick-eye rework.
 
+### CORE — Calm Core *(current; issues #161 onward; see decision #30)*
+Design reset: the game felt too busy. Strip to a tiny factory (Hopper → Machine → QA → Shipping, 2 bots, Kenney Factory Kit art), three mistake types (jam, overheat, sloppy), obvious QA defects, and day phases (clock-in, shift, end of day). M2–M5 systems stay in code, switched off by data, and return later as career unlocks. M6/M7 are paused until the core is proven fun.
+
 ### M6 — Night Shift & Daily
 - **Twist yardstick fix (#101):** twists optional from day 3 (`twist_chance`), compared with non-twist days of the same day number.
 - **Night shift (#100):** offline earnings estimated from bot levels and mistake rates (capped, clock-safe), a funny Foreman report on return, plus a mess to clean up at the start of the next day.

@@ -70,6 +70,9 @@ Status: ☐ not started · ◐ in progress · ☑ done
 | ☑ 5 Tiers | Layouts as data, tier 2 | #88 |
 | ☑ Checkpoint M5 | Gates, report, plan M6 | #89 |
 
+## CORE — Calm Core
+Design reset (#161, decision #30). Phase 1 is a tiny factory with few mistake types and day phases; other systems are switched off by data and return as career unlocks. Pauses M6/M7 until proven fun.
+
 ## M6 — Night Shift & Daily
 
 | Phase | Goal | Issues |
