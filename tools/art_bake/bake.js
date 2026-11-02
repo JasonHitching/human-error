@@ -27,7 +27,7 @@ for (const b of bots) for (const panic of [false, true]) {
     const s = sprites[n]; if (!s) { console.log('unknown', n); continue; }
     const [W, H, ax, ay] = s.canvas;
     const url = await p.evaluate(([c, r]) => window.bake(c, r), [{ W, H, ax, ay, ppu: cfg.ppu, yaw: cfg.yaw, pitch: cfg.pitch }, s]);
-    fs.writeFileSync(path.join(out, n + '.png'), Buffer.from(url.split(',')[1], 'base64'));
+    fs.mkdirSync(path.dirname(path.join(out, n)), { recursive: true }); fs.writeFileSync(path.join(out, n + '.png'), Buffer.from(url.split(',')[1], 'base64'));
     console.log('baked', n, W + 'x' + H);
   }
   await b.close();

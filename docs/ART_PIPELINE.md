@@ -42,6 +42,12 @@ Belt directions use the screen edge names: `ne`/`se`/`sw`/`nw`. `belt_straight_a
 | `crate` | 128x128 | 64,84 |
 | `crate_stack` | 256x256 | 128,170 |
 | `desk_hatch` | 384x384 | 192,292 |
+| `factory_kit/belt_straight_a` | 256x200 | 128,126 |
+| `factory_kit/belt_straight_b` | 256x200 | 128,126 |
+| `factory_kit/desk_hatch` | 384x384 | 192,292 |
+| `factory_kit/machine_assembler_ne_se` | 384x384 | 192,292 |
+| `factory_kit/machine_generator_ne_sw` | 384x384 | 192,292 |
+| `factory_kit/machine_warehouse_ne_sw` | 384x384 | 192,292 |
 | `fence` | 256x200 | 128,126 |
 | `floor_tile` | 256x148 | 128,74 |
 | `floor_tile_alt` | 256x148 | 128,74 |
@@ -49,14 +55,15 @@ Belt directions use the screen edge names: `ne`/`se`/`sw`/`nw`. `belt_straight_a
 | `machine_assembler_ne_nw_se` | 384x384 | 192,292 |
 | `machine_assembler_ne_se` | 384x384 | 192,292 |
 | `machine_assembler_ne_sw` | 384x384 | 192,292 |
+| `machine_generator` | 384x384 | 192,292 |
+| `machine_generator_ne_sw` | 384x384 | 192,292 |
 | `machine_generator_se_sw` | 384x384 | 192,292 |
+| `machine_processor` | 384x384 | 192,292 |
 | `machine_processor_ne_se` | 384x384 | 192,292 |
 | `machine_processor_nw_se` | 384x384 | 192,292 |
 | `machine_processor_nw_sw` | 384x384 | 192,292 |
-| `machine_warehouse_ne_sw` | 384x384 | 192,292 |
-| `machine_generator` | 384x384 | 192,292 |
-| `machine_processor` | 384x384 | 192,292 |
 | `machine_warehouse` | 384x384 | 192,292 |
+| `machine_warehouse_ne_sw` | 384x384 | 192,292 |
 | `reject_bin` | 256x256 | 128,170 |
 | `scrap_bin` | 256x256 | 128,170 |
 | `shadow_machine` | 320x120 | 160,60 |
@@ -75,11 +82,15 @@ Notes
 ## Current game with the new sprites dropped in
 Checked on a phone-size web export (iPhone 13 viewport): the title, day intro, office and floor screens look **identical to before**. The floor is drawn as cards and a belt diagram in code, the office has no bot or bin art on screen, and the only sprite lookups in the code are `bot_<name>_panic` (floor, drawn by `BotView` only while a machine is RED, aspect-fit into a square rect, so it fits), `reject_bin` (qa desk, only when drawn) and the product overlays. I could not screenshot a RED machine in the export; the panic bot is a square-fit drop-in, expect it to look bigger and more solid than the old code bot. So nothing looks broken and nothing uses the new art yet: ART-2 rebuilds the floor around it. Things ART-2 must handle: sprites are 2x (the loader scales to fit a rect), bots are square with the figure standing at anchor (96,150), machines are 384x384 with anchor (192,292), and `reject_bin` is a solid box (reads as a crate, not a bin).
 
+## Factory Kit (phase 1 / core)
+`factory_kit/*` sprites are baked from the CC0 Kenney Factory Kit 3.0 (`art_source/kenney_factory_kit/`, recipe parts use `"model": "fk:<glb>"`; same camera, scale, anchors and 2x size as above, same names and openings as the normal set). A factory JSON picks the set with `floor.sprite_set` (`core.json` = `"factory_kit"`); `IsoFloor.resolve_sprite()` tries `factory_kit/<name>` for `machine_*`, `belt_*` and `desk_hatch`, and falls back to the normal sprite. Tier 1/2 don't set it. Recipes live in `factory_kit_recipes.py` (idempotent); after baking run `python3 kit_recolor.py ../../game/assets/sprites/factory_kit` to mute the kit's orange trim (orange/red stays for problems and products). Needed set = the distinct machine openings and belt shapes in `core.json` (`test_iso_floor.gd` checks them).
+
 ## Re-bake
 ```
 cd tools/art_bake
 npm init -y && npm install three@0.170.0          # uncommitted
 ln -sfn ../../art_source/kenney_conveyor_kit/glb models
+ln -sfn ../../art_source/kenney_factory_kit/glb models_factory   # Factory Kit ("fk:" parts)
 python3 -m http.server 8766 &                      # from tools/art_bake
 node bake.js bake_all                              # writes game/assets/sprites/*.png
 node bake.js bake <outDir> <name>...               # a few sprites

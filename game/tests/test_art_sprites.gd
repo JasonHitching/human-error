@@ -12,7 +12,7 @@ func _rows() -> Array:
 	if f == null:
 		return out
 	var re := RegEx.new()
-	re.compile("^\\| `([a-z0-9_]+)` \\| (\\d+)x(\\d+) \\| (\\d+),(\\d+) \\|")
+	re.compile("^\\| `([a-z0-9_/]+)` \\| (\\d+)x(\\d+) \\| (\\d+),(\\d+) \\|")
 	while not f.eof_reached():
 		var m := re.search(f.get_line())
 		if m != null:

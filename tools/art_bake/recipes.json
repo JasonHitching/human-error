@@ -655,6 +655,127 @@
      "tint": "#8f9bc4"
     }
    ]
+  },
+  "factory_kit/belt_straight_a": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides"
+    }
+   ]
+  },
+  "factory_kit/belt_straight_b": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides",
+     "rot_y_deg": 90
+    }
+   ]
+  },
+  "factory_kit/machine_generator_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor"
+    },
+    {
+     "model": "fk:hopper-square"
+    }
+   ]
+  },
+  "factory_kit/machine_assembler_ne_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:machine",
+     "pos": [
+      -0.12,
+      0,
+      -0.12
+     ],
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_warehouse_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor"
+    },
+    {
+     "model": "fk:box-large",
+     "tint": "#9aa6cf",
+     "pos": [
+      0,
+      0.4,
+      0
+     ],
+     "scale": 0.8
+    },
+    {
+     "model": "fk:box-small",
+     "tint": "#8190bd",
+     "pos": [
+      0.1,
+      0.95,
+      0
+     ],
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/desk_hatch": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "se",
+      "sw",
+      "nw"
+     ]
+    },
+    {
+     "model": "fk:scanner-low"
+    }
+   ]
   }
  }
 }

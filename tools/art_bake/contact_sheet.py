@@ -3,7 +3,7 @@ usage: python3 contact_sheet.py <spriteDir> <out.png> [width=1600]"""
 import sys, glob, os
 from PIL import Image, ImageDraw
 d, out = sys.argv[1], sys.argv[2]; W = int(sys.argv[3]) if len(sys.argv) > 3 else 1600
-fs = [f for f in sorted(glob.glob(d + '/*.png')) if os.path.basename(f)[:-4].split('_')[0] in ('machine','desk','scrap','reject','belt','floor','wall','fence','crate','bot','worker','shadow')]
+fs = [f for f in sorted(glob.glob(d + '/*.png') + glob.glob(d + '/factory_kit/*.png')) if os.path.basename(f)[:-4].split('_')[0] in ('machine','desk','scrap','reject','belt','floor','wall','fence','crate','bot','worker','shadow')]
 ims = [(os.path.basename(f)[:-4], Image.open(f).convert('RGBA')) for f in fs]
 pad, x, y, rowh, placed = 12, pad if (pad := 12) else 0, 12, 0, []
 for n, i in ims:

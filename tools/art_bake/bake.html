@@ -8,7 +8,7 @@ const canvas = document.getElementById('c');
 const r = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true, preserveDrawingBuffer:true});
 r.setClearColor(0x000000, 0); r.outputColorSpace = THREE.SRGBColorSpace;
 const loader = new GLTFLoader(), cache = {};
-const load = (n) => cache[n] ||= new Promise((ok, no) => loader.load('/models/' + n + '.glb', g => ok(g.scene), undefined, no));
+const load = (n) => cache[n] ||= new Promise((ok, no) => loader.load((n.startsWith('fk:') ? '/models_factory/' + n.slice(3) : '/models/' + n) + '.glb', g => ok(g.scene), undefined, no));
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05, ...o });
 const box = (w, h, d, m, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); return o; };
 // Procedural toy bot (ground at y=0, ~1.5 units tall, faces +z)
