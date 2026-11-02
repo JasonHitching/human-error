@@ -76,21 +76,10 @@ func _ready() -> void:
 	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed, _daily_date))
 	_ship_btn = _inspect_button("Ship", true)
 	_reject_btn = _inspect_button("Reject", false)
-	_scan_btn = Button.new()
-	_scan_btn.text = "Scan (S)"
-	_scan_btn.add_theme_font_size_override("font_size", 28)
-	_scan_btn.pressed.connect(_scan)
-	_screens.office_page.add_child(_scan_btn)
-	_flip_btn = Button.new()
-	_flip_btn.text = "Flip (F)"
-	_flip_btn.add_theme_font_size_override("font_size", 24)
-	_flip_btn.pressed.connect(_flip)
-	_screens.office_page.add_child(_flip_btn)
-	_lamp_btn = Button.new()
-	_lamp_btn.text = "Lamp (L)"
-	_lamp_btn.add_theme_font_size_override("font_size", 24)
-	_lamp_btn.pressed.connect(_lamp)
-	_screens.office_page.add_child(_lamp_btn)
+	_scan_btn = _desk_button("Scan", "secondary", 30, _scan)
+	UiTheme.add_icon(_scan_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_magnifier(ci, c, r, col), 30)
+	_flip_btn = _desk_button("Flip", "secondary", 24, _flip)
+	_lamp_btn = _desk_button("X-ray", "secondary", 24, _lamp)
 	_hud.debug_overlay = _config.debug_overlay
 	_settings = SettingsOverlay.new()
 	add_child(_settings)
@@ -283,16 +272,22 @@ func _begin_shift() -> void:
 	_hud.hide_overlays()
 
 
-func _inspect_button(text: String, ship: bool) -> Button:
+func _desk_button(text: String, kind: String, font_size: int, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.add_theme_font_size_override("font_size", 28)
-	var icon := Sprites.tex("icon_ship" if ship else "icon_reject")
-	if icon != null:
-		b.icon = icon
-		b.expand_icon = true
-	b.pressed.connect(func() -> void: _inspect(ship))
+	b.focus_mode = Control.FOCUS_NONE
+	UiTheme.style_button(b, kind, font_size)
+	b.pressed.connect(cb)
 	_screens.office_page.add_child(b)
+	return b
+
+
+func _inspect_button(text: String, ship: bool) -> Button:
+	var b := _desk_button(text, "primary" if ship else "danger", 30, func() -> void: _inspect(ship))
+	if ship:
+		UiTheme.add_icon(b, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_tick(ci, c, r, col, 5.0), 30)
+	else:
+		UiTheme.add_icon(b, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_x(ci, c, r, col, 5.0), 30)
 	return b
 
 
@@ -390,17 +385,18 @@ func _fit() -> void:
 		return
 	_screens.layout()
 	var strip := _screens.desk_rect()
-	if _ship_btn != null:
-		var w := (size.x - 20.0 - 10.0 * 5.0) / 5.0
-		var y := strip.end.y - 104.0
-		var row: Array[Button] = [_reject_btn, _scan_btn, _flip_btn, _lamp_btn, _ship_btn]
-		for i in row.size():
-			row[i].size = Vector2(w, 84)
-			row[i].position = Vector2(10.0 + float(i) * (w + 10.0), y)
-	if _view != null:
-		_view.area = _screens.floor_rect()
 	if _desk != null:
 		_desk.rect = strip
+	if _ship_btn != null:
+		var mr := _desk.main_row()
+		var sr := _desk.small_row()
+		var row: Array[Button] = [_reject_btn, _scan_btn, _ship_btn, _flip_btn, _lamp_btn]
+		var rects: Array[Rect2] = [mr[0], mr[1], mr[2], sr[0], sr[1]]
+		for i in row.size():
+			row[i].size = rects[i].size
+			row[i].position = rects[i].position
+	if _view != null:
+		_view.area = _screens.floor_rect()
 
 
 func _process(delta: float) -> void:

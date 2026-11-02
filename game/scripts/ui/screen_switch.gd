@@ -4,7 +4,6 @@ extends Control
 ## Which one shows, and the vertical slide between them, follow the sim's worker location;
 ## the slide lasts the worker's trip (transition_seconds). Buttons call the sim's public API.
 
-const MONITOR_FRAC := 0.25  # wall-monitor panel height, as a fraction of the screen
 const BACK_H := 100.0
 const COL_WARN := Color(1.0, 0.6, 0.15)
 const COL_FULL := Color(0.95, 0.25, 0.2)
@@ -28,22 +27,20 @@ var offset: float = 0.0  # 0 = office on screen, 1 = floor on screen
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	office_page = _page(Color(0.14, 0.15, 0.19))
+	office_page = _page(UiTheme.BG)
 	floor_page = _page(Color(0.1, 0.11, 0.14))
 	monitor = Panel.new()
 	monitor.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.07, 0.08, 0.1)
-	sb.border_color = Color(0.45, 0.47, 0.55)
-	sb.set_border_width_all(6)
-	sb.set_corner_radius_all(10)
-	monitor.add_theme_stylebox_override("panel", sb)
+	monitor.add_theme_stylebox_override("panel", UiTheme.card())
 	office_page.add_child(monitor)
 	wall = WallMonitor.new()
 	wall.tapped.connect(go_floor)
 	wall.light_tapped.connect(radio_tap)
 	monitor.add_child(wall)
-	factory_btn = _button(monitor, "Factory", go_floor)
+	factory_btn = _button(monitor, "Go down", go_floor)
+	factory_btn.add_theme_font_size_override("font_size", 24)
+	UiTheme.style_button(factory_btn, "secondary", 24)
+	UiTheme.add_icon(factory_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_arrow(ci, c, r, 1, col), 24)
 	back_btn = _button(floor_page, "Back to desk", go_office)
 	worst_btn = _button(floor_page, "Worst first", func() -> void: worst_first())
 	queue_label = Label.new()
@@ -74,7 +71,7 @@ func _button(parent: Control, text: String, cb: Callable) -> Button:
 
 ## Office: wall-monitor panel at the top (below the HUD).
 func monitor_rect() -> Rect2:
-	return Rect2(8, hud_top, size.x - 16, size.y * MONITOR_FRAC)
+	return Rect2(UiTheme.px(10.0), hud_top, size.x - UiTheme.px(20.0), WallMonitor.card_height())
 
 
 ## Office: the desk fills the rest of the screen.
@@ -98,8 +95,8 @@ func layout() -> void:
 	monitor.size = m.size
 	wall.position = Vector2.ZERO
 	wall.size = m.size
-	factory_btn.size = Vector2(minf(280.0, m.size.x * 0.5), 84)
-	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - 16, m.size.y - 84 - 16)
+	factory_btn.size = Vector2(UiTheme.px(110.0), UiTheme.px(44.0))
+	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - UiTheme.px(8.0), UiTheme.px(8.0))
 	back_btn.size = Vector2(size.x * 0.44, BACK_H)
 	back_btn.position = Vector2(12.0, size.y - BACK_H - 12.0)
 	worst_btn.size = Vector2(size.x * 0.44, BACK_H)

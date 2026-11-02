@@ -48,14 +48,7 @@ func _check_desk() -> void:
 			_fails.append("button '%s' not on-screen: %s" % [b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
 			_fails.append("button '%s' too small: %s" % [b.text, b.size])
-	if not Rect2(desk.rect).encloses(desk.shelf_rect()):
-		_fails.append("shelf not inside desk area: %s" % desk.shelf_rect())
-	var spec := desk.spec_rect()
-	if not screen.encloses(spec):
-		_fails.append("spec card off-screen: %s" % spec)
-	for r: Rect2 in [desk.pad_rect(), _main._reject_btn.get_global_rect(), _main._ship_btn.get_global_rect(), _main._scan_btn.get_global_rect(), _main._flip_btn.get_global_rect(), _main._lamp_btn.get_global_rect()]:
-		if spec.intersects(r):
-			_fails.append("spec card %s overlaps %s" % [spec, r])
+	_check_office_layout(desk, screen)
 	if desk.caption == "":
 		_fails.append("day 1 spec caption missing")
 	var f: Factory = _main._factory
@@ -85,6 +78,39 @@ func _check_desk() -> void:
 
 
 ## Spec card shows a changed rule; a subtle product is drawn only after the scan.
+func _check_office_layout(desk: QaDeskView, screen: Rect2) -> void:
+	var spec := desk.spec_rect()
+	var toast := desk.toast_rect()
+	var pad := desk.pad_rect()
+	var btns: Array[Rect2] = []
+	for b: Button in [_main._reject_btn, _main._scan_btn, _main._ship_btn, _main._flip_btn, _main._lamp_btn, _main._screens.factory_btn]:
+		btns.append(b.get_global_rect())
+	for pair: Array in [["queue row", desk.queue_rect()], ["streak pill", desk.streak_rect()], ["spec chip", spec], ["toast", toast], ["product", pad]]:
+		var r: Rect2 = pair[1]
+		if not screen.encloses(r) or r.size.x < 20.0 or r.size.y < 20.0:
+			_fails.append("%s bad rect %s in %s" % [pair[0], r, screen])
+	if pad.size.x < 120.0:
+		_fails.append("product too small: %s" % pad)
+	var zones: Array = [["queue row", desk.queue_rect()], ["spec chip", spec], ["toast", toast], ["product", pad]]
+	for i in zones.size():
+		for j in range(i + 1, zones.size()):
+			if (zones[i][1] as Rect2).intersects(zones[j][1]):
+				_fails.append("%s %s overlaps %s %s" % [zones[i][0], zones[i][1], zones[j][0], zones[j][1]])
+		for br in btns:
+			if (zones[i][1] as Rect2).intersects(br):
+				_fails.append("%s %s overlaps a button %s" % [zones[i][0], zones[i][1], br])
+	if desk.streak_rect().intersects(spec):
+		_fails.append("streak pill overlaps spec chip")
+	for i in btns.size():
+		for j in range(i + 1, btns.size()):
+			if btns[i].intersects(btns[j]):
+				_fails.append("office buttons overlap: %s vs %s" % [btns[i], btns[j]])
+		if btns[i].size.y < UiTheme.min_target() - 1.0:
+			_fails.append("office button below min target: %s" % btns[i])
+	if _main._screens.monitor_rect().intersects(desk.queue_rect()):
+		_fails.append("queue row overlaps wall monitor")
+
+
 func _check_spec_and_scan(desk: QaDeskView, f: Factory) -> void:
 	f.apply_spec({"extra": ["scuff"], "allowed": ["dent"], "change": "New spec: scuff is now a defect.", "subtle_share": 0.3})
 	var cap: String = _main._spec_caption()
@@ -158,7 +184,7 @@ func _check_wall(sw: ScreenSwitch, f: Factory) -> void:
 		_fails.append("fixing the last problem did not show the 'All quiet.' cue")
 	else:
 		var w := ThemeDB.fallback_font.get_string_size("All quiet.", HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
-		if 16.0 + w > wall.size.x or wall.size.y - 100.0 < 0.0:
+		if w > wall.call_rect().size.x or not Rect2(Vector2.ZERO, wall.size).encloses(wall.call_rect()):
 			_fails.append("'All quiet.' cue does not fit inside the monitor %s" % wall.size)
 	var ev := InputEventMouseButton.new()
 	ev.button_index = MOUSE_BUTTON_LEFT
