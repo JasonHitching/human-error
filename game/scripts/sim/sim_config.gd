@@ -6,6 +6,8 @@ const FACTORY_DIR := "res://data/factories/"
 const MAX_TIER := 2
 const BOTS_PATH := "res://data/bots.json"
 const BALANCE_PATH := "res://data/balance.json"
+const MODE_DIR := "res://data/modes/"
+const FEATURES := ["misroute", "wrong_recipe", "twists", "spec_change", "subtle_defects", "back_defects", "decoys", "rookies", "bot_learning", "offers_extra", "perks", "commendations", "night_shift", "daily", "tiers"]
 const TYPES := ["generator", "processor", "assembler", "qa", "warehouse"]
 
 var tick_rate: int = 10
@@ -90,6 +92,18 @@ var machine_w: float = 0.34  # machine width on the floor, fraction of its width
 var machines: Array[Dictionary] = []
 var links: Array[Dictionary] = []
 var errors: Array[String] = []
+var mode_name: String = "full"
+var features: Dictionary = {}  # feature id -> bool (see data/modes/*.json); a missing id counts as on
+
+
+## Is this game system switched on in the current mode?
+func feature(id: String) -> bool:
+	return bool(features.get(id, true))
+
+
+## Can this bot mistake happen? Only misroute and wrong_recipe have switches.
+func feature_mistake(mistake: String) -> bool:
+	return feature(mistake) if mistake == "misroute" or mistake == "wrong_recipe" else true
 
 
 func is_valid() -> bool:
@@ -97,7 +111,32 @@ func is_valid() -> bool:
 
 
 static func load_default() -> SimConfig:
-	return load_tier(1)
+	return load_mode("full")
+
+
+## Config for a game mode (data/modes/<name>.json): feature switches, a factory layout and balance overrides.
+static func load_mode(name: String) -> SimConfig:
+	var mode := _read("%s%s.json" % [MODE_DIR, name])
+	if mode.has("__error"):
+		var bad := SimConfig.new()
+		bad.errors.append(String(mode["__error"]))
+		return bad
+	var fpath := "%s%s.json" % [FACTORY_DIR, String(mode.get("factory", "tier_1"))]
+	var bal := _read(BALANCE_PATH)
+	if not bal.has("__error") and mode.get("balance") is Dictionary:
+		bal = bal.merged(mode["balance"] as Dictionary, true)
+	var c := from_dicts(_read(fpath), bal, _read(BOTS_PATH))
+	c.mode_name = name
+	var fs: Variant = mode.get("features", {})
+	if fs is Dictionary:
+		for k: Variant in (fs as Dictionary):
+			if not FEATURES.has(String(k)):
+				c.errors.append("mode %s: unknown feature '%s'" % [name, k])
+			else:
+				c.features[String(k)] = bool((fs as Dictionary)[k])
+	if not c.feature("decoys"):
+		c.decoy_chance = 0.0
+	return c
 
 
 static func tier_path(tier: int) -> String:

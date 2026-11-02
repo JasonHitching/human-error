@@ -1,5 +1,5 @@
 extends SceneTree
-## Usage: godot --headless --path game -s res://tools/sim_runner.gd -- --seed 1 --runs 50 [--shift-seconds 180] [--tier 1|2] [--player none|greedy|careful] (--bot is an alias)
+## Usage: godot --headless --path game -s res://tools/sim_runner.gd -- --seed 1 --runs 50 [--shift-seconds 180] [--tier 1|2] [--mode full|core] [--player none|greedy|careful] (--bot is an alias)
 
 
 func _init() -> void:
@@ -10,7 +10,11 @@ func _init() -> void:
 	for i in targs.size() - 1:
 		if targs[i] == "--tier":
 			tier = int(targs[i + 1])
-	var cfg := SimConfig.load_tier(tier)
+	var mode := "full"
+	for i in targs.size() - 1:
+		if targs[i] == "--mode":
+			mode = targs[i + 1]
+	var cfg := SimConfig.load_tier(tier) if mode == "full" else SimConfig.load_mode(mode)
 	if not cfg.is_valid():
 		print("config errors: ", cfg.errors)
 		quit(1)

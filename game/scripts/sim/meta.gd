@@ -19,6 +19,7 @@ var last_seen_unix: int = 0  # last time the app was seen running (night shift c
 var daily_best: Dictionary = {}  # "YYYY-MM-DD" -> best days (last Daily.KEEP dates)
 var daily_streak: int = 0  # consecutive calendar days with a daily played
 var daily_last: String = ""  # latest date a daily was played (never moves backwards)
+var features: Dictionary = {}  # mode switches (SimConfig.features); a missing id counts as on. Set by the caller, never saved
 var pending_night: Dictionary = {}  # {commendations, mess_level, lines[], collected}; {} = none
 var tutorial_done: bool = false  # day-1 tutorial finished or skipped: never shown again (Home can replay it)
 
@@ -134,9 +135,15 @@ static func score(summary: Dictionary, rules: Dictionary) -> Dictionary:
 	return {"total": total, "lines": lines}
 
 
+func feature(id: String) -> bool:
+	return bool(features.get(id, true))
+
+
 ## Awards a finished career: adds to the balance and lifetime total. Caller saves.
 func award(summary: Dictionary, rules: Dictionary = {}) -> Dictionary:
 	var r := score(summary, rules if not rules.is_empty() else load_commendation_rules())
+	if not feature("commendations"):
+		return {"total": 0, "lines": []}
 	commendations["balance"] = balance() + int(r["total"])
 	commendations["earned"] = RunStats.to_int(commendations.get("earned", 0)) + int(r["total"])
 	return r
@@ -162,7 +169,7 @@ func owns(id: String) -> bool:
 ## Buys a perk with the spendable balance. False if unknown, owned or unaffordable. Caller saves.
 func buy(id: String, defs: Dictionary = {}) -> bool:
 	var p := perk_def(id, defs)
-	if p.is_empty() or owns(id) or balance() < int(p.get("cost", 0)):
+	if not feature("perks") or p.is_empty() or owns(id) or balance() < int(p.get("cost", 0)):
 		return false
 	commendations["balance"] = balance() - int(p["cost"])
 	owned_perks.append(id)
@@ -171,11 +178,13 @@ func buy(id: String, defs: Dictionary = {}) -> bool:
 
 ## Picks the tier the next career starts in (clamped to the unlocked tiers).
 func pick_tier(t: int) -> void:
-	picked_tier = clampi(t, 1, tier)
+	picked_tier = clampi(t, 1, tier) if feature("tiers") else 1
 
 
 ## An automation in `career_tier` unlocks the next tier.
 func unlock_after(career_tier: int) -> void:
+	if not feature("tiers"):
+		return
 	tier = clampi(maxi(tier, career_tier + 1), 1, SimConfig.MAX_TIER)
 
 
@@ -205,6 +214,8 @@ func collect_night() -> int:
 ## Called on app start/resume. Returns the report to show ({} = none). A report not yet collected is
 ## shown again as it was (no re-roll); last_seen never moves backwards. Caller saves.
 func night_check(now_unix: int, roster: Array[Bot], seed: int, rules: Dictionary = {}) -> Dictionary:
+	if not feature("night_shift"):
+		return {}
 	if not pending_night.is_empty() and not bool(pending_night.get("collected", false)):
 		last_seen_unix = NightShift.next_last_seen(now_unix, last_seen_unix)
 		return pending_night
@@ -240,7 +251,7 @@ func daily_played(date: String) -> bool:
 ## later than any played before, so setting the clock back never re-awards it or loses a best. Caller saves.
 func note_daily(date: String, days: int, rules: Dictionary = {}) -> Dictionary:
 	var out := {"new_best": false, "first": false, "bonus": 0}
-	if not Daily.is_date(date):
+	if not feature("daily") or not Daily.is_date(date):
 		return out
 	if days > daily_best_for(date):
 		daily_best[date] = days

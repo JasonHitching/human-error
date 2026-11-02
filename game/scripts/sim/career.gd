@@ -36,7 +36,7 @@ var _lines: Dictionary = {}
 
 func _init(p_config: SimConfig, p_seed: int, p_perks: Array = []) -> void:
 	config = p_config
-	meta_perks = p_perks.duplicate()
+	meta_perks = p_perks.duplicate() if p_config.feature("perks") else []
 	if not meta_perks.is_empty():
 		_perk_defs = Meta.load_perks()
 	seed = p_seed
@@ -69,7 +69,7 @@ func day_target() -> int:
 
 ## Today's twist ({} = none): days before twist_start_day have none.
 func twist() -> Dictionary:
-	return twists.for_day(day)
+	return twists.for_day(day) if config.feature("twists") else {}
 
 
 ## Today's QA spec (see QaSpec).
@@ -118,7 +118,7 @@ func bot_slots() -> int:
 func _add_rookie() -> void:
 	arrival = {}
 	var i := rookies_joined
-	if i >= config.rookie_days.size() or i >= config.rookie_defs.size() or day < config.rookie_days[i]:
+	if not config.feature("rookies") or i >= config.rookie_days.size() or i >= config.rookie_defs.size() or day < config.rookie_days[i]:
 		return
 	var rk := Bot.from_dict(config.rookie_defs[i], config.train_factor, config.learn_mult, config.trained_lessons, config.trained_mistake_mult)
 	rk.rookie = true
@@ -246,7 +246,7 @@ func banner_news() -> String:
 func offers() -> Array[Dictionary]:
 	var cands: Array[Dictionary] = []
 	for b in roster:
-		var ms: Array = Bot.MISTAKES.duplicate()
+		var ms: Array = Bot.MISTAKES.filter(func(k: String) -> bool: return config.feature_mistake(k))
 		ms.sort_custom(func(a: String, c: String) -> bool: return _eff(b, a) > _eff(b, c))
 		for k in mini(2, ms.size()):  # each bot's two highest effective rates
 			var m: String = ms[k]
@@ -256,11 +256,11 @@ func offers() -> Array[Dictionary]:
 	cands.append({"kind": "qa_capacity", "text": "Bigger desk: +%d queue" % config.bigger_desk_bonus})
 	cands.append({"kind": "inspect_speed", "text": "Quick eye: inspect -%d%%" % roundi((1.0 - config.quick_eye_mult) * 100.0)})
 	cands.append({"kind": "crew_speed", "text": "Faster hands: crew jobs -%d%%" % roundi((1.0 - config.crew_speed_upgrade) * 100.0)})
-	if not perks.get("radio", false):
+	if config.feature("offers_extra") and not perks.get("radio", false):
 		cands.append({"kind": "radio", "text": "Radio: clear a jam from the desk"})
-	if not perks.get("auto_inspect", false):
+	if config.feature("offers_extra") and not perks.get("auto_inspect", false):
 		cands.append({"kind": "auto_inspect", "text": "Auto-inspector: checks while you're away (errs)"})
-	if not roster.is_empty():
+	if config.feature("offers_extra") and not roster.is_empty():
 		var sb := roster[(seed + day) % roster.size()]
 		if sb.name != perks.get("supervise", ""):
 			cands.append({"kind": "supervise", "bot": sb.name, "text": "Supervise %s: -%d%% mistakes near you" % [sb.name, roundi((1.0 - config.supervise_mult) * 100.0)]})

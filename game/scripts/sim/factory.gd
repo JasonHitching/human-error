@@ -415,9 +415,10 @@ func _resolve(item: Dictionary, ship: bool) -> int:
 
 ## Career perks (see Career.perks): radio, supervise (bot name), auto_inspect.
 func apply_perks(p: Dictionary) -> void:
-	radio_enabled = bool(p.get("radio", false))
-	supervise_bot = String(p.get("supervise", ""))
-	auto_inspect = bool(p.get("auto_inspect", false))
+	var on := _config.feature("offers_extra")
+	radio_enabled = on and bool(p.get("radio", false))
+	supervise_bot = String(p.get("supervise", "")) if on else ""
+	auto_inspect = on and bool(p.get("auto_inspect", false))
 
 
 func radio_ready() -> bool:
@@ -731,7 +732,7 @@ func _step_crew() -> void:
 
 ## The worker is about to fix a bot's mistake: count it, and maybe the bot learns (seeded roll).
 func _note_fixed(m: Machine, kind: int) -> void:
-	if m.bot == null:
+	if m.bot == null or not _config.feature("bot_learning"):
 		return
 	var fixed: Array[String] = []
 	if kind == ActionResult.STARTED_REPAIR and m.state == Machine.State.JAMMED:
@@ -845,7 +846,7 @@ func _step_jam(m: Machine) -> void:
 
 
 func _roll(m: Machine, mistake: String) -> bool:
-	if m.bot == null:
+	if m.bot == null or not _config.feature_mistake(mistake):
 		return false
 	var p := m.bot.rate_per_tick(mistake, _config.tick_rate, ramp(), day_mult) * pacing.rate_mult()
 	if p <= 0.0 or not pacing.allows():  # blocked by the pacing director: re-rolled next tick
