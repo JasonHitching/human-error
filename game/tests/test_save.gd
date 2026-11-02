@@ -59,6 +59,19 @@ func test_corrupt_and_too_new_backed_up() -> void:
 	_clean()
 
 
+func test_wrong_typed_fields_never_crash() -> void:
+	_clean()
+	_put(P, '{"version":1,"tier":[1],"stats":5,"commendations":[],"tier_best":{"a":{}},"owned_perks":3,"automations":{}}')
+	var r := SaveIO.load_meta(P, B, L)
+	assert_true(r != null)
+	assert_eq(r.tier, 1)
+	_put(P, '{"version":1,"stats":{"best_days":"zz","sessions":[1],"session_careers":[{}, "4"]}}')
+	r = SaveIO.load_meta(P, B, L)
+	assert_eq(r.stats.best_days, 0)
+	assert_eq(r.stats.session_careers, [0, 4])
+	_clean()
+
+
 func test_legacy_stats_migration_same_numbers() -> void:
 	_clean()
 	var old := _played().stats

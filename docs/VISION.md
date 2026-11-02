@@ -43,9 +43,12 @@ Main aim: **a lost career still moves you forward**, and long-term training pays
 - Planning notes (M4 checkpoint): perks must not make `none` viable; automation must be reachable for `human_careful` (5–30%) but rare for `greedy`. Deferred again to M6 with onboarding: flip-to-check-back, X-ray lamp, bigger desk/quick-eye rework.
 
 ### M6 — Night Shift & Daily
-- **Night shift:** offline earnings estimated from bot levels and mistake rates (capped), and a funny Foreman report on return, plus a mess to clean up at the start of the next day.
-- **Daily career:** the same seed for everyone that day; a local best per daily.
-- **Onboarding:** day 1 as a guided tutorial (first jam, first queue, first training).
+- **Twist yardstick fix (#101):** twists optional from day 3 (`twist_chance`), compared with non-twist days of the same day number.
+- **Night shift (#100):** offline earnings estimated from bot levels and mistake rates (capped, clock-safe), a funny Foreman report on return, plus a mess to clean up at the start of the next day.
+- **Daily career (#99):** the same date-derived seed for everyone that day (no networking); a local best per daily.
+- **Teach-me tools (#98):** flip-to-check-back and X-ray lamp (deferred from M4).
+- **Onboarding (#97):** day 1 as a guided, skippable tutorial (first jam, first queue, first training, the new tools).
+- Planning notes (M5 checkpoint): human-paced players rarely get automated, so M5's tier 2 is out of reach for them; watch this in playtests before M7. The bigger desk / quick-eye rework moves to the M7 backlog.
 
 ### M7 — Mobile Ready
 - **Android debug APK** built in CI as an artifact (needs Jason's approval if it adds dependencies, which is a stop condition).

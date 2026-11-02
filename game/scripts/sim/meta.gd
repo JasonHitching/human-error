@@ -37,15 +37,15 @@ static func from_dict(d: Dictionary) -> Meta:
 	if u is Array:
 		for v: Variant in u:
 			m.unlocked.append(str(v))
-	m.tier = clampi(int(d.get("tier", 1)), 1, SimConfig.MAX_TIER)
-	m.picked_tier = clampi(int(d.get("picked_tier", 1)), 1, m.tier)
+	m.tier = clampi(RunStats.to_int(d.get("tier", 1)), 1, SimConfig.MAX_TIER)
+	m.picked_tier = clampi(RunStats.to_int(d.get("picked_tier", 1)), 1, m.tier)
 	var tb: Variant = d.get("tier_best", {})
 	if tb is Dictionary:
 		for k: Variant in tb:
 			var t := int(str(k))
 			if t >= 1 and t <= SimConfig.MAX_TIER:
-				m.tier_best[str(t)] = maxi(0, int(tb[k]))
-	m.automations = maxi(0, int(d.get("automations", 0)))
+				m.tier_best[str(t)] = maxi(0, RunStats.to_int(tb[k]))
+	m.automations = maxi(0, RunStats.to_int(d.get("automations", 0)))
 	var op: Variant = d.get("owned_perks", [])
 	if op is Array:
 		for v: Variant in op:
@@ -60,7 +60,7 @@ static func from_legacy_stats(d: Dictionary) -> Meta:
 
 
 func balance() -> int:
-	return int(commendations.get("balance", 0))
+	return RunStats.to_int(commendations.get("balance", 0))
 
 
 static func load_commendation_rules(path: String = COMMENDATIONS_PATH) -> Dictionary:
@@ -102,7 +102,7 @@ static func score(summary: Dictionary, rules: Dictionary) -> Dictionary:
 func award(summary: Dictionary, rules: Dictionary = {}) -> Dictionary:
 	var r := score(summary, rules if not rules.is_empty() else load_commendation_rules())
 	commendations["balance"] = balance() + int(r["total"])
-	commendations["earned"] = int(commendations.get("earned", 0)) + int(r["total"])
+	commendations["earned"] = RunStats.to_int(commendations.get("earned", 0)) + int(r["total"])
 	return r
 
 

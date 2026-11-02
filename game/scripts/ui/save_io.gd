@@ -19,8 +19,8 @@ static func _parse(p: String) -> Variant:
 static func load_meta(p: String = PATH, bad: String = BAD_PATH, legacy: String = LEGACY_PATH) -> Meta:
 	if FileAccess.file_exists(p):
 		var parsed: Variant = _parse(p)
-		if parsed is Dictionary and int((parsed as Dictionary).get("version", -1)) >= 1 \
-				and int((parsed as Dictionary)["version"]) <= Meta.VERSION:
+		var ver: int = RunStats.to_int((parsed as Dictionary).get("version", -1)) if parsed is Dictionary else -1
+		if parsed is Dictionary and ver >= 1 and ver <= Meta.VERSION:
 			return Meta.from_dict(parsed as Dictionary)
 		DirAccess.copy_absolute(_g(p), _g(bad))  # keep the evidence; never silently overwrite
 		return Meta.new()
