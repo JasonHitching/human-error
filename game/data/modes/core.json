@@ -17,7 +17,19 @@
     "tiers": false
   },
   "factory": "core",
-  "balance": {},
+  "balance": {
+    "shift_seconds": 180,
+    "target_base": 16,
+    "target_per_day": 4,
+    "day_rate_mult": 1.0,
+    "mistake_rate_mult": 1.0,
+    "wave_seconds": 45,
+    "breather_seconds": 9,
+    "breather_floor": 5,
+    "walk_speed": 4.0,
+    "transition_seconds": 0.3,
+    "trained_lessons": 12
+  },
   "bots": [
     {
       "name": "Sparky",

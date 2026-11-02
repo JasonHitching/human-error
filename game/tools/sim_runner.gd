@@ -77,6 +77,8 @@ func _init() -> void:
 	var runs_stretch_ok := 0
 	var runs_multi_prob := 0
 	var longest_sum := 0.0
+	var incidents := 0
+	var le2_ticks := 0
 	for r in runs:
 		var f := Factory.new(cfg, seed_start + r)
 		var prng := Autoplayers.make_rng(seed_start + r)
@@ -87,6 +89,7 @@ func _init() -> void:
 		var longest := 0
 		var wins := 0
 		var multi_prob := false
+		var prev_np := 0
 		for _t in ticks:
 			Autoplayers.act(bot, f, prng, mem)
 			f.step()
@@ -100,6 +103,9 @@ func _init() -> void:
 			multi = multi or n_faulted >= 2
 			var np := f._problem_count()
 			multi_prob = multi_prob or np >= 2
+			incidents += maxi(0, np - prev_np)
+			prev_np = np
+			le2_ticks += 1 if np <= 2 else 0
 			if np == 0:
 				calm_ticks_sum += 1
 				calm_run += 1
@@ -138,6 +144,7 @@ func _init() -> void:
 	var secs := float(faulted_machine_ticks) / cfg.tick_rate / maxf(1.0, total_faults)
 	print("  mean seconds faulted per fault: %.1f; runs with 2+ simultaneous faults: %.0f%%" % [secs, 100.0 * multi_fault_runs / runs])
 	print("  calm: %.1f%% of shift with no active problem" % (100.0 * calm_ticks_sum / (runs * ticks)))
+	print("  incidents/shift: %.2f (machine problems needing the crew); <=2 active problems in %.1f%% of ticks" % [float(incidents) / runs, 100.0 * le2_ticks / (runs * ticks)])
 	print("  calm windows >= 8 s: %.2f/shift (>=2 in %.0f%% of runs); longest problem stretch: %.1f s avg (<=30 s in %.0f%% of runs); 2+ simultaneous problems in %.0f%% of runs" % [
 		float(calm_win_sum) / runs, 100.0 * runs_2win / runs, longest_sum / runs, 100.0 * runs_stretch_ok / runs, 100.0 * runs_multi_prob / runs])
 	var parts_m: Array[String] = []
