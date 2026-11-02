@@ -59,4 +59,27 @@ Draw these as separate transparent PNGs, same canvas size and registration as th
 At 720x1280: keep the top ~140 px calm (the top bar sits there) and the bottom ~200 px dark and simple (the action buttons sit there). On the floor, the diagram runs top to bottom: Generator (top centre) > Press A / Press B > Assembler > hatch > Warehouse. Machine art must work as modular parts because later factory tiers rearrange and add machines; don't paint machines into the background.
 
 ## 7. What gets built on the code side (the "art-ready" issue)
-Layout anchors as data (so a background defines where things sit), support for the layered names in section 5 and the three new names in section 4, state tint of `machine_*_light`, parallax/scrolling belts, and a `ui_check` mode that runs with and without sprites. Until then, drop files in and they simply replace the code drawings.
+Layout anchors as data (so a background defines where things sit), support for the layered names in section 5 and the three new names in section 4, state tint of `machine_*_light`, parallax and scrolling layers, belt tiles that join machines, contact shadows, floor glow by state, ambient effects (steam, sparks, dust, lamp flicker), a vertically scrolling taller floor, and a `ui_check` mode that runs with and without sprites. Until then, drop files in and they simply replace the code drawings.
+
+## 8. Scene composition: making it a place, not sprites on a page
+**Camera:** one fixed 3/4 top-down angle (a diorama look). Every machine, prop and character is drawn from that same angle, lit from the top-left. Decide this in the concept stage; it changes everything downstream. (Alternatives if you prefer: pre-rendered simple 3D models exported as 2D sprites for perfectly consistent light; or flat side-on. Don't mix.)
+
+**Layer stack, back to front** (each its own transparent PNG or tile set):
+1. `scene_wall.png` back wall (pipes, windows, sign "Days without incident: 0", the window up to the office).
+2. `scene_floor_tile.png` seamless floor tile (64x64) + a few damage/decal variants (`floor_decal_<n>.png`, oil stain, hazard stripes).
+3. Set dressing that sits on the floor with its own contact shadow: crates, barrels, lockers, a decorative idle conveyor loop. File names `prop_<name>.png`.
+4. **Gameplay machines** (section 4) with a contact shadow each: `shadow_machine.png` (soft ellipse, black at 35% alpha, 160x60).
+5. **Belts as real tiles** that join machines: `belt_straight.png`, `belt_corner.png`, `belt_split.png`, `belt_merge.png` (64x64, seamless, drawn so the game can scroll them).
+6. Bots and the worker.
+7. Foreground overlays: hanging lamps `fg_lamp.png`, pipes `fg_pipe_<n>.png`, steam puffs `fx_steam_<n>.png`, a vignette `fx_vignette.png` (720x1280, transparent centre).
+Keep the gameplay machines visually distinct from set dressing: bigger, brighter rim light, and always the only things with a coloured status light.
+
+**Light carries gameplay (important).** The base scene is dark and low-contrast. Healthy machines sit in a soft warm pool of light. A machine in trouble casts a coloured glow onto the floor around it: amber for hot, red for jammed/overheated (the code tints `machine_<type>_light.png` and a floor glow sprite `fx_glow.png`, a white radial gradient 256x256, tinted by state). Scenery must never use amber/red at high saturation, so the glow stays the loudest thing on screen.
+
+**Readability budget** (Jason's feedback: the old UI was hard on the eye): background detail stays low-contrast and mid-to-dark; only gameplay things get strong contrast. Test by squinting: at 25% size you should still see exactly which machines need you.
+
+**Ambient life** (mostly done in code from the layers above): scrolling belts, blinking status lights, steam puffs on a timer, sparks on a fix, a flickering `fg_lamp`, bots idling, dust motes drifting through the light pools, slight parallax of layers 1-3 when the floor scrolls.
+
+**A taller floor:** the floor scene may be taller than the screen (e.g. 720x2000) and scrolls vertically; later factory tiers add machines further down. Paint backgrounds in tiles or in a long strip you can extend, not one fixed picture.
+
+**Kit-of-parts first.** For the first hero shot, produce: wall + floor tiles, 6-8 props, the belt set, five machines, the shadow and glow sprites. That's enough for a convincing floor; expand later.
