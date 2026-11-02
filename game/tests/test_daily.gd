@@ -15,6 +15,8 @@ func _play(seed_value: int) -> Array:
 			Autoplayers.act("human_careful", f, prng, mem)
 			f.step()
 		out.append(c.end_day(f)["points"])
+		if not c.fired:
+			c.next_day()
 	return out
 
 
