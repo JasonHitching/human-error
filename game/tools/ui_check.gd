@@ -14,6 +14,7 @@ var _catcher := ErrCatcher.new()
 
 var _main: Node
 var _frames := 0
+var _busy := false  # a check is awaiting frames
 var _fails: Array[String] = []
 
 
@@ -218,6 +219,11 @@ func _check_screens() -> void:
 		_fails.append("factory view %s not inside viewport" % _main._view.area)
 	_check_button(sw.back_btn, screen)
 	_check_button(sw.worst_btn, screen)
+	var cog: Button = _main._hud.top_bar.cog
+	if cog.size.x < UiTheme.min_target() or cog.size.y < UiTheme.min_target() or not screen.encloses(cog.get_global_rect()):
+		_fails.append("settings cog under 44 mock px or off-screen %s" % cog.get_global_rect())
+	if cog.get_global_rect().intersects(sw.back_btn.get_global_rect()) or cog.get_global_rect().intersects(sw.worst_btn.get_global_rect()):
+		_fails.append("settings cog overlaps floor buttons")
 	if _main._ship_btn.is_visible_in_tree():
 		_fails.append("ship button visible on the floor")
 	var ql: Label = sw.queue_label
@@ -295,16 +301,16 @@ func _within(inner: Rect2, outer: Rect2, tag: String, tol: float = 0.5) -> bool:
 
 
 ## Tier 2 (#88): the bigger floor, every machine, the wall monitor and the worst-first button fit at every size.
-func _check_tier_two() -> void:
+func _check_tier_two() -> void:  # coroutine (awaits layout frames)
 	_main._meta.unlock_after(1)
 	_main._meta.pick_tier(2)
 	_main._new_career(7)
 	if _main._tier != 2 or _main._factory == null or _main._factory.machines.size() != SimConfig.load_tier(2).machines.size():
 		_fails.append("tier 2 career did not build the tier 2 floor")
 	else:
-		_check_layouts()
+		await _check_layouts()
 		Sprites.disabled = true  # fallback drawing (no sprites) must lay out and draw without errors too
-		_check_layouts()
+		await _check_layouts()
 		Sprites.disabled = false
 		var n := 0
 		for m in _main._factory.machines:
@@ -327,6 +333,7 @@ func _check_layouts() -> void:
 		var k := minf(win.x / 720.0, win.y / 1280.0)
 		_main.size = lg
 		_main._fit()
+		await _main.get_tree().process_frame  # containers re-sort on the next frame
 		sw.sync(0.0)
 		_main._process(0.0)
 		var tag := "%dx%d" % [win.x, win.y]
@@ -344,6 +351,7 @@ func _check_layouts() -> void:
 		_check_buttons(tag + " office", _main)
 		f.worker.place(Worker.Location.FLOOR)
 		sw.sync(0.0)
+		await _main.get_tree().process_frame  # floor page just became visible: containers sort now
 		var a: Rect2 = v.area
 		var screen := Rect2(Vector2.ZERO, lg)
 		if not screen.encloses(a) or a.size.x < 100.0 or a.size.y < 400.0:
@@ -643,7 +651,16 @@ func _check_stats(hud: Hud) -> void:
 		_fails.append("stats close did not hide overlay")
 
 
+func _layout_checks() -> void:
+	await _check_layouts()
+	await _check_tier_two()
+	_main._hud.top_bar.cog.pressed.emit()  # checked next frame, once laid out
+	_busy = false
+
+
 func _process(_delta: float) -> bool:
+	if _busy:
+		return false
 	_frames += 1
 	var hud: Control = _main._hud
 	match _frames:
@@ -665,9 +682,8 @@ func _process(_delta: float) -> bool:
 			_check_desk()
 			_check_screens()
 			_check_sprites_sfx()
-			_check_layouts()
-			_check_tier_two()
-			_main._hud.top_bar.cog.pressed.emit()  # checked next frame, once laid out
+			_busy = true
+			_layout_checks()  # coroutine: resumes the frame counter when done
 		5:
 			_check_buttons("settings", _main._settings)
 			_main._settings.close_btn.pressed.emit()

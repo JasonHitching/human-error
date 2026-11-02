@@ -1,0 +1,105 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/top_bar.gd" id="1_bar"]
+
+[sub_resource type="StyleBoxFlat" id="bg"]
+bg_color = Color(0.0784, 0.0863, 0.1059, 1)
+
+[node name="TopBar" type="PanelContainer"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 114.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("bg")
+script = ExtResource("1_bar")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="Row" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 18
+
+[node name="DayBox" type="VBoxContainer" parent="Margin/Row"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="DayLabel" type="Label" parent="Margin/Row/DayBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.651, 0.678, 0.733, 1)
+theme_override_font_sizes/font_size = 20
+text = "DAY 1"
+
+[node name="TimeLabel" type="Label" parent="Margin/Row/DayBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.953, 0.945, 0.925, 1)
+theme_override_font_sizes/font_size = 44
+text = "0:00"
+
+[node name="QuotaBox" type="VBoxContainer" parent="Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="QuotaRow" type="HBoxContainer" parent="Margin/Row/QuotaBox"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="QuotaTitle" type="Label" parent="Margin/Row/QuotaBox/QuotaRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.651, 0.678, 0.733, 1)
+theme_override_font_sizes/font_size = 20
+text = "Quota"
+
+[node name="QuotaValue" type="Label" parent="Margin/Row/QuotaBox/QuotaRow"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.953, 0.945, 0.925, 1)
+theme_override_font_sizes/font_size = 20
+text = "0 / 1"
+
+[node name="QuotaBar" type="Control" parent="Margin/Row/QuotaBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 15)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="ComplaintsLabel" type="Label" parent="Margin/Row/QuotaBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.5412, 0.5412, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="Pips" type="Control" parent="Margin/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Cog" type="Button" parent="Margin/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(86, 86)
+layout_mode = 2
+size_flags_vertical = 4
+focus_mode = 0

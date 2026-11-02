@@ -4,7 +4,7 @@ extends Control
 ## Which one shows, and the vertical slide between them, follow the sim's worker location;
 ## the slide lasts the worker's trip (transition_seconds). Buttons call the sim's public API.
 
-const BACK_H := 100.0
+const FLOOR_HUD := preload("res://scenes/ui/floor_hud.tscn")
 
 signal refused(why: String)
 
@@ -16,6 +16,8 @@ var floor_page: ColorRect  # page holding the factory view; slides up from below
 var monitor: Panel  # wall-monitor panel
 var wall: WallMonitor  # lights + call-ins, inside the panel
 var factory_btn: Button
+var floor_hud: Control  # floor screen HUD scene (bottom bar, info strip)
+var bottom_bar: Control
 var back_btn: Button
 var worst_btn: Button
 var queue_label: Label
@@ -40,25 +42,19 @@ func _ready() -> void:
 	factory_btn.add_theme_font_size_override("font_size", 24)
 	UiTheme.style_button(factory_btn, "secondary", 24)
 	UiTheme.add_icon(factory_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_arrow(ci, c, r, 1, col), 24)
-	back_btn = _button(floor_page, "Back to desk", go_office)
+	floor_hud = FLOOR_HUD.instantiate()
+	floor_page.add_child(floor_hud)
+	back_btn = floor_hud.get_node("%BackButton")
+	worst_btn = floor_hud.get_node("%WorstButton")
+	floor_label = floor_hud.get_node("%FloorLabel")
+	queue_label = floor_hud.get_node("%QueueLabel")
+	bottom_bar = floor_hud.get_node("%BottomBar")
+	back_btn.pressed.connect(go_office)
+	worst_btn.pressed.connect(func() -> void: worst_first())
 	UiTheme.style_button(back_btn, "secondary", 28)
 	UiTheme.add_icon(back_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_arrow(ci, c, r, -1, col), 28)
-	worst_btn = _button(floor_page, "Fix worst first", func() -> void: worst_first())
 	UiTheme.style_button(worst_btn, "primary", 28)
 	UiTheme.add_icon(worst_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_wrench(ci, c, r, col), 28)
-	floor_label = Label.new()
-	floor_label.text = "FACTORY FLOOR"
-	floor_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	floor_label.add_theme_font_size_override("font_size", 22)
-	floor_label.add_theme_color_override("font_color", UiTheme.TEXT_DIM)
-	floor_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	floor_page.add_child(floor_label)
-	queue_label = Label.new()
-	queue_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	queue_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	queue_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	queue_label.add_theme_font_size_override("font_size", 20)
-	floor_page.add_child(queue_label)
 	resized.connect(layout)
 	layout()
 
@@ -93,7 +89,7 @@ func desk_rect() -> Rect2:
 
 ## Floor: the factory view, between the HUD and the back button.
 func floor_rect() -> Rect2:
-	return Rect2(0, hud_top, size.x, size.y - hud_top - BACK_H - 24.0)
+	return Rect2(0, hud_top, size.x, size.y + bottom_bar.offset_top - 12.0 - hud_top)
 
 
 func layout() -> void:
@@ -108,16 +104,6 @@ func layout() -> void:
 	wall.size = m.size
 	factory_btn.size = Vector2(UiTheme.px(110.0), UiTheme.px(44.0))
 	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - UiTheme.px(8.0), UiTheme.px(8.0))
-	var gap := 12.0
-	var bw := size.x - 24.0 - gap  # bottom grid 1 : 1.2
-	back_btn.size = Vector2(bw / 2.2, BACK_H)
-	back_btn.position = Vector2(12.0, size.y - BACK_H - 12.0)
-	worst_btn.size = Vector2(bw * 1.2 / 2.2, BACK_H)
-	worst_btn.position = Vector2(size.x - worst_btn.size.x - 12.0, size.y - BACK_H - 12.0)
-	floor_label.size = Vector2(300, 34)
-	floor_label.position = Vector2(UiTheme.px(16.0), hud_top - 4.0)
-	queue_label.size = Vector2(250, 34)
-	queue_label.position = Vector2(size.x - 250 - UiTheme.px(16.0), hud_top - 4.0)
 	_place()
 
 
