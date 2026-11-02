@@ -149,3 +149,13 @@ static func draw_wrench(ci: CanvasItem, c: Vector2, r: float, col: Color = TEXT,
 
 static func draw_bolt(ci: CanvasItem, c: Vector2, r: float, col: Color = ACCENT) -> void:
 	ci.draw_colored_polygon(PackedVector2Array([c + Vector2(r * 0.2, -r), c + Vector2(-r * 0.6, r * 0.1), c + Vector2(-r * 0.05, r * 0.1), c + Vector2(-r * 0.2, r), c + Vector2(r * 0.6, -r * 0.2), c + Vector2(r * 0.05, -r * 0.2)]), col)
+
+
+## Draw an icon left of a button's label. fn(ci: CanvasItem, centre: Vector2, radius: float, colour: Color).
+static func add_icon(b: Button, fn: Callable, font_size: int = 28) -> void:
+	b.draw.connect(func() -> void:
+		var f := b.get_theme_font("font")
+		var tw := f.get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var r := b.size.y * 0.17
+		var c := Vector2(b.size.x * 0.5 - tw * 0.5 - r - px(6.0), b.size.y * 0.5)
+		fn.call(b, c, r, b.get_theme_color("font_color")))
