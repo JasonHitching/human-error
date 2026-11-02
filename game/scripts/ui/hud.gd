@@ -20,6 +20,7 @@ var top_bar: TopBar
 var debug_overlay: bool = false
 var _flash: Label
 var _seed: Label
+var show_twists: bool = true  # off in modes without twists
 var _twist: Label
 var _banner_label: Label
 var _retry_btn: Button
@@ -77,7 +78,7 @@ func update(f: Factory, c: Career, tick_rate: int, shift_ticks: int, _best_days:
 	top_bar.set_state(c.day, int(left), f.score(), f.target, c.strikes, c.config.max_strikes, f.complaints, f.complaint_penalty)
 	_seed.visible = debug_overlay
 	_seed.text = "career %d" % c.seed
-	_twist.visible = _flash.text == ""
+	_twist.visible = _flash.text == "" and show_twists
 	var tw := c.twist()
 	_twist.text = "%s %s%s" % [tw.get("icon", ""), tw.get("name", ""), " - POWER OUT" if f.power_out() else ""] if not tw.is_empty() else ""
 
