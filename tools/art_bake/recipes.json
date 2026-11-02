@@ -281,11 +281,16 @@
    ],
    "parts": [
     {
-     "model": "conveyor"
+     "proc": "belt",
+     "arms": [
+      "ne",
+      "se",
+      "sw",
+      "nw"
+     ]
     },
     {
-     "model": "scanner-low",
-     "scale": 1.0
+     "model": "scanner-low"
     }
    ]
   },
@@ -627,10 +632,16 @@
    ],
    "parts": [
     {
-     "model": "conveyor"
+     "proc": "belt",
+     "arms": [
+      "ne"
+     ]
     },
     {
-     "model": "cover"
+     "model": "box-large"
+    },
+    {
+     "model": "box-long"
     }
    ]
   }
