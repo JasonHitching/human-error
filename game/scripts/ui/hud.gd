@@ -20,6 +20,7 @@ var _banner_label: Label
 var _review_label: Label
 var _review_box: VBoxContainer
 var _fired_label: Label
+var _awards_label: Label
 var _retry_btn: Button
 var stats_btn: Button
 var stats_overlay: Control
@@ -48,7 +49,10 @@ func _ready() -> void:
 	var fb := _overlay()
 	fired = fb[0]
 	_fired_label = _big(fb[1])
-	_retry_btn = _button(fb[1], "One more career", restart_pressed.emit)
+	_fired_label.add_theme_font_size_override("font_size", 28)
+	_awards_label = _big(fb[1])
+	_awards_label.add_theme_font_size_override("font_size", 20)
+	_retry_btn = _button(fb[1], "Continue", restart_pressed.emit)
 	_retry_btn.custom_minimum_size = Vector2(440, 140)
 	_retry_btn.add_theme_font_size_override("font_size", 40)
 	var rp := _button(fb[1], "Replay this seed", replay_pressed.emit)
@@ -192,8 +196,10 @@ func show_review(res: Dictionary, line: String, offers: Array[Dictionary], extra
 	_show_only(review)
 
 
-func show_fired(days: int, line: String, breakdown: String, teaser: String) -> void:
+func show_fired(days: int, line: String, breakdown: String, teaser: String, awards: String = "") -> void:
 	_fired_label.text = "FIRED\nDays survived: %d\n\n%s\n\n%s\n%s" % [days, breakdown, teaser, line]
+	_awards_label.text = awards
+	_awards_label.visible = awards != ""
 	_show_only(fired)
 
 

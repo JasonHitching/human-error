@@ -138,6 +138,8 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	var taken := {}  # offer kind -> careers that took it
 	var twist_days := {}  # twist id ("none" when no twist) -> [days, failed]
 	var qa := QaStats.new()
+	var rules := Meta.load_commendation_rules()
+	var comm_total := 0
 	for r in runs:
 		var c := Career.new(cfg, seed_start + r)
 		while not c.fired and c.day <= DAY_CAP:
@@ -174,6 +176,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 		for k: String in c.offers_taken:
 			taken[k] = int(taken.get(k, 0)) + 1
 		days.append(mini(c.day, DAY_CAP))
+		comm_total += int(Meta.score(c.summary(), rules)["total"])
 	days.sort()
 	var sum := 0
 	for d in days:
@@ -181,6 +184,7 @@ func _run_career(cfg: SimConfig, player: String, seed_start: int, runs: int) -> 
 	print("career player=%s runs=%d seed=%d (days survived, cap %d)" % [player, runs, seed_start, DAY_CAP])
 	print("  days mean=%.1f median=%d min=%d max=%d" % [float(sum) / runs, days[days.size() / 2], days[0], days[days.size() - 1]])
 	print("  days p10=%d" % days[days.size() / 10])
+	print("  commendations/career mean %.1f" % (float(comm_total) / runs))
 	print("  lessons learned/career %.2f, rookies joined/career %.2f" % [float(lessons_total) / runs, float(rookies_total) / runs])
 	var tk: Array[String] = []
 	for k: String in ["radio", "supervise", "auto_inspect"]:

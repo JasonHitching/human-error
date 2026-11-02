@@ -67,3 +67,10 @@ static func progress_line(res: Dictionary, bonus_threshold: float) -> String:
 		return "Training point banked: pick below"
 	var need := ceili(float(res["target"]) * bonus_threshold) - int(res["shipped"])
 	return "%d more points for a bonus training pick" % maxi(1, need)
+
+
+## "COMMENDATIONS\n<line>\n...\nTotal: +N" for Meta.award's result ("" when nothing earned).
+static func awards_text(a: Dictionary) -> String:
+	if int(a.get("total", 0)) <= 0:
+		return ""
+	return "COMMENDATIONS\n%s\nTotal: +%d" % ["\n".join(a["lines"]), int(a["total"])]
