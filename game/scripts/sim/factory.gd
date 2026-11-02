@@ -229,6 +229,22 @@ func item_visible_bad(item: Dictionary) -> bool:
 	return not (bool(item.get("subtle", false)) and not bool(item.get("scanned", false)))
 
 
+## Night-shift mess: `n` distinct bot machines start the shift JAMMED (own rng stream; 0 changes nothing).
+func apply_mess(n: int, seed: int) -> void:
+	if n <= 0:
+		return
+	var pool: Array[Machine] = []
+	for m in machines:
+		if m.bot != null:
+			pool.append(m)
+	var r := RandomNumberGenerator.new()
+	r.seed = seed * 67 + 9
+	for _i in mini(n, pool.size()):
+		var k := r.randi_range(0, pool.size() - 1)
+		pool[k].state = Machine.State.JAMMED
+		pool.remove_at(k)
+
+
 ## Apply a twist (see Twists) to this shift. Multipliers only; the base config is untouched.
 func apply_twist(t: Dictionary) -> void:
 	twist_id = String(t.get("id", ""))

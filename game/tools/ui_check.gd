@@ -494,6 +494,20 @@ func _check_home(tag: String, placed: bool = true) -> void:
 			_fails.append("[%s] Home button '%s' too small %s" % [tag, b.text, b.size])
 
 
+func _check_night() -> void:
+	var n: NightReport = _main._night
+	n.show_report({"commendations": 7, "mess_level": 2, "lines": ["Line one of the Foreman report, which is long enough to wrap around the screen a bit.", "Line two.", "Line three.", "Line four."]})
+	_check_overlay("night report", n, true)
+	var vp := Rect2(Vector2.ZERO, _main.size)
+	if n.collect_btn.size.x < 120.0 or n.collect_btn.size.y < 80.0 or not vp.encloses(n.collect_btn.get_global_rect()):
+		_fails.append("night Collect button bad: %s" % n.collect_btn.get_global_rect())
+	n.collect_btn.pressed.emit()
+	if n.visible:
+		_fails.append("Collect did not close the night report")
+	_main._meta.commendations["balance"] = 0  # undo the bank so later checks see a clean slate
+	_main._meta.pending_night = {}
+
+
 func _check_stats(hud: Hud) -> void:
 	var sb: Button = hud.stats_btn
 	if sb.size.x < 120 or sb.size.y < 80:
@@ -520,6 +534,7 @@ func _process(_delta: float) -> bool:
 				_fails.append("HUD size %s != screen %s" % [hud.size, _main.size])
 			_check_overlay("banner", hud.banner, true)
 			_check_home("start")
+			_check_night()
 			_main._home_start()
 			if _main._home.visible:
 				_fails.append("Home Start did not hide Home")

@@ -22,6 +22,7 @@ var twists: Twists
 var rookies_joined: int = 0
 var arrival: Dictionary = {}  # today's rookie, {name, replaced} (replaced "" = took a free slot); {} = none
 var lessons_learned: int = 0
+var night_mess: int = 0  # extra jammed machines at the start of the next day (day 1 never)
 var clean_shifts: int = 0  # shifts with zero complaints
 var twist_days_done: int = 0  # shifts played under a twist
 var perks: Dictionary = {}  # radio: bool, supervise: bot name, auto_inspect: bool (see offers())
@@ -98,6 +99,9 @@ func start_day() -> Factory:
 	f.qa_capacity += qa_bonus
 	f.inspect_speed = inspect_speed
 	f.apply_perks(perks)
+	if day > 1:
+		f.apply_mess(night_mess, seed * 1000 + day)
+	night_mess = 0
 	return f
 
 

@@ -35,6 +35,7 @@ var _haptics_btn: Button
 var _feel := Feel.new()
 var _meta: Meta
 var _home: Home
+var _night: NightReport
 var _stats: RunStats
 var _front_since: float = 0.0
 var _last_qn: int = 0
@@ -100,9 +101,37 @@ func _ready() -> void:
 		_home.setup(_meta))
 	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.stats_overlay.z_index = 20  # stats opens above Home
+	_night = NightReport.new()
+	add_child(_night)
+	_night.collected.connect(_night_collected)
 	resized.connect(_fit)
 	_new_career(int(Time.get_ticks_usec()))
 	_open_home()
+	_night_return()
+
+
+## Night shift: on start/resume show the Foreman's report if we were away long enough.
+func _night_return() -> void:
+	var rep := _meta.night_check(int(Time.get_unix_time_from_system()), _career.roster, int(_meta.last_seen_unix))
+	SaveIO.write_meta(_meta)
+	if not rep.is_empty() and not bool(rep.get("collected", false)):
+		_night.show_report(rep)
+
+
+func _night_collected() -> void:
+	_meta.collect_night()
+	SaveIO.write_meta(_meta)
+	_home.setup(_meta)
+
+
+func _notification(what: int) -> void:
+	if _meta == null:
+		return
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_meta.last_seen_unix = NightShift.next_last_seen(int(Time.get_unix_time_from_system()), _meta.last_seen_unix)
+		SaveIO.write_meta(_meta)
+	elif (what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN) and _night != null and not _night.visible:
+		_night_return()
 
 
 func _open_home() -> void:
@@ -358,6 +387,7 @@ func _end_shift() -> void:
 	var res := _career.end_day(_factory)
 	var now := int(Time.get_unix_time_from_system())
 	_stats.shift_ended(now, int(res["complaints"]))
+	_meta.last_seen_unix = NightShift.next_last_seen(now, _meta.last_seen_unix)
 	var awarded := {"total": 0, "lines": [] as Array[String]}
 	if res["fired"] or res["automated"]:
 		_stats.career_finished(now, _career.day)
@@ -417,6 +447,9 @@ func _end_automated() -> void:
 
 func _next_day() -> void:
 	_career.next_day()
+	if _meta.pending_night.get("collected", false) == true:
+		_career.night_mess = _meta.take_mess(_career.day)
+		SaveIO.write_meta(_meta)
 	_show_day()
 
 
