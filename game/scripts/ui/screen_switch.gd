@@ -4,6 +4,7 @@ extends Control
 ## Which one shows, and the vertical slide between them, follow the sim's worker location;
 ## the slide lasts the worker's trip (transition_seconds). Buttons call the sim's public API.
 
+const OFFICE_HUD := preload("res://scenes/ui/office_hud.tscn")
 const FLOOR_HUD := preload("res://scenes/ui/floor_hud.tscn")
 
 signal refused(why: String)
@@ -13,7 +14,8 @@ var active: bool = false  # navigation allowed (shift is playing)
 var hud_top: float = 110.0
 var office_page: ColorRect  # page holding the desk; slides up when going to the floor
 var floor_page: ColorRect  # page holding the factory view; slides up from below
-var monitor: Panel  # wall-monitor panel
+var office: OfficeHud  # office screen UI scene (monitor, queue row, spec chip, action rows)
+var monitor: Control  # wall-monitor panel
 var wall: WallMonitor  # lights + call-ins, inside the panel
 var factory_btn: Button
 var floor_hud: Control  # floor screen HUD scene (bottom bar, info strip)
@@ -30,18 +32,14 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	office_page = _page(UiTheme.BG)
 	floor_page = _page(UiTheme.BG)
-	monitor = Panel.new()
-	monitor.mouse_filter = Control.MOUSE_FILTER_STOP
-	monitor.add_theme_stylebox_override("panel", UiTheme.card())
-	office_page.add_child(monitor)
-	wall = WallMonitor.new()
+	office = OFFICE_HUD.instantiate()
+	office_page.add_child(office)
+	monitor = office.monitor
+	wall = office.wall
+	factory_btn = office.go_down
 	wall.tapped.connect(go_floor)
 	wall.light_tapped.connect(radio_tap)
-	monitor.add_child(wall)
-	factory_btn = _button(monitor, "Go down", go_floor)
-	factory_btn.add_theme_font_size_override("font_size", 24)
-	UiTheme.style_button(factory_btn, "secondary", 24)
-	UiTheme.add_icon(factory_btn, func(ci: CanvasItem, c: Vector2, r: float, col: Color) -> void: UiTheme.draw_arrow(ci, c, r, 1, col), 24)
+	office.go_down_pressed.connect(go_floor)
 	floor_hud = FLOOR_HUD.instantiate()
 	floor_page.add_child(floor_hud)
 	back_btn = floor_hud.get_node("%BackButton")
@@ -67,24 +65,14 @@ func _page(col: Color) -> ColorRect:
 	return p
 
 
-func _button(parent: Control, text: String, cb: Callable) -> Button:
-	var b := Button.new()
-	b.text = text
-	b.add_theme_font_size_override("font_size", 30)
-	b.pressed.connect(cb)
-	parent.add_child(b)
-	return b
-
-
 ## Office: wall-monitor panel at the top (below the HUD).
 func monitor_rect() -> Rect2:
-	return Rect2(UiTheme.px(10.0), hud_top, size.x - UiTheme.px(20.0), WallMonitor.card_height())
+	return office.rect_of(office.monitor)
 
 
 ## Office: the desk fills the rest of the screen.
 func desk_rect() -> Rect2:
-	var top := monitor_rect().end.y + 8.0
-	return Rect2(0, top, size.x, size.y - top)
+	return office.rect_of(office.desk)
 
 
 ## Floor: the factory view, between the HUD and the back button.
@@ -97,13 +85,7 @@ func layout() -> void:
 		return
 	office_page.size = size
 	floor_page.size = size
-	var m := monitor_rect()
-	monitor.position = m.position
-	monitor.size = m.size
-	wall.position = Vector2.ZERO
-	wall.size = m.size
-	factory_btn.size = Vector2(UiTheme.px(110.0), UiTheme.px(44.0))
-	factory_btn.position = Vector2(m.size.x - factory_btn.size.x - UiTheme.px(8.0), UiTheme.px(8.0))
+	office.relayout()
 	_place()
 
 
@@ -160,5 +142,9 @@ func _place() -> void:
 	var e := -(cos(PI * offset) - 1.0) * 0.5  # sine ease-in-out
 	office_page.position = Vector2(0, -e * size.y)
 	floor_page.position = Vector2(0, (1.0 - e) * size.y)
-	office_page.visible = e < 1.0
+	var show_office := e < 1.0
+	var was_hidden := not office_page.visible
+	office_page.visible = show_office
+	if show_office and was_hidden:
+		office.relayout()  # hidden children are skipped by containers: lay out now it is back
 	floor_page.visible = e > 0.0
