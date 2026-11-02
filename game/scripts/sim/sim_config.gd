@@ -21,6 +21,7 @@ var fix_seconds: float = 1.0
 var clear_seconds: float = 1.5
 var fix_queue_max: int = 3
 var jam_self_clear_seconds: float = 15.0
+var fix_grace_seconds: float = 0.0  # after a fix, the same fault cannot re-trigger on that machine for this long
 var target_base: int = 40
 var target_per_day: int = 8
 var day_rate_mult: float = 1.15
@@ -160,6 +161,7 @@ func _load_balance(b: Dictionary) -> void:
 	clear_seconds = _num(b, "clear_seconds", 0.1, 1.0e4) if b.has("clear_seconds") else 1.5
 	fix_queue_max = int(_opt(b, "fix_queue_max", fix_queue_max, 1.0, 20.0))
 	jam_self_clear_seconds = _opt(b, "jam_self_clear_seconds", jam_self_clear_seconds, 0.0, 1.0e4)
+	fix_grace_seconds = _opt(b, "fix_grace_seconds", fix_grace_seconds, 0.0, 600.0)
 	target_base = int(_opt(b, "target_base", target_base, 0.0, 1.0e9))
 	target_per_day = int(_opt(b, "target_per_day", target_per_day, 0.0, 1.0e9))
 	day_rate_mult = _opt(b, "day_rate_mult", day_rate_mult, 0.1, 10.0)

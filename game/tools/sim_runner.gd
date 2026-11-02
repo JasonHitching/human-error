@@ -63,6 +63,7 @@ func _init() -> void:
 	var faulted_machine_ticks := 0
 	var multi_fault_runs := 0
 	var scrapped := 0
+	var recur := 0
 	var clogs := 0
 	var state_ticks := {}  # machine id -> {state name -> ticks}
 	var qa := QaStats.new()
@@ -120,6 +121,7 @@ func _init() -> void:
 			d[ev["mistake"]] = int(d.get(ev["mistake"], 0)) + 1
 		qa.add(f)
 		scrapped += f.scrapped
+		recur += f.fix_recurrences
 		clogs += f.clog_count
 		totals.append(f.shipped)
 	var sum := 0
@@ -140,6 +142,7 @@ func _init() -> void:
 	print("  mistakes/shift: ", ", ".join(parts_m))
 	print("  ", qa.report())
 	print("  ", qa.worker_report())
+	print("  same-fault recurrences within 5 s of a fix: %d total (%.2f/shift)" % [recur, float(recur) / runs])
 	print("  scrapped/shift: %.2f, clogs/shift: %.2f" % [float(scrapped) / runs, float(clogs) / runs])
 	for b: String in by_bot:
 		var pb: Array[String] = []

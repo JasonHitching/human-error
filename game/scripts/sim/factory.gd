@@ -20,6 +20,8 @@ var crew_busy: bool = false
 var crew_target: String = ""
 var crew_progress: float = 0.0  # 0..1 (0 while walking to the machine)
 var crew_queue: Array[String] = []  # next machines to fix, in order (max fix_queue_max), tap mode only
+var fix_recurrences: int = 0  # same fault back on the same machine within 5 s of a fix (stat only)
+var _last_fix: Dictionary = {}  # machine id -> {tick, state} of the fault last fixed
 var _jam_left: Dictionary = {}  # machine id -> ticks until an untouched jam clears itself
 var fault_counts: Dictionary = {"OVERHEATED": 0, "JAMMED": 0}
 var mistake_counts: Dictionary = {"jam": 0, "overclock": 0, "misroute": 0, "wrong_recipe": 0, "sloppy": 0}
@@ -437,6 +439,7 @@ func radio_fix(machine_id: String) -> int:
 	if crew_busy and crew_target == machine_id:
 		return RadioResult.NOT_ALLOWED
 	_note_fixed(m, ActionResult.STARTED_REPAIR)
+	_record_fix(m)
 	m.state = Machine.State.IDLE
 	_jam_left.erase(m.id)
 	_radio_left = maxi(1, roundi(_config.radio_cooldown * _config.tick_rate))
@@ -720,6 +723,8 @@ func _step_crew() -> void:
 	if _crew_left > 0:
 		return
 	_note_fixed(m, _crew_kind)
+	if _crew_kind == ActionResult.STARTED_REPAIR:
+		_record_fix(m)
 	CrewJob.finish(m, _crew_kind)
 	_end_job()
 
@@ -800,11 +805,13 @@ func _step_machine(m: Machine) -> void:
 	var rate := float(_config.tick_rate)
 	if m.state == Machine.State.WORKING:
 		m.heat += m.heat_per_sec * heat_mult * (_config.overclock_heat_mult if m.overclocked else 1.0) / rate
+		if m.heat >= 100.0 and _in_grace(m, Machine.State.OVERHEATED):
+			m.heat = 99.0  # grace: hold just under the limit; other faults can still roll below
 		if m.heat >= 100.0:
 			m.heat = 100.0
 			m.overclocked = false
 			_fault(m, Machine.State.OVERHEATED)
-		elif _roll(m, "jam"):
+		elif not _in_grace(m, Machine.State.JAMMED) and _roll(m, "jam"):
 			_mistake(m, "jam")
 			_fault(m, Machine.State.JAMMED)
 		else:
@@ -870,7 +877,22 @@ func _mistake(m: Machine, mistake: String) -> void:
 	mistake_log.append(ev)
 
 
+func _record_fix(m: Machine) -> void:
+	if m.is_faulted():
+		_last_fix[m.id] = {"tick": tick, "state": m.state}
+
+
+## True while the fault `s` is barred on `m` by the post-repair grace window.
+func _in_grace(m: Machine, s: Machine.State) -> bool:
+	var lf: Dictionary = _last_fix.get(m.id, {})
+	return not lf.is_empty() and lf["state"] == s \
+			and float(tick - int(lf["tick"])) < _config.fix_grace_seconds * _config.tick_rate
+
+
 func _fault(m: Machine, s: Machine.State) -> void:
+	var lf: Dictionary = _last_fix.get(m.id, {})
+	if not lf.is_empty() and lf["state"] == s and tick - int(lf["tick"]) <= 5 * _config.tick_rate:
+		fix_recurrences += 1
 	m.state = s
 	fault_counts[m.state_name()] += 1
 
