@@ -5,11 +5,13 @@ extends Control
 
 signal start_pressed
 signal stats_pressed
+signal daily_pressed
 signal perk_bought(id: String)
 signal tier_picked(tier: int)
 
 var start_btn: Button
 var stats_btn: Button
+var daily_btn: Button
 var tier_box: HBoxContainer  # one button per unlocked tier
 var perks_box: VBoxContainer  # one row per perk: name, desc, buy button
 var _info: Label
@@ -26,7 +28,7 @@ func _ready() -> void:
 	add_child(center)
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 20)
+	box.add_theme_constant_override("separation", 12)
 	center.add_child(box)
 	var title := _label("HUMAN ERROR", 44)
 	box.add_child(title)
@@ -42,18 +44,26 @@ func _ready() -> void:
 	perks_box.custom_minimum_size = Vector2(440, 60)
 	perks_box.add_theme_constant_override("separation", 8)
 	box.add_child(perks_box)
-	start_btn = _button("Start career", 40, Vector2(440, 140))
+	start_btn = _button("Start career", 40, Vector2(440, 110))
 	start_btn.pressed.connect(start_pressed.emit)
 	box.add_child(start_btn)
+	daily_btn = _button("Daily", 28, Vector2(440, 80))
+	daily_btn.pressed.connect(daily_pressed.emit)
+	box.add_child(daily_btn)
 	stats_btn = _button("Stats", 24, Vector2(440, 80))
 	stats_btn.pressed.connect(stats_pressed.emit)
 	box.add_child(stats_btn)
 	visible = false
 
 
-func setup(m: Meta) -> void:
+func setup(m: Meta, today: String = "") -> void:
 	_info.text = "Commendations: %d\nBest: %d days (tier %d)\nCareers: %d" % [
 		m.balance(), m.best_for(m.picked_tier), m.picked_tier, m.stats.careers_finished]
+	if today != "":
+		var best := m.daily_best_for(today)
+		daily_btn.text = "Daily %s\n%s" % [today, ("best %d days (played today)" % best) if m.daily_played(today) else "not played today"]
+		if m.daily_streak > 0:
+			daily_btn.text += " | streak %d" % m.daily_streak
 	for c in tier_box.get_children():
 		tier_box.remove_child(c)
 		c.queue_free()

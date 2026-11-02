@@ -35,6 +35,7 @@ var _haptics_btn: Button
 var _feel := Feel.new()
 var _meta: Meta
 var _home: Home
+var _daily_date: String = ""  # "" = normal career; else the date of the daily being played
 var _night: NightReport
 var _stats: RunStats
 var _front_since: float = 0.0
@@ -71,7 +72,7 @@ func _ready() -> void:
 	_hud.continue_pressed.connect(_next_day)
 	_hud.restart_pressed.connect(_open_home)
 	_hud.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
-	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed))
+	_hud.replay_pressed.connect(func() -> void: _new_career(_career.seed, _daily_date))
 	_ship_btn = _inspect_button("Ship", true)
 	_reject_btn = _inspect_button("Reject", false)
 	_scan_btn = Button.new()
@@ -94,11 +95,12 @@ func _ready() -> void:
 	_home.tier_picked.connect(func(t: int) -> void:
 		_meta.pick_tier(t)
 		SaveIO.write_meta(_meta)
-		_home.setup(_meta))
+		_home.setup(_meta, _today()))
 	_home.perk_bought.connect(func(id: String) -> void:
 		if _meta.buy(id):
 			SaveIO.write_meta(_meta)
-		_home.setup(_meta))
+		_home.setup(_meta, _today()))
+	_home.daily_pressed.connect(_daily_start)
 	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.stats_overlay.z_index = 20  # stats opens above Home
 	_night = NightReport.new()
@@ -121,7 +123,7 @@ func _night_return() -> void:
 func _night_collected() -> void:
 	_meta.collect_night()
 	SaveIO.write_meta(_meta)
-	_home.setup(_meta)
+	_home.setup(_meta, _today())
 
 
 func _notification(what: int) -> void:
@@ -134,16 +136,26 @@ func _notification(what: int) -> void:
 		_night_return()
 
 
+func _today() -> String:
+	return Time.get_date_string_from_system()  # local date
+
+
 func _open_home() -> void:
-	_home.setup(_meta)
+	_home.setup(_meta, _today())
 	_home.visible = true
 
 
 ## Start career: at app start a career is already set up behind Home; after a run-end begin a fresh one.
 func _home_start() -> void:
 	_home.visible = false
-	if _phase == Phase.FIRED or _meta.picked_tier != _tier:
+	if _phase == Phase.FIRED or _meta.picked_tier != _tier or _daily_date != "":
 		_new_career(int(Time.get_ticks_usec()))
+
+
+func _daily_start() -> void:
+	_home.visible = false
+	var d := _today()
+	_new_career(Daily.seed_for(d), d)
 
 
 func _set_tier(t: int) -> void:
@@ -152,10 +164,11 @@ func _set_tier(t: int) -> void:
 	_best_days = _meta.best_for(_tier)
 
 
-func _new_career(seed_value: int) -> void:
-	_set_tier(_meta.picked_tier)
+func _new_career(seed_value: int, daily_date: String = "") -> void:
+	_daily_date = daily_date
+	_set_tier(Daily.TIER if daily_date != "" else _meta.picked_tier)
 	_decoy_tip_shown = false
-	_career = Career.new(_config, seed_value, _meta.owned_perks)
+	_career = Career.new(_config, seed_value, [] if daily_date != "" else _meta.owned_perks)
 	_stats.career_started(int(Time.get_unix_time_from_system()))
 	SaveIO.write_meta(_meta)
 	_show_day()
@@ -399,12 +412,7 @@ func _end_shift() -> void:
 	if res["fired"] or res["automated"]:
 		_phase = Phase.FIRED
 		var days := _career.day
-		var new_best := days > _best_days
-		if new_best:
-			_best_days = days
-			_meta.note_best(_tier, days)
-			SaveIO.write_meta(_meta)
-			_save_best()
+		var new_best := _note_best(days)
 		var bd := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty))
 		var praise := _career.foreman_line("new_best") if new_best else ""
 		var auto := bool(res["automated"])
@@ -427,6 +435,21 @@ func _pick_offer(index: int) -> void:
 
 
 ## A training pick trained the last bot: the career ends as a win.
+## Records a finished career's days (daily: per-date best + first-daily bonus; else per-tier best). True on a new best.
+func _note_best(days: int) -> bool:
+	if _daily_date != "":
+		var r := _meta.note_daily(_daily_date, days)
+		SaveIO.write_meta(_meta)
+		return bool(r["new_best"])
+	var nb := days > _best_days
+	if nb:
+		_best_days = days
+		_meta.note_best(_tier, days)
+		SaveIO.write_meta(_meta)
+		_save_best()
+	return nb
+
+
 func _end_automated() -> void:
 	var now := int(Time.get_unix_time_from_system())
 	_stats.career_finished(now, _career.day)
@@ -436,12 +459,7 @@ func _end_automated() -> void:
 	SaveIO.write_meta(_meta)
 	_phase = Phase.FIRED
 	var days := _career.day
-	var new_best := days > _best_days
-	if new_best:
-		_best_days = days
-		_meta.note_best(_tier, days)
-		SaveIO.write_meta(_meta)
-		_save_best()
+	var new_best := _note_best(days)
 	_hud.show_fired(days, _career.foreman_line("automated"), "", RunEnd.teaser(days, _best_days, new_best, ""), RunEnd.awards_text(awarded), "AUTOMATED (you win)")
 
 

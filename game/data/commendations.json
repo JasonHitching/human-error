@@ -5,6 +5,7 @@
  "per_streak_milestone": 3,
  "per_lesson": 2,
  "per_twist_day": 2,
+ "daily_first_bonus": 5,
  "lines": {
   "days": "{n} days survived: the Foreman is baffled. +{pts}",
   "clean": "{n} shifts with zero complaints: suspiciously good. +{pts}",
