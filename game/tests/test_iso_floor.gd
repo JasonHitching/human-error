@@ -83,3 +83,15 @@ func test_bots_and_worker_never_stand_on_belts_both_tiers() -> void:
 		var stairs_p := IsoFloor.to_local(iso.stairs_cell)
 		for b: Vector2i in iso.edges:
 			assert_true(not IsoFloor.in_cell(stairs_p, b), "tier %d stairs on belt %s" % [tier, b])
+
+
+func test_machines_face_their_belts_both_tiers() -> void:
+	for tier in [1, 2]:
+		var iso := _floor(tier)
+		for msg in iso.facing_mismatches():
+			failures.append("tier %d: %s" % [tier, msg])
+		for id: String in iso.cells:
+			if iso.types[id] == "qa":
+				continue
+			var path := "res://assets/sprites/%s.png" % iso.machine_sprite(id, iso.types[id])
+			assert_true(FileAccess.file_exists(path), "tier %d %s: missing facing sprite %s" % [tier, id, path])
