@@ -4,7 +4,7 @@ extends RefCounted
 ## `center` is the world point at the middle of the view, `zoom` is world px -> screen px.
 ## The centre is clamped so the view stays inside `bounds` (factory extent + margin).
 
-const MIN_ZOOM := 0.5
+const MIN_ZOOM := 0.3
 const MAX_ZOOM := 2.0
 const START_ZOOM := 1.0  # opening zoom: machines readable, factory extends past the screen
 const MARGIN := 80.0
@@ -38,7 +38,8 @@ func set_view(size: Vector2) -> void:
 
 ## Zoom that fits the content width/height (the overview; not the starting zoom).
 func fit_zoom(content: Rect2) -> float:
-	return clampf(minf(view.x / content.size.x, view.y / content.size.y), MIN_ZOOM, MAX_ZOOM)
+	var c := content.grow(MARGIN)  # room for fixed-size badges at the edges
+	return clampf(minf(view.x / c.size.x, view.y / c.size.y), MIN_ZOOM, MAX_ZOOM)
 
 
 ## Starting zoom: a readable close-up, never the squashed whole-factory overview.

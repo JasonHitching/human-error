@@ -1,183 +1,183 @@
 {
- "stairs": [
-  0.08,
-  0.06
- ],
- "machines": [
-  {
-   "id": "generator",
-   "type": "generator",
-   "pos": [
-    0.5,
-    0.08
-   ],
-   "output": "raw",
-   "input_cap": 0,
-   "output_cap": 2,
-   "process_time": 1.0,
-   "heat_per_sec": 1.0,
-   "cool_per_sec": 3.0,
-   "gx": 0,
-   "gy": 0
-  },
-  {
-   "id": "proc_a",
-   "type": "processor",
-   "pos": [
-    0.22,
-    0.33
-   ],
-   "input": "raw",
-   "output": "component",
-   "input_cap": 2,
-   "output_cap": 2,
-   "process_time": 2.5,
-   "heat_per_sec": 2.8,
-   "cool_per_sec": 4.0,
-   "gx": 0,
-   "gy": 2
-  },
-  {
-   "id": "proc_b",
-   "type": "processor",
-   "pos": [
-    0.78,
-    0.33
-   ],
-   "input": "raw",
-   "output": "component",
-   "input_cap": 2,
-   "output_cap": 2,
-   "process_time": 2.5,
-   "heat_per_sec": 2.8,
-   "cool_per_sec": 4.0,
-   "gx": 2,
-   "gy": 0
-  },
-  {
-   "id": "assembler",
-   "type": "assembler",
-   "pos": [
-    0.5,
-    0.57
-   ],
-   "input": "component",
-   "output": "product",
-   "input_cap": 4,
-   "output_cap": 2,
-   "process_time": 1.5,
-   "heat_per_sec": 2.0,
-   "cool_per_sec": 4.0,
-   "gx": 2,
-   "gy": 2
-  },
-  {
-   "id": "qa_desk",
-   "type": "qa",
-   "pos": [
-    0.5,
-    0.74
-   ],
-   "input": "product",
-   "input_cap": 8,
-   "output_cap": 0,
-   "process_time": 1.0,
-   "heat_per_sec": 0.0,
-   "cool_per_sec": 3.0,
-   "gx": 4,
-   "gy": 2
-  },
-  {
-   "id": "warehouse",
-   "type": "warehouse",
-   "pos": [
-    0.5,
-    0.91
-   ],
-   "input": "product",
-   "input_cap": 4,
-   "output_cap": 0,
-   "process_time": 0.5,
-   "heat_per_sec": 0.0,
-   "cool_per_sec": 3.0,
-   "gx": 4,
-   "gy": 4
+  "stairs": [
+    0.08,
+    0.06
+  ],
+  "machines": [
+    {
+      "id": "generator",
+      "type": "generator",
+      "pos": [
+        0.5,
+        0.08
+      ],
+      "output": "raw",
+      "input_cap": 0,
+      "output_cap": 2,
+      "process_time": 1.0,
+      "heat_per_sec": 1.0,
+      "cool_per_sec": 3.0,
+      "gx": 0,
+      "gy": 0
+    },
+    {
+      "id": "proc_a",
+      "type": "processor",
+      "pos": [
+        0.22,
+        0.33
+      ],
+      "input": "raw",
+      "output": "component",
+      "input_cap": 2,
+      "output_cap": 2,
+      "process_time": 2.5,
+      "heat_per_sec": 2.8,
+      "cool_per_sec": 4.0,
+      "gx": 0,
+      "gy": 4
+    },
+    {
+      "id": "proc_b",
+      "type": "processor",
+      "pos": [
+        0.78,
+        0.33
+      ],
+      "input": "raw",
+      "output": "component",
+      "input_cap": 2,
+      "output_cap": 2,
+      "process_time": 2.5,
+      "heat_per_sec": 2.8,
+      "cool_per_sec": 4.0,
+      "gx": 4,
+      "gy": 0
+    },
+    {
+      "id": "assembler",
+      "type": "assembler",
+      "pos": [
+        0.5,
+        0.57
+      ],
+      "input": "component",
+      "output": "product",
+      "input_cap": 4,
+      "output_cap": 2,
+      "process_time": 1.5,
+      "heat_per_sec": 2.0,
+      "cool_per_sec": 4.0,
+      "gx": 4,
+      "gy": 4
+    },
+    {
+      "id": "qa_desk",
+      "type": "qa",
+      "pos": [
+        0.5,
+        0.74
+      ],
+      "input": "product",
+      "input_cap": 8,
+      "output_cap": 0,
+      "process_time": 1.0,
+      "heat_per_sec": 0.0,
+      "cool_per_sec": 3.0,
+      "gx": 8,
+      "gy": 4
+    },
+    {
+      "id": "warehouse",
+      "type": "warehouse",
+      "pos": [
+        0.5,
+        0.91
+      ],
+      "input": "product",
+      "input_cap": 4,
+      "output_cap": 0,
+      "process_time": 0.5,
+      "heat_per_sec": 0.0,
+      "cool_per_sec": 3.0,
+      "gx": 8,
+      "gy": 8
+    }
+  ],
+  "links": [
+    {
+      "from": "generator",
+      "to": "proc_a",
+      "transit_time": 0.6
+    },
+    {
+      "from": "generator",
+      "to": "proc_b",
+      "transit_time": 0.6
+    },
+    {
+      "from": "proc_a",
+      "to": "assembler",
+      "transit_time": 0.6
+    },
+    {
+      "from": "proc_b",
+      "to": "assembler",
+      "transit_time": 0.6
+    },
+    {
+      "from": "assembler",
+      "to": "qa_desk",
+      "transit_time": 0.6
+    },
+    {
+      "from": "qa_desk",
+      "to": "warehouse",
+      "transit_time": 0.6
+    }
+  ],
+  "floor": {
+    "grid": [
+      9,
+      9
+    ],
+    "stairs_g": [
+      -2,
+      2
+    ],
+    "scrap_g": [
+      8,
+      0
+    ],
+    "props": [
+      {
+        "s": "crate_stack",
+        "g": [
+          0,
+          8
+        ]
+      },
+      {
+        "s": "crate",
+        "g": [
+          2,
+          8
+        ]
+      },
+      {
+        "s": "crate",
+        "g": [
+          0,
+          6
+        ]
+      },
+      {
+        "s": "fence",
+        "g": [
+          6,
+          0
+        ]
+      }
+    ]
   }
- ],
- "links": [
-  {
-   "from": "generator",
-   "to": "proc_a",
-   "transit_time": 0.6
-  },
-  {
-   "from": "generator",
-   "to": "proc_b",
-   "transit_time": 0.6
-  },
-  {
-   "from": "proc_a",
-   "to": "assembler",
-   "transit_time": 0.6
-  },
-  {
-   "from": "proc_b",
-   "to": "assembler",
-   "transit_time": 0.6
-  },
-  {
-   "from": "assembler",
-   "to": "qa_desk",
-   "transit_time": 0.6
-  },
-  {
-   "from": "qa_desk",
-   "to": "warehouse",
-   "transit_time": 0.6
-  }
- ],
- "floor": {
-  "grid": [
-   5,
-   5
-  ],
-  "stairs_g": [
-   -1,
-   1
-  ],
-  "scrap_g": [
-   4,
-   0
-  ],
-  "props": [
-   {
-    "s": "crate_stack",
-    "g": [
-     0,
-     4
-    ]
-   },
-   {
-    "s": "crate",
-    "g": [
-     1,
-     4
-    ]
-   },
-   {
-    "s": "crate",
-    "g": [
-     0,
-     3
-    ]
-   },
-   {
-    "s": "fence",
-    "g": [
-     3,
-     0
-    ]
-   }
-  ]
- }
 }
