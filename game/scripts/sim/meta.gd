@@ -4,18 +4,20 @@ extends RefCounted
 
 const VERSION := 1
 const COMMENDATIONS_PATH := "res://data/commendations.json"
+const PERKS_PATH := "res://data/perks.json"
 
 var version: int = VERSION
 var stats: RunStats = RunStats.new()
 var commendations: Dictionary = {}  # "balance" (spendable) and "earned" (lifetime), see award()
 var unlocked: Array = []  # unlocked perk/unlock ids
 var tier: int = 1
+var owned_perks: Array = []  # perk ids bought with commendations
 
 
 func to_dict() -> Dictionary:
 	return {
 		"version": version, "stats": stats.to_dict(), "commendations": commendations,
-		"unlocked": unlocked, "tier": tier,
+		"unlocked": unlocked, "tier": tier, "owned_perks": owned_perks,
 	}
 
 
@@ -33,6 +35,11 @@ static func from_dict(d: Dictionary) -> Meta:
 		for v: Variant in u:
 			m.unlocked.append(str(v))
 	m.tier = maxi(1, int(d.get("tier", 1)))
+	var op: Variant = d.get("owned_perks", [])
+	if op is Array:
+		for v: Variant in op:
+			if not m.owned_perks.has(str(v)):
+				m.owned_perks.append(str(v))
 	return m
 
 
@@ -82,3 +89,30 @@ func award(summary: Dictionary, rules: Dictionary = {}) -> Dictionary:
 	commendations["balance"] = balance() + int(r["total"])
 	commendations["earned"] = int(commendations.get("earned", 0)) + int(r["total"])
 	return r
+
+
+static func load_perks(path: String = PERKS_PATH) -> Dictionary:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+static func perk_def(id: String, defs: Dictionary = {}) -> Dictionary:
+	var d := defs if not defs.is_empty() else load_perks()
+	for p: Variant in d.get("perks", []):
+		if (p as Dictionary).get("id") == id:
+			return p as Dictionary
+	return {}
+
+
+func owns(id: String) -> bool:
+	return owned_perks.has(id)
+
+
+## Buys a perk with the spendable balance. False if unknown, owned or unaffordable. Caller saves.
+func buy(id: String, defs: Dictionary = {}) -> bool:
+	var p := perk_def(id, defs)
+	if p.is_empty() or owns(id) or balance() < int(p.get("cost", 0)):
+		return false
+	commendations["balance"] = balance() - int(p["cost"])
+	owned_perks.append(id)
+	return true
