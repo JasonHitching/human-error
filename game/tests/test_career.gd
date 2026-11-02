@@ -111,6 +111,7 @@ func test_foreman_lines() -> void:
 
 func test_no_twist_on_days_1_and_2() -> void:
 	var c := _c()
+	c.twists.twist_chance = 1.0
 	for d in [1, 2]:
 		c.day = d
 		assert_true(c.twist().is_empty())
@@ -124,14 +125,18 @@ func test_twists_deterministic_and_never_repeat() -> void:
 	for s in 20:
 		var a := _c(s)
 		var b := _c(s)
+		a.twists.twist_chance = 0.8
+		b.twists.twist_chance = 0.8
 		var prev := ""
 		for d in range(1, 30):
 			a.day = d
 			b.day = d
 			var id: String = a.twist().get("id", "")
 			assert_eq(id, b.twist().get("id", ""))
-			if d >= 3:
-				assert_true(id != "" and id != prev, "seed %d day %d repeats %s" % [s, d, prev])
+			if d < 3:
+				assert_eq(id, "")
+			elif id != "":
+				assert_true(id != prev, "seed %d day %d repeats %s" % [s, d, prev])
 			prev = id
 
 
@@ -170,3 +175,51 @@ func test_each_twist_applies_and_reverts() -> void:
 	assert_eq(f2.target, c.day_target())
 	assert_near(f2.line_speed, 1.0)
 	assert_eq(f2.complaint_penalty, cfg.complaint_penalty)
+
+
+func _twist_days(chance: float, seed: int = 1) -> Array[bool]:
+	var t := Twists.new(seed, 3)
+	t.twist_chance = chance
+	var out: Array[bool] = []
+	for d in range(1, 40):
+		out.append(not t.for_day(d).is_empty())
+	return out
+
+
+func test_twist_chance_zero_and_one() -> void:
+	for s in 5:
+		var none := _twist_days(0.0, s)
+		var all := _twist_days(1.0, s)
+		for i in none.size():
+			assert_true(not none[i], "chance 0 gave a twist")
+			assert_eq(all[i], i + 1 >= 3, "chance 1 day %d" % (i + 1))
+
+
+func test_twist_chance_default_is_partial() -> void:
+	var n := 0
+	for s in 20:
+		for b in _twist_days(Twists.new(s, 3).twist_chance, s):
+			n += 1 if b else 0
+	assert_true(n > 20 * 37 * 0.5 and n < 20 * 37 * 0.9, "twist share %d" % n)
+
+
+func test_twist_yardstick_math() -> void:
+	var ys := TwistStats.new()
+	# day 3: 10 twist (5 failed), 10 plain (1 failed); day 4: 20 twist (4 failed), 20 plain (4 failed)
+	# day 5: only 9 plain -> not pooled -> not pooled
+	for i in 10:
+		ys.add(3, true, i < 5)
+		ys.add(3, false, i < 1)
+		ys.add(5, true, true)
+	for i in 20:
+		ys.add(4, true, i < 4)
+		ys.add(4, false, i < 4)
+	ys.add(5, true, true)
+	for i in 9:
+		ys.add(5, false, false)
+	assert_eq(ys.eligible_days(), [3, 4])
+	var r := ys.pooled()
+	# weights 20 and 40: twist (20*.5+40*.2)/60 = .3; plain (20*.1+40*.2)/60 = 1/6
+	assert_near(r["twist"], 0.3)
+	assert_near(r["plain"], 1.0 / 6.0)
+	assert_near(r["ratio"], 1.8)

@@ -1,12 +1,13 @@
 class_name Twists
 extends RefCounted
-## Shift twists: one per day from twist_start_day, picked with a seeded RNG, never the same twice running.
+## Shift twists: optional from twist_start_day (twist_chance), picked with a seeded RNG, never the same twice running.
 
 const PATH := "res://data/twists.json"
 
 var defs: Array[Dictionary] = []
 var _seed: int = 0
 var _start_day: int = 3
+var twist_chance: float = 1.0  ## chance a day >= start day has a twist (data: twist_chance)
 var _cache: Dictionary = {}  # day -> twist id
 
 
@@ -15,6 +16,7 @@ func _init(p_seed: int, start_day: int) -> void:
 	_start_day = start_day
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
 	if parsed is Dictionary:
+		twist_chance = float((parsed as Dictionary).get("twist_chance", 1.0))
 		for t: Variant in (parsed as Dictionary).get("twists", []):
 			if t is Dictionary:
 				defs.append(t)
@@ -41,6 +43,9 @@ func _id_for(day: int) -> String:
 	var prev := _id_for(day - 1)
 	var r := RandomNumberGenerator.new()
 	r.seed = _seed * 104729 + day * 7919
+	if r.randf() >= twist_chance:
+		_cache[day] = ""
+		return ""
 	var pool: Array[String] = []
 	for t in defs:
 		if t["id"] != prev:
