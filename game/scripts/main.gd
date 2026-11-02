@@ -247,7 +247,8 @@ func _show_day() -> void:
 	_holding = false
 	_phase = Phase.BANNER
 	_hud.set_flash("")
-	_hud.show_banner(_career.day, _career.foreman_line("start"), _factory.target, _career.twist(), _factory.spec_change, _career.banner_news())
+	var ci := _career.clock_in()
+	_hud.show_banner(_career.day, String(ci["briefing"]), _factory.target, _career.twist(), _factory.spec_change, _career.banner_news(), String(ci["bot"]), String(ci["bot_line"]))
 	_fit()
 
 
@@ -289,6 +290,7 @@ func _refresh_mute() -> void:
 
 
 func _begin_shift() -> void:
+	_career.start_shift()
 	_sfx.play("transition")
 	_phase = Phase.PLAYING
 	_screens.active = true
@@ -408,7 +410,7 @@ func _process(delta: float) -> void:
 	if _phase == Phase.PLAYING:
 		_acc += delta
 		while _acc >= dt and not _factory.is_over():
-			_factory.step()
+			_career.step(_factory)
 			_view.push_events(_factory.events)
 			for e in _factory.events:
 				if e.get("type") == "mistake":
@@ -482,7 +484,7 @@ func _end_shift() -> void:
 	_offers = _career.offers() if int(res["points"]) > 0 else ([] as Array[Dictionary])
 	var extra := "\n".join(RunEnd.breakdown(res, _config.complaint_penalty)) if not res["hit"] else "Streak: %d days on target" % RunEnd.hit_streak(_career.history)
 	extra += "\n" + RunEnd.progress_line(res, _config.bonus_threshold) + "\n" + RunEnd.training_lines(_career.roster)
-	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers, extra)
+	_hud.show_review(res, _career.foreman_line("hit" if res["hit"] else ("probation" if res["probation"] else "miss")), _offers, extra, _career.reaction(res))
 
 
 func _fired_info(res: Dictionary, awarded: Dictionary) -> Dictionary:

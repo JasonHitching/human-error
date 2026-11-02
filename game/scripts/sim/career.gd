@@ -3,6 +3,9 @@ extends RefCounted
 ## A run: days until fired, with training between days. Pure sim.
 
 const FOREMAN_PATH := "res://data/foreman.json"
+const PHASE_CLOCK_IN := "clock_in"
+const PHASE_SHIFT := "shift"
+const PHASE_END_OF_DAY := "end_of_day"
 
 var config: SimConfig
 var seed: int = 0
@@ -32,6 +35,8 @@ var _perk_defs: Dictionary = {}
 var _forgive_left: int = 0
 var _perk_note: String = ""
 var _lines: Dictionary = {}
+var phase: String = PHASE_CLOCK_IN  # day phase: the sim clock only runs in "shift"
+var _dialogue := Dialogue.new()
 
 
 func _init(p_config: SimConfig, p_seed: int, p_perks: Array = []) -> void:
@@ -89,6 +94,7 @@ func day_mult() -> float:
 
 
 func start_day() -> Factory:
+	phase = PHASE_CLOCK_IN
 	_add_rookie()
 	var f := Factory.new(config, seed * 1000 + day, roster, day_mult())
 	f.apply_twist(twist())
@@ -105,6 +111,49 @@ func start_day() -> Factory:
 		f.apply_mess(night_mess, seed * 1000 + day)
 	night_mess = 0
 	return f
+
+
+## Clock in: the shift begins (only from the clock-in phase). Returns true if the phase changed.
+func start_shift() -> bool:
+	if phase != PHASE_CLOCK_IN:
+		return false
+	phase = PHASE_SHIFT
+	return true
+
+
+## Advance the factory one tick, but only during the shift phase. Returns true if it ticked.
+func step(f: Factory) -> bool:
+	if phase != PHASE_SHIFT:
+		return false
+	f.step()
+	return true
+
+
+## Day-specific deterministic RNG for dialogue picks (separate stream: the career RNG is untouched).
+func _line_rng(salt: int) -> RandomNumberGenerator:
+	var r := RandomNumberGenerator.new()
+	r.seed = seed * 6469 + day * 101 + salt
+	return r
+
+
+## Clock-in screen content: {briefing, bot, bot_line}. The bot is drawn from today's crew.
+func clock_in() -> Dictionary:
+	var r := _line_rng(1)
+	var briefing := Dialogue.pick(_dialogue.foreman_lines("foreman_briefing"), r).replace("{day}", str(day)).replace("{target}", str(shift_target()))
+	var bot := ""
+	var line := ""
+	if not roster.is_empty():
+		bot = roster[r.randi_range(0, roster.size() - 1)].name
+		line = Dialogue.pick(_dialogue.bot_lines(bot), r)
+	return {"briefing": briefing, "bot": bot, "bot_line": line}
+
+
+## Foreman's end-of-day reaction line for a day result (hit / bonus / miss).
+func reaction(res: Dictionary) -> String:
+	var key := "miss"
+	if bool(res.get("hit", false)):
+		key = "bonus" if float(res["shipped"]) >= float(res["target"]) * config.bonus_threshold else "hit"
+	return Dialogue.pick(_dialogue.foreman_lines("foreman_reaction", key), _line_rng(2))
 
 
 ## Machines a bot can run (everything but the warehouse and QA desk).
@@ -148,6 +197,7 @@ func arrival_line() -> String:
 
 
 func end_day(f: Factory) -> Dictionary:
+	phase = PHASE_END_OF_DAY
 	var score := f.score()
 	lessons_learned += f.lessons.size()
 	if f.complaints == 0:
