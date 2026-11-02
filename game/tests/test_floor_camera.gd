@@ -46,3 +46,32 @@ func test_small_factory_stays_centred_and_big_one_need_not_fit() -> void:
 	assert_eq(cam.center, cam.bounds.get_center(), "centred")
 	var big := _cam()
 	assert_true(big.view.x / big.zoom < big.bounds.size.x, "view smaller than factory at default zoom")
+
+
+func _safe() -> Rect2:
+	return Rect2(8, 8, 374, 612)
+
+
+func test_focus_ends_with_target_in_safe_rect() -> void:
+	for t: Vector2 in [Vector2(-300, 40), Vector2(0, 450), Vector2(380, 860), Vector2(100, 100)]:
+		var cam := _cam(0.6)
+		cam.focus_on(t, _safe())
+		assert_true(cam.moving, "moving")
+		for i in 100:
+			cam.step(0.01)
+		assert_true(not cam.moving, "done")
+		assert_true(_safe().has_point(cam.world_to_screen(t)), "target in safe rect %s" % str(t))
+		assert_true(cam.zoom >= FloorCamera.FOCUS_ZOOM - 0.001, "zoomed in")
+
+
+func test_focus_is_smooth_and_input_cancels() -> void:
+	var cam := _cam(0.6)
+	var start := cam.center
+	cam.focus_on(Vector2(300, 800), _safe())
+	cam.step(0.1)
+	var mid := cam.center
+	assert_true(mid != start and cam.moving, "partway")
+	cam.cancel()
+	cam.step(1.0)
+	assert_eq(cam.center, mid, "cancelled: stays put")
+	assert_true(not cam.moving, "stopped")

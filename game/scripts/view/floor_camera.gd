@@ -14,6 +14,15 @@ var view := Vector2(390, 700)  # screen size of the floor area
 var bounds := Rect2(0, 0, 400, 400)
 var center := Vector2(200, 200)
 var zoom: float = 1.0
+const FOCUS_TIME := 0.45
+const FOCUS_ZOOM := 0.9  # focus zooms in to at least this
+var moving := false
+var _from_c := Vector2.ZERO
+var _to_c := Vector2.ZERO
+var _from_z: float = 1.0
+var _to_z: float = 1.0
+var _t: float = 1.0
+var _dur: float = FOCUS_TIME
 
 
 func set_bounds(content: Rect2) -> void:
@@ -57,6 +66,40 @@ func world_to_screen(p: Vector2) -> Vector2:
 
 func screen_to_world(p: Vector2) -> Vector2:
 	return (p - view * 0.5) / zoom + center
+
+
+## Start a smooth move that ends with world point `target` at the middle of `safe` (view coords).
+## Zoom only ever goes in, up to FOCUS_ZOOM, never out. Any user input should call cancel().
+func focus_on(target: Vector2, safe: Rect2, dur: float = FOCUS_TIME) -> void:
+	_from_c = center
+	_from_z = zoom
+	_to_z = clampf(maxf(zoom, FOCUS_ZOOM), MIN_ZOOM, MAX_ZOOM)
+	zoom = _to_z  # solve the end centre at the end zoom, then restore
+	center = target - (safe.get_center() - view * 0.5) / zoom
+	_clamp()
+	_to_c = center
+	zoom = _from_z
+	center = _from_c
+	_t = 0.0
+	_dur = maxf(dur, 0.001)
+	moving = true
+
+
+## Advance a running move by `d` seconds (smoothstep ease).
+func step(d: float) -> void:
+	if not moving:
+		return
+	_t = minf(_t + d / _dur, 1.0)
+	var k := _t * _t * (3.0 - 2.0 * _t)
+	zoom = lerpf(_from_z, _to_z, k)
+	center = _from_c.lerp(_to_c, k)
+	_clamp()
+	if _t >= 1.0:
+		moving = false
+
+
+func cancel() -> void:
+	moving = false
 
 
 func _clamp() -> void:
