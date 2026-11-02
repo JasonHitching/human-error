@@ -39,6 +39,7 @@ var _meta: Meta
 var _home: Home
 var _daily_date: String = ""  # "" = normal career; else the date of the daily being played
 var _night: NightReport
+var _tutorial: Tutorial
 var _stats: RunStats
 var _front_since: float = 0.0
 var _last_qn: int = 0
@@ -118,6 +119,10 @@ func _ready() -> void:
 	_night = NightReport.new()
 	add_child(_night)
 	_night.collected.connect(_night_collected)
+	_tutorial = Tutorial.new()
+	add_child(_tutorial)
+	_tutorial.finished.connect(_tutorial_finished)
+	_home.tutorial_pressed.connect(_replay_tutorial)
 	resized.connect(_fit)
 	_new_career(int(Time.get_ticks_usec()))
 	_open_home()
@@ -130,6 +135,34 @@ func _night_return() -> void:
 	SaveIO.write_meta(_meta)
 	if not rep.is_empty() and not bool(rep.get("collected", false)):
 		_night.show_report(rep)
+
+
+func _tutorial_finished(_skipped: bool) -> void:
+	_meta.tutorial_done = true
+	SaveIO.write_meta(_meta)
+
+
+## Home "Replay tutorial": forget it was done and start a fresh career so day 1 teaches again.
+func _replay_tutorial() -> void:
+	_meta.tutorial_done = false
+	SaveIO.write_meta(_meta)
+	_home.visible = false
+	_new_career(int(Time.get_ticks_usec()))
+
+
+func _tutorial_tick() -> void:
+	if _tutorial == null or not _tutorial.active:
+		return
+	if _career.day != 1 or _daily_date != "":
+		_tutorial.skip()  # past day 1 (or a daily): done for good
+		return
+	var strip := _screens.desk_rect()
+	_tutorial.targets = {
+		"floor": _screens.floor_rect(), "desk": strip,
+		"review": Rect2(Vector2(8, 8), size - Vector2(16, 16)),
+	}
+	if _phase == Phase.PLAYING or _phase == Phase.REVIEW:
+		_tutorial.observe(Tutorial.snapshot(_factory, _phase == Phase.REVIEW and not _offers.is_empty()))
 
 
 func _night_collected() -> void:
@@ -184,6 +217,11 @@ func _new_career(seed_value: int, daily_date: String = "") -> void:
 	_stats.career_started(int(Time.get_unix_time_from_system()))
 	SaveIO.write_meta(_meta)
 	_show_day()
+	if _tutorial != null:
+		if _meta.tutorial_done or daily_date != "":
+			_tutorial.stop()
+		else:
+			_tutorial.start()
 
 
 func _show_day() -> void:
@@ -418,6 +456,7 @@ func _process(delta: float) -> void:
 		if _flash_left <= 0.0:
 			_hud.set_flash("")
 	_hud.update(_factory, _career, _config.tick_rate, roundi(_config.shift_seconds * _config.tick_rate), _best_days)
+	_tutorial_tick()
 
 
 func _sfx_events() -> void:

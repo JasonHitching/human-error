@@ -1,0 +1,10 @@
+{
+  "steps": [
+    {"id": "fix", "trigger": "fault", "target": "floor", "do_this": true, "done": "crew_busy",
+     "text": "A machine broke down. Tap it and hold until it is fixed."},
+    {"id": "inspect", "trigger": "desk_item", "target": "desk", "done": "inspected",
+     "text": "A product is at your desk. Swipe right to ship it, left to reject it if it is faulty."},
+    {"id": "train", "trigger": "offers", "target": "review", "done": "dismiss",
+     "text": "Pick a training. Your bots learn from your fixes and one day take your job."}
+  ]
+}

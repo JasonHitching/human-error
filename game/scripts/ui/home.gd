@@ -6,12 +6,14 @@ extends Control
 signal start_pressed
 signal stats_pressed
 signal daily_pressed
+signal tutorial_pressed
 signal perk_bought(id: String)
 signal tier_picked(tier: int)
 
 var start_btn: Button
 var stats_btn: Button
 var daily_btn: Button
+var tutorial_btn: Button
 var tier_box: HBoxContainer  # one button per unlocked tier
 var perks_box: VBoxContainer  # one row per perk: name, desc, buy button
 var _info: Label
@@ -50,9 +52,15 @@ func _ready() -> void:
 	daily_btn = _button("Daily", 28, Vector2(440, 80))
 	daily_btn.pressed.connect(daily_pressed.emit)
 	box.add_child(daily_btn)
-	stats_btn = _button("Stats", 24, Vector2(440, 80))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+	stats_btn = _button("Stats", 24, Vector2(214, 80))
 	stats_btn.pressed.connect(stats_pressed.emit)
-	box.add_child(stats_btn)
+	row.add_child(stats_btn)
+	tutorial_btn = _button("Replay tutorial", 22, Vector2(214, 80))
+	tutorial_btn.pressed.connect(tutorial_pressed.emit)
+	row.add_child(tutorial_btn)
 	visible = false
 
 

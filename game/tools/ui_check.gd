@@ -487,11 +487,30 @@ func _check_home(tag: String, placed: bool = true) -> void:
 	var need: Vector2 = h.start_btn.get_parent().get_combined_minimum_size()
 	if need.y > vp.size.y or need.x > vp.size.x:
 		_fails.append("[%s] Home content %s does not fit %s" % [tag, need, vp.size])
-	for b: Button in [h.start_btn, h.daily_btn, h.stats_btn]:
+	for b: Button in [h.start_btn, h.daily_btn, h.stats_btn, h.tutorial_btn]:
 		if placed and not vp.encloses(b.get_global_rect()):
 			_fails.append("[%s] Home button '%s' off-screen %s" % [tag, b.text, b.get_global_rect()])
 		if b.size.x < 120.0 or b.size.y < 80.0:
 			_fails.append("[%s] Home button '%s' too small %s" % [tag, b.text, b.size])
+
+
+func _check_tutorial() -> void:
+	var t: Tutorial = _main._tutorial
+	t.start()
+	t.observe({"fault": true})
+	t.targets = {"floor": _main._screens.floor_rect(), "desk": _main._screens.desk_rect(), "review": Rect2(Vector2(8, 8), _main.size - Vector2(16, 16))}
+	var vp := Rect2(Vector2.ZERO, _main.size)
+	for step in t.steps.size():
+		t._layout()
+		if not t.visible or not vp.encloses(t.caption_rect):
+			_fails.append("tutorial caption off-screen %s (step %d)" % [t.caption_rect, step])
+		if not vp.grow(0.5).encloses(t.target_rect()) or t.target_rect().size.x <= 0.0:
+			_fails.append("tutorial target off-screen %s (step %d)" % [t.target_rect(), step])
+		if t.skip_btn.size.y < 80.0 and t.skip_btn.custom_minimum_size.y < 80.0:
+			_fails.append("tutorial skip button too small")
+		t.dismiss()
+		t.observe({"desk_item": true, "offers": true})
+	t.stop()
 
 
 func _check_night() -> void:
@@ -535,6 +554,7 @@ func _process(_delta: float) -> bool:
 			_check_overlay("banner", hud.banner, true)
 			_check_home("start")
 			_check_night()
+			_check_tutorial()
 			_main._home_start()
 			if _main._home.visible:
 				_fails.append("Home Start did not hide Home")

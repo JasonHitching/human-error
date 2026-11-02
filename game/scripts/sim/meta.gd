@@ -20,6 +20,7 @@ var daily_best: Dictionary = {}  # "YYYY-MM-DD" -> best days (last Daily.KEEP da
 var daily_streak: int = 0  # consecutive calendar days with a daily played
 var daily_last: String = ""  # latest date a daily was played (never moves backwards)
 var pending_night: Dictionary = {}  # {commendations, mess_level, lines[], collected}; {} = none
+var tutorial_done: bool = false  # day-1 tutorial finished or skipped: never shown again (Home can replay it)
 
 
 func to_dict() -> Dictionary:
@@ -27,7 +28,7 @@ func to_dict() -> Dictionary:
 		"version": version, "stats": stats.to_dict(), "commendations": commendations,
 		"unlocked": unlocked, "tier": tier, "picked_tier": picked_tier, "tier_best": tier_best, "owned_perks": owned_perks, "automations": automations,
 		"last_seen_unix": last_seen_unix, "pending_night": pending_night,
-		"daily_best": daily_best, "daily_streak": daily_streak, "daily_last": daily_last,
+		"daily_best": daily_best, "daily_streak": daily_streak, "daily_last": daily_last, "tutorial_done": tutorial_done,
 	}
 
 
@@ -64,6 +65,8 @@ static func from_dict(d: Dictionary) -> Meta:
 	var dl := str(d.get("daily_last", ""))
 	m.daily_last = dl if Daily.is_date(dl) else ""
 	m._trim_daily()
+	var td: Variant = d.get("tutorial_done", false)
+	m.tutorial_done = td == true or (not td is bool and RunStats.to_int(td) == 1)
 	var op: Variant = d.get("owned_perks", [])
 	if op is Array:
 		for v: Variant in op:
