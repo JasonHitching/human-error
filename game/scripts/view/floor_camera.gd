@@ -118,6 +118,8 @@ func cancel() -> void:
 
 
 func _clamp() -> void:
+	# Content larger than the view: keep the view inside the bounds. Content that fits on screen can
+	# still be panned (centre stays within the bounds) so the floor never feels locked in place.
 	var half := view / (2.0 * zoom)
-	center.x = bounds.get_center().x if bounds.size.x <= half.x * 2.0 else clampf(center.x, bounds.position.x + half.x, bounds.end.x - half.x)
-	center.y = bounds.get_center().y if bounds.size.y <= half.y * 2.0 else clampf(center.y, bounds.position.y + half.y, bounds.end.y - half.y)
+	center.x = clampf(center.x, bounds.position.x + half.x, bounds.end.x - half.x) if bounds.size.x > half.x * 2.0 else clampf(center.x, bounds.position.x, bounds.end.x)
+	center.y = clampf(center.y, bounds.position.y + half.y, bounds.end.y - half.y) if bounds.size.y > half.y * 2.0 else clampf(center.y, bounds.position.y, bounds.end.y)

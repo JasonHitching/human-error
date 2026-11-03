@@ -40,6 +40,7 @@ var _fx_tops := PackedVector2Array()
 var _bottleneck: String = ""  # machine limiting throughput (FlowReadout), refreshed each draw
 var _links: Array = []  # {from, to, path: Array[Vector2i]} for chevrons and belt queues
 var _chevrons: Array[Dictionary] = []  # {a, b, key}: one arrow per belt step, cell-local
+const CHAR_K := 1.3  # bot / worker sprite scale; 1.0 = same scale as the machines
 const SCRAP_RUN := 2.4
 const PULSE_TIME := 0.3
 const SPARK_N := 12
@@ -462,9 +463,9 @@ func _draw() -> void:
 			3:
 				var bm: Machine = e["m"]
 				var panic := bm.is_faulted() or bm.misrouted
-				BotView.draw(self, bot_pos(bm), bm.bot.color, 1 if panic else 0, _time, 0.0, 0.0, bm.bot.name.to_lower(), 1.7 * _s)
+				BotView.draw(self, bot_pos(bm), bm.bot.color, 1 if panic else 0, _time, 0.0, 0.0, bm.bot.name.to_lower(), CHAR_K * _s)
 			4:
-				WorkerView.draw(self, worker_pos(), _time, _worker_walking(), factory.crew_busy and not _worker_walking(), 1.7 * _s)
+				WorkerView.draw(self, worker_pos(), _time, _worker_walking(), factory.crew_busy and not _worker_walking(), CHAR_K * _s)
 			5:
 				var pp: Vector2 = e["p"]
 				var tint := Color(0.55, 0.58, 0.65) if e["junk"] else Color.WHITE
@@ -498,8 +499,8 @@ func _draw_ground() -> void:
 	for gx in gr.x:
 		for gy in gr.y:
 			var g := ground(Vector2(gx, gy))
-			if not ar.encloses(Rect2(g - Vector2(IsoFloor.HW, IsoFloor.HH) * _s, Vector2(IsoFloor.HW, IsoFloor.HH) * 2.0 * _s)):
-				continue
+			if not ar.intersects(Rect2(g - Vector2(IsoFloor.HW, IsoFloor.HH) * _s, Vector2(IsoFloor.HW, IsoFloor.HH) * 2.0 * _s)):
+				continue  # off-screen; partly visible tiles are drawn (the floor area clips them)
 			if not _spr("floor_tile_alt" if (gx + gy) % 2 == 1 else "floor_tile", g):
 				draw_colored_polygon(_diamond(g, 0.98), UiTheme.SURFACE_DIM if (gx + gy) % 2 == 0 else UiTheme.BG.lightened(0.04))
 	for c: Vector2i in _iso.edges:
@@ -603,7 +604,7 @@ func _wall(n: String, g: Vector2, flip: bool, ar: Rect2) -> void:
 		return
 	var f := 0.5 * _s
 	var tl := g - IsoFloor.anchor(n) * f
-	if ar.encloses(Rect2(tl, t.get_size() * f)):
+	if ar.intersects(Rect2(tl, t.get_size() * f)):
 		_spr(n, g, flip)
 
 
@@ -695,7 +696,7 @@ func _draw_machine(m: Machine) -> void:
 		draw_polyline(br, UiTheme.WARN, 3.0)
 	var tint := Color.WHITE
 	if m.state == Machine.State.STARVED and m.type != "generator":
-		tint = Color(1, 1, 1, 0.6)  # starved: dim
+		tint = Color(0.72, 0.76, 0.86)  # starved: dimmed but still solid (alpha made machines vanish into the floor)
 	elif m.state == Machine.State.BLOCKED:
 		tint = Color(1.0, 0.9, 0.75)  # blocked: items pile up upstream
 	var sprite := _iso.machine_sprite(m.id, m.type)
