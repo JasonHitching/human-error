@@ -130,3 +130,27 @@ func test_full_mode_and_tiers_keep_the_normal_sprites() -> void:
 		assert_eq(iso.sprite_set, "", "no sprite set")
 		for n in _kit_names(iso):
 			assert_eq(iso.resolve_sprite(n), n, "normal sprite for " + n)
+
+
+func test_core_machines_are_straight_through_and_belts_connect() -> void:
+	var iso := _floor(0)
+	for id: String in iso.cells:
+		if iso.types[id] == "qa":
+			continue
+		var o := iso.machine_openings(id)
+		assert_eq(o.size(), 2, "%s has one in and one out" % id)
+		assert_eq(IsoFloor.OPP[o[0]], o[1], "%s is straight-through (corners are belt cells)" % id)
+	for key: String in iso.paths:
+		var path: Array = iso.paths[key]
+		for i in range(1, path.size()):
+			var d: Vector2i = path[i] - path[i - 1]
+			assert_eq(absi(d.x) + absi(d.y), 1, "belt %s steps one cell at a time" % key)
+
+
+func test_route_via_goes_through_the_corner() -> void:
+	var iso := IsoFloor.new()
+	var p := iso.route_via(Vector2i(0, 0), Vector2i(2, 3), [[0, 3]])
+	assert_eq(p.size(), 6, "3 down gy then 2 along gx")
+	assert_true(p.has(Vector2i(0, 3)), "passes the via corner")
+	assert_eq(p[p.size() - 1], Vector2i(2, 3))
+

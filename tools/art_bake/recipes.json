@@ -683,42 +683,58 @@
     }
    ]
   },
-  "factory_kit/machine_generator_ne_sw": {
+  "factory_kit/belt_corner_ne_se": {
    "canvas": [
-    384,
-    384,
-    192,
-    292
-   ],
-   "parts": [
-    {
-     "model": "fk:conveyor"
-    },
-    {
-     "model": "fk:hopper-square"
-    }
-   ]
-  },
-  "factory_kit/machine_assembler_ne_se": {
-   "canvas": [
-    384,
-    384,
-    192,
-    292
+    256,
+    200,
+    128,
+    126
    ],
    "parts": [
     {
      "model": "fk:conveyor-corner",
      "rot_y_deg": 90
-    },
+    }
+   ]
+  },
+  "factory_kit/belt_corner_nw_ne": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
     {
-     "model": "fk:machine",
-     "pos": [
-      -0.12,
-      0,
-      -0.12
-     ],
-     "scale": 0.7
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 180
+    }
+   ]
+  },
+  "factory_kit/belt_corner_se_sw": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner"
+    }
+   ]
+  },
+  "factory_kit/belt_corner_sw_nw": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 270
     }
    ]
   },
@@ -731,7 +747,7 @@
    ],
    "parts": [
     {
-     "model": "fk:conveyor"
+     "model": "fk:conveyor-sides"
     },
     {
      "model": "fk:box-large",
@@ -764,16 +780,179 @@
    ],
    "parts": [
     {
-     "proc": "belt",
-     "arms": [
-      "ne",
-      "se",
-      "sw",
-      "nw"
-     ]
+     "model": "fk:conveyor-sides",
+     "rot_y_deg": 90
     },
     {
-     "model": "fk:scanner-low"
+     "model": "fk:scanner-low",
+     "rot_y_deg": 90
+    }
+   ]
+  },
+  "factory_kit/machine_generator_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides"
+    },
+    {
+     "model": "fk:hopper-square"
+    }
+   ]
+  },
+  "factory_kit/machine_generator_nw_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:hopper-square"
+    }
+   ]
+  },
+  "factory_kit/machine_generator_se_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner"
+    },
+    {
+     "model": "fk:hopper-square"
+    }
+   ]
+  },
+  "factory_kit/machine_processor_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides"
+    },
+    {
+     "model": "fk:machine-window",
+     "rot_y_deg": 270,
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_processor_nw_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:machine-window",
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_processor_ne_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:machine-window",
+     "pos": [
+      -0.12,
+      0,
+      -0.12
+     ],
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_processor_nw_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 270
+    },
+    {
+     "model": "fk:machine-window",
+     "pos": [
+      -0.12,
+      0,
+      -0.12
+     ],
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_assembler_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides"
+    },
+    {
+     "model": "fk:machine",
+     "rot_y_deg": 270,
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_assembler_nw_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-sides",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:machine",
+     "scale": 0.7
     }
    ]
   }

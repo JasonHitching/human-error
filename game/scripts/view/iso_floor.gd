@@ -18,6 +18,7 @@ var by_cell: Dictionary = {}  # Vector2i -> machine id
 var edges: Dictionary = {}  # belt cell -> {edge name: true}
 var paths: Dictionary = {}  # "from>to" -> Array[Vector2i] (machine cell, belt cells, machine cell)
 var props: Array = []
+var vias: Dictionary = {}  # "from>to" -> [[gx, gy], ...] corner cells the belt passes through (each leg is straight)
 var sprite_set := ""  # optional art set folder under assets/sprites/ (e.g. "factory_kit"); "" = the normal set
 var grid := Vector2i(5, 5)
 var scrap_cell := Vector2i(0, 0)
@@ -60,11 +61,12 @@ func setup(machines: Array, links: Array, art: Dictionary) -> void:
 	stairs_cell = Vector2(float(st[0]), float(st[1]))
 	props = art.get("props", [])
 	sprite_set = String(art.get("sprite_set", ""))
+	vias = art.get("vias", {})
 	for l: Dictionary in links:
 		var key := "%s>%s" % [l["from"], l["to"]]
 		var a: Vector2i = cells.get(String(l["from"]), Vector2i.ZERO)
 		var b: Vector2i = cells.get(String(l["to"]), Vector2i.ZERO)
-		var path := route(a, b)
+		var path := route_via(a, b, vias.get(key, []))
 		paths[key] = path
 		for i in range(1, path.size()):
 			var d := path[i] - path[i - 1]
@@ -114,6 +116,25 @@ func _edge(c: Vector2i, e: String) -> void:
 	if not edges.has(c):
 		edges[c] = {}
 	edges[c][e] = true
+
+
+## Cells from a to b through the via corners (each leg axis-aligned). No vias = the L-shaped `route`.
+func route_via(a: Vector2i, b: Vector2i, via: Array) -> Array[Vector2i]:
+	if via.is_empty():
+		return route(a, b)
+	var out: Array[Vector2i] = [a]
+	var p := a
+	var stops: Array[Vector2i] = []
+	for v: Array in via:
+		stops.append(Vector2i(int(v[0]), int(v[1])))
+	stops.append(b)
+	for t: Vector2i in stops:
+		while p != t:
+			if p.x != t.x and p.y != t.y:
+				return route(a, b)  # a diagonal leg: ignore the vias rather than draw a broken belt
+			p += Vector2i(signi(t.x - p.x), signi(t.y - p.y))
+			out.append(p)
+	return out
 
 
 ## Cells from a to b inclusive: along gx then gy; the other order if a machine is in the way.

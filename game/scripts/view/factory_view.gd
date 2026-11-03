@@ -40,6 +40,7 @@ var _fx_tops := PackedVector2Array()
 var _bottleneck: String = ""  # machine limiting throughput (FlowReadout), refreshed each draw
 var _links: Array = []  # {from, to, path: Array[Vector2i]} for chevrons and belt queues
 var _chevrons: Array[Dictionary] = []  # {a, b, key}: one arrow per belt step, cell-local
+const WALL_HALF := 0.07  # half the baked wall thickness, in cells
 const CHAR_K := 1.3  # bot / worker sprite scale; 1.0 = same scale as the machines
 const SCRAP_RUN := 2.4
 const PULSE_TIME := 0.3
@@ -411,7 +412,7 @@ func _spr(n: String, g: Vector2, flip: bool = false, mod: Color = Color.WHITE, s
 	var sz := t.get_size() * f
 	var tl := g - IsoFloor.anchor(n) * f
 	if flip:
-		draw_texture_rect(t, Rect2(tl + Vector2(sz.x, 0), Vector2(-sz.x, sz.y)), false, mod)
+		draw_texture_rect(t, Rect2(tl, Vector2(-sz.x, sz.y)), false, mod)  # negative width mirrors in place (it does not extend left)
 	else:
 		draw_texture_rect(t, Rect2(tl, sz), false, mod)
 	return true
@@ -488,14 +489,16 @@ func _draw() -> void:
 func _draw_ground() -> void:
 	var ar := area.grow(1.0)
 	var gr := _iso.grid
-	# back walls (NW and NE edges); only whole sprites inside the floor area are drawn
-	for i in range(1, gr.y):
-		var wn := "wall_back" if i == 1 else "wall_back_plain"
-		if i == 2:
-			continue
-		_wall(wn, ground(Vector2(-1, i)), false, ar)
-	for i in range(1, gr.x):
-		_wall("wall_back_plain", ground(Vector2(i, -1)), true, ar)
+	# Back walls on the NW and NE edges, flush with the floor edge and one wall piece per cell so the
+	# seams line up. The window piece (2 cells, over the stairs) replaces the plain pieces on cells 1-2.
+	var wall_off := -0.5 - WALL_HALF
+	for i in gr.y:
+		if i == 1:
+			_wall("wall_back", ground(Vector2(wall_off, 1.5)), false, ar)
+		elif i != 2:
+			_wall("wall_back_plain", ground(Vector2(wall_off, float(i))), false, ar)
+	for i in gr.x:
+		_wall("wall_back_plain", ground(Vector2(float(i), wall_off)), true, ar)
 	for gx in gr.x:
 		for gy in gr.y:
 			var g := ground(Vector2(gx, gy))
