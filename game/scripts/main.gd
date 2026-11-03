@@ -98,10 +98,11 @@ func _ready() -> void:
 	_settings.sound_toggled.connect(_toggle_mute)
 	_settings.haptics_toggled.connect(_toggle_haptics)
 	_settings.effects_toggled.connect(_toggle_effects)
+	_settings.mode_toggled.connect(_toggle_mode)
 	_settings.home_pressed.connect(func() -> void:
 		_settings.close()
 		_open_home())
-	_hud.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled))
+	_hud.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled, _meta.mode == "full"))
 	_home = Home.create()
 	add_child(_home)
 	_home.start_pressed.connect(_home_start)
@@ -114,7 +115,7 @@ func _ready() -> void:
 			SaveIO.write_meta(_meta)
 		_home_refresh())
 	_home.daily_pressed.connect(_daily_start)
-	_home.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled))
+	_home.settings_pressed.connect(func() -> void: _settings.open(not _muted, Haptics.enabled, _meta.mode == "full"))
 	_home.stats_pressed.connect(func() -> void: _hud.show_stats(_stats.summary()))
 	_hud.stats_overlay.z_index = 20  # stats opens above Home
 	_night = NightReport.create()
@@ -131,7 +132,17 @@ func _ready() -> void:
 
 
 ## Night shift: on start/resume show the Foreman's report if we were away long enough.
+## Settings "Full game (dev)": switches the mode for the next career (saved).
+func _toggle_mode() -> void:
+	_meta.mode = "core" if _meta.mode == "full" else "full"
+	SaveIO.write_meta(_meta)
+	_settings.refresh(not _muted, Haptics.enabled, _meta.mode == "full")
+	_home_refresh()
+
+
 func _night_return() -> void:
+	if not _meta.feature("night_shift"):
+		return
 	var rep := _meta.night_check(int(Time.get_unix_time_from_system()), _career.roster, int(_meta.last_seen_unix))
 	SaveIO.write_meta(_meta)
 	if not rep.is_empty() and not bool(rep.get("collected", false)):
@@ -186,8 +197,14 @@ func _today() -> String:
 	return Time.get_date_string_from_system()  # local date
 
 
+## Config for the saved mode: the calm core game, or the full game at the given tier.
+func _load_config(tier: int) -> SimConfig:
+	return SimConfig.load_mode("core") if _meta.mode == "core" else SimConfig.load_tier(tier)
+
+
 func _home_refresh() -> void:
-	_home.setup(_meta, _today(), SimConfig.load_tier(_meta.picked_tier).target_base)
+	_meta.features = _load_config(_meta.picked_tier).features
+	_home.setup(_meta, _today(), _load_config(_meta.picked_tier).target_base)
 
 
 func _open_home() -> void:
@@ -198,7 +215,7 @@ func _open_home() -> void:
 ## Start career: at app start a career is already set up behind Home; after a run-end begin a fresh one.
 func _home_start() -> void:
 	_home.visible = false
-	if _phase == Phase.FIRED or _meta.picked_tier != _tier or _daily_date != "":
+	if _phase == Phase.FIRED or _meta.picked_tier != _tier or _daily_date != "" or _config.mode_name != _meta.mode:
 		_new_career(int(Time.get_ticks_usec()))
 
 
@@ -210,7 +227,8 @@ func _daily_start() -> void:
 
 func _set_tier(t: int) -> void:
 	_tier = clampi(t, 1, _meta.tier)
-	_config = SimConfig.load_tier(_tier)
+	_config = _load_config(_tier)
+	_meta.features = _config.features
 	_best_days = _meta.best_for(_tier)
 
 
@@ -240,6 +258,7 @@ func _show_day() -> void:
 	_feel.reset()
 	_front_since = _feel.clock
 	_desk.setup(_factory)
+	_apply_features()
 	_desk.hint = HINT if _career.day == 1 else ""
 	_desk.caption = _spec_caption()
 	_desk.spec_new = _factory.spec_change != ""
@@ -248,8 +267,16 @@ func _show_day() -> void:
 	_phase = Phase.BANNER
 	_hud.set_flash("")
 	var ci := _career.clock_in()
-	_hud.show_banner(_career.day, String(ci["briefing"]), _factory.target, _career.twist(), _factory.spec_change, _career.banner_news(), String(ci["bot"]), String(ci["bot_line"]))
+	_hud.show_banner(_career.day, String(ci["briefing"]), _factory.target, _career.twist() if _config.feature("twists") else {}, _factory.spec_change if _config.feature("spec_change") else "", _career.banner_news(), String(ci["bot"]), String(ci["bot_line"]))
 	_fit()
+
+
+## Hides the controls and notices of systems the mode switches off (reads the mode's features).
+func _apply_features() -> void:
+	_scan_btn.visible = _config.feature("subtle_defects")
+	_flip_btn.visible = _config.feature("back_defects")
+	_lamp_btn.visible = _config.feature("subtle_defects")
+	_hud.show_twists = _config.feature("twists")
 
 
 func _spec_caption() -> String:
@@ -286,7 +313,7 @@ func _toggle_effects() -> void:
 
 
 func _refresh_mute() -> void:
-	_settings.refresh(not _muted, Haptics.enabled)
+	_settings.refresh(not _muted, Haptics.enabled, _meta.mode == "full")
 
 
 func _begin_shift() -> void:

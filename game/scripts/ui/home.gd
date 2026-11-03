@@ -83,15 +83,27 @@ func _draw_hat() -> void:
 	_hat.draw_rect(Rect2(c + Vector2(-r * 1.5, -UiTheme.px(3.0)), Vector2(r * 3.0, UiTheme.px(3.0))), UiTheme.GOLD)
 
 
+## Hides the controls of switched-off systems (features come from the mode, see Meta.features).
+func _apply_features(m: Meta) -> void:
+	var perks := m.feature("perks")
+	%PerksTitle.visible = perks
+	perks_box.visible = perks
+	perks_btn.visible = perks
+	daily_btn.visible = m.feature("daily")
+
+
 func setup(m: Meta, today: String = "", quota: int = 0) -> void:
+	_apply_features(m)
 	_clear(_tiles)
 	_tile("Best", str(m.best_for(m.picked_tier)), UiTheme.TEXT)
 	_tile("Careers", str(m.stats.careers_finished), UiTheme.TEXT)
-	_tile("Commendations", str(m.balance()), UiTheme.GOLD)
-	start_btn.text = "Start career\nTier %d%s" % [m.picked_tier, " · day-1 quota %d" % quota if quota > 0 else ""]
+	if m.feature("commendations"):
+		_tile("Commendations", str(m.balance()), UiTheme.GOLD)
+	var quota_txt := " · day-1 quota %d" % quota if quota > 0 else ""
+	start_btn.text = "Start career\nTier %d%s" % [m.picked_tier, quota_txt] if m.feature("tiers") else "Start career" + ("\nDay-1 quota %d" % quota if quota > 0 else "")
 	_daily(m, today)
 	_clear(tier_box)
-	tier_box.visible = m.tier > 1
+	tier_box.visible = m.tier > 1 and m.feature("tiers")
 	for t in range(1, m.tier + 1):
 		var tb := UiKit.button(tier_box, "Tier %d · best %d" % [t, m.best_for(t)], "secondary", 46.0, 20)
 		tb.name = "tier_%d" % t

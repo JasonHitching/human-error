@@ -72,6 +72,13 @@ layout_mode = 2
 focus_mode = 0
 text = "Effects: on"
 
+[node name="ModeBtn" type="Button" parent="Center/Panel/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(443, 89)
+layout_mode = 2
+focus_mode = 0
+text = "Full game (dev): off"
+
 [node name="HomeBtn" type="Button" parent="Center/Panel/Box"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(443, 89)

@@ -18,8 +18,16 @@ var _busy := false  # a check is awaiting frames
 var _fails: Array[String] = []
 
 
+var _core := false  # --mode core: the calm default; no arg = full-game checks, then a core child run
+
+
 func _initialize() -> void:
 	OS.add_logger(_catcher)
+	var args := OS.get_cmdline_user_args()
+	_core = args.has("core")
+	var seed_meta := Meta.new()  # fresh save in the mode under test
+	seed_meta.mode = "core" if _core else "full"
+	SaveIO.write_meta(seed_meta)
 	_main = load("res://main.tscn").instantiate()
 	root.add_child(_main)
 
@@ -736,7 +744,87 @@ func _layout_checks() -> void:
 	_busy = false
 
 
+## Visible text of controls that belong to a switched-off feature (empty when none).
+func _disabled_ui(root_node: Node) -> Array[String]:
+	var words := ["commendation", "perk", "daily", "night shift", "twist", "x-ray", "radio", "auto-inspect", "tier ", "new spec", "spec change"]
+	var found: Array[String] = []
+	for n in root_node.find_children("*", "Control", true, false):
+		var c := n as Control
+		var t := ""
+		if c is Button:
+			t = (c as Button).text
+		elif c is Label:
+			t = (c as Label).text
+		if t == "" or not c.is_visible_in_tree():
+			continue
+		for w in words:
+			if t.to_lower().contains(w):
+				found.append("%s '%s'" % [c.name, t])
+	return found
+
+
+func _check_core_hidden(tag: String, roots: Array) -> void:
+	for r: Node in roots:
+		for s in _disabled_ui(r):
+			_fails.append("[%s] visible control of a disabled feature: %s" % [tag, s])
+
+
+## Core mode (default): disabled systems have no visible UI, and the mode setting toggles.
+func _process_core() -> bool:
+	_frames += 1
+	var hud: Control = _main._hud
+	var h: Home = _main._home
+	match _frames:
+		3:
+			if _main._config.mode_name != "core" or _main._meta.mode != "core":
+				_fails.append("game did not start in core mode")
+			_check_overlay("banner", hud.banner, true)
+			_check_core_hidden("banner", [hud.banner])
+			_main._open_home()
+			_check_core_hidden("home", [h])
+			for c: Control in [h.daily_btn, h.perks_btn, h.perks_box, h.tier_box, h.get_node("%PerksTitle")]:
+				if c.is_visible_in_tree():
+					_fails.append("Home shows '%s' in core mode" % c.name)
+			for b: Button in [h.start_btn, h.stats_btn, h.cog]:
+				if not b.is_visible_in_tree():
+					_fails.append("Home lacks '%s'" % b.name)
+			_main._settings.open(true, true, false)
+			if _main._settings.mode_btn.text != "Full game (dev): off":
+				_fails.append("settings toggle text: " + _main._settings.mode_btn.text)
+			_main._settings.mode_btn.pressed.emit()
+			if _main._meta.mode != "full" or SaveIO.load_meta().mode != "full":
+				_fails.append("Full game toggle did not switch and save the mode")
+			_main._settings.mode_btn.pressed.emit()
+			if _main._meta.mode != "core" or SaveIO.load_meta().mode != "core":
+				_fails.append("Full game toggle did not switch back")
+			_main._settings.close()
+			_main._home_start()
+			hud.start_pressed.emit()
+		4:
+			_check_core_hidden("shift", [_main._screens, hud])
+			for b: Button in [_main._scan_btn, _main._flip_btn, _main._lamp_btn]:
+				if b.is_visible_in_tree():
+					_fails.append("core mode shows desk button '%s'" % b.text)
+			_check_button(_main._ship_btn, Rect2(Vector2.ZERO, _main.size))
+			_check_button(_main._reject_btn, Rect2(Vector2.ZERO, _main.size))
+			_check_tutorial()
+			_end_shift(_main._factory.target * 2)
+		7:
+			_check_overlay("review", hud.review, true)
+			_check_core_hidden("review", [hud.review])
+			for e in _catcher.errors.slice(0, 5):
+				_fails.append("engine/script error while drawing: " + e)
+			for f in _fails:
+				print("FAIL ui_check(core): " + f)
+			print("ui_check (core): %s" % ("ok" if _fails.is_empty() else "%d failed" % _fails.size()))
+			quit(1 if not _fails.is_empty() else 0)
+			return true
+	return false
+
+
 func _process(_delta: float) -> bool:
+	if _core:
+		return _process_core()
 	if _busy:
 		return false
 	_frames += 1
@@ -836,6 +924,11 @@ func _process(_delta: float) -> bool:
 			for f in _fails:
 				print("FAIL ui_check: " + f)
 			print("ui_check: %s" % ("ok" if _fails.is_empty() else "%d failed" % _fails.size()))
-			quit(1 if not _fails.is_empty() else 0)
+			var rc := 1 if not _fails.is_empty() else 0
+			if rc == 0:  # then the same smoke check in the core (default) mode
+				var out: Array = []
+				rc = OS.execute(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"), "-s", "res://tools/ui_check.gd", "--", "core"], out, true)
+				print(str(out[0]).strip_edges().split("\n")[-1] if not out.is_empty() else "core run: no output")
+			quit(rc)
 			return true
 	return false

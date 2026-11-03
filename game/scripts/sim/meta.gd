@@ -20,6 +20,7 @@ var daily_best: Dictionary = {}  # "YYYY-MM-DD" -> best days (last Daily.KEEP da
 var daily_streak: int = 0  # consecutive calendar days with a daily played
 var daily_last: String = ""  # latest date a daily was played (never moves backwards)
 var features: Dictionary = {}  # mode switches (SimConfig.features); a missing id counts as on. Set by the caller, never saved
+var mode: String = "core"  # game mode for the next career ("core" | "full"); old saves without it are core
 var pending_night: Dictionary = {}  # {commendations, mess_level, lines[], collected}; {} = none
 var tutorial_done: bool = false  # day-1 tutorial finished or skipped: never shown again (Home can replay it)
 
@@ -29,7 +30,7 @@ func to_dict() -> Dictionary:
 		"version": version, "stats": stats.to_dict(), "commendations": commendations,
 		"unlocked": unlocked, "tier": tier, "picked_tier": picked_tier, "tier_best": tier_best, "owned_perks": owned_perks, "automations": automations,
 		"last_seen_unix": last_seen_unix, "pending_night": pending_night,
-		"daily_best": daily_best, "daily_streak": daily_streak, "daily_last": daily_last, "tutorial_done": tutorial_done,
+		"daily_best": daily_best, "daily_streak": daily_streak, "daily_last": daily_last, "tutorial_done": tutorial_done, "mode": mode,
 	}
 
 
@@ -68,6 +69,7 @@ static func from_dict(d: Dictionary) -> Meta:
 	m._trim_daily()
 	var td: Variant = d.get("tutorial_done", false)
 	m.tutorial_done = td == true or (not td is bool and RunStats.to_int(td) == 1)
+	m.mode = "full" if str(d.get("mode", "core")) == "full" else "core"
 	var op: Variant = d.get("owned_perks", [])
 	if op is Array:
 		for v: Variant in op:
