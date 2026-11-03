@@ -29,6 +29,38 @@ S = {
     # QA desk: all-open slab with a scanner
     "desk_hatch": {"canvas": BIG, "parts": [{"proc": "belt", "arms": ["ne", "se", "sw", "nw"]}, p("scanner-low")]},
 }
+# Corner belts (kit conveyor-corner), named by the game's belt_corner_<e1>_<e2> sprites.
+for n, edges in {"belt_corner_ne_se": "ne_se", "belt_corner_nw_ne": "ne_nw", "belt_corner_se_sw": "se_sw", "belt_corner_sw_nw": "nw_sw"}.items():
+    S[n] = {"canvas": BELT, "parts": [p("conveyor-corner", CORNER_ROT[edges])]}
+
+# Two-edge machine facings the normal set has. Three-edge facings (split/merge lanes) and belt_split/merge
+# have no good kit piece (kit T-junctions are closed tunnels), so IsoFloor falls back to the normal set for those.
+OPP = {"ne": "sw", "sw": "ne", "se": "nw", "nw": "se"}
+
+
+def belt_for(edges):
+    if OPP[edges[0]] == edges[1]:
+        return p("conveyor", 0 if "ne" in edges else 90)
+    return p("conveyor-corner", CORNER_ROT["_".join(edges)])
+
+
+def straight_rot(edges):
+    return 0 if "ne" in edges else 90
+
+
+FACINGS = {"generator": ["se_sw"], "processor": ["ne_se", "nw_sw", "nw_se"], "assembler": ["ne_sw"]}
+for typ, names in FACINGS.items():
+    for n in names:
+        e = n.split("_")
+        straight = OPP[e[0]] == e[1]
+        if typ == "generator":
+            top = [p("hopper-square")]
+        elif typ == "processor":
+            top = [p("machine-window", straight_rot(e) if straight else 0, None if straight else [-0.12, 0, -0.12], 0.7)]
+        else:
+            top = [p("machine", straight_rot(e) if straight else 0, None if straight else [-0.12, 0, -0.12], 0.7)]
+        S[f"machine_{typ}_{n}"] = {"canvas": BIG, "parts": [belt_for(e)] + top}
+
 path = os.path.join(HERE, "recipes.json")
 R = json.load(open(path))
 for n, r in S.items():
