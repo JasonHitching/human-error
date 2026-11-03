@@ -130,3 +130,10 @@ func test_full_mode_and_tiers_keep_the_normal_sprites() -> void:
 		assert_eq(iso.sprite_set, "", "no sprite set")
 		for n in _kit_names(iso):
 			assert_eq(iso.resolve_sprite(n), n, "normal sprite for " + n)
+
+
+func test_factory_kit_set_covers_corners_and_two_edge_facings() -> void:
+	var iso := IsoFloor.new()
+	iso.sprite_set = "factory_kit"
+	for n in ["belt_corner_ne_se", "belt_corner_nw_ne", "belt_corner_se_sw", "belt_corner_sw_nw", "machine_generator_se_sw", "machine_processor_ne_se", "machine_processor_nw_se", "machine_processor_nw_sw", "machine_assembler_ne_sw"]:
+		assert_eq(iso.resolve_sprite(n), "factory_kit/" + n, "kit has " + n)

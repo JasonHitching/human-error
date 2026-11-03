@@ -776,6 +776,159 @@
      "model": "fk:scanner-low"
     }
    ]
+  },
+  "factory_kit/belt_corner_ne_se": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 90
+    }
+   ]
+  },
+  "factory_kit/belt_corner_nw_ne": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 180
+    }
+   ]
+  },
+  "factory_kit/belt_corner_se_sw": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner"
+    }
+   ]
+  },
+  "factory_kit/belt_corner_sw_nw": {
+   "canvas": [
+    256,
+    200,
+    128,
+    126
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 270
+    }
+   ]
+  },
+  "factory_kit/machine_generator_se_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner"
+    },
+    {
+     "model": "fk:hopper-square"
+    }
+   ]
+  },
+  "factory_kit/machine_processor_ne_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:machine-window",
+     "pos": [
+      -0.12,
+      0,
+      -0.12
+     ],
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_processor_nw_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor-corner",
+     "rot_y_deg": 270
+    },
+    {
+     "model": "fk:machine-window",
+     "pos": [
+      -0.12,
+      0,
+      -0.12
+     ],
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_processor_nw_se": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor",
+     "rot_y_deg": 90
+    },
+    {
+     "model": "fk:machine-window",
+     "rot_y_deg": 90,
+     "scale": 0.7
+    }
+   ]
+  },
+  "factory_kit/machine_assembler_ne_sw": {
+   "canvas": [
+    384,
+    384,
+    192,
+    292
+   ],
+   "parts": [
+    {
+     "model": "fk:conveyor"
+    },
+    {
+     "model": "fk:machine",
+     "scale": 0.7
+    }
+   ]
   }
  }
 }
