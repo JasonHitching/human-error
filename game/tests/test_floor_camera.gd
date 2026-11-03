@@ -30,6 +30,19 @@ func test_pan_clamps_to_bounds() -> void:
 	assert_near(cam.center.y, cam.bounds.position.y + half.y, 0.001, "near y")
 
 
+func test_pan_works_when_factory_fits_the_view() -> void:
+	var cam := FloorCamera.new()
+	cam.set_view(Vector2(720, 1280))
+	cam.reset(Rect2(0, 0, 300, 300), 1.0)  # content much smaller than the view
+	var c0 := cam.center
+	cam.pan_screen(Vector2(-60, -40))
+	assert_true(cam.center.distance_to(c0) > 1.0, "a small factory still pans")
+	cam.pan_screen(Vector2(-100000, -100000))
+	assert_true(cam.bounds.grow(0.01).has_point(cam.center), "centre stays inside the bounds")
+	cam.pan_screen(Vector2(100000, 100000))
+	assert_true(cam.bounds.grow(0.01).has_point(cam.center), "centre stays inside the bounds (other side)")
+
+
 func test_zoom_keeps_anchor_and_round_trips() -> void:
 	var cam := _cam()
 	var w := Vector2(50, 300)
