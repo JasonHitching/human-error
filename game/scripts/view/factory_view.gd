@@ -568,17 +568,19 @@ func _draw_input_pips(m: Machine) -> void:
 		return
 	var n := mini(m.input_cap, 12)
 	var fill := FlowReadout.input_fill(m)
+	if fill <= 0.0 and m.id != selected:
+		return  # nothing queued: no empty-slot clutter under healthy machines
 	var col := UiTheme.CRIT if fill >= 1.0 else (UiTheme.WARN if fill >= FlowReadout.FULL_FILL else UiTheme.TEXT_DIM)
 	var g := machine_ground(m) + Vector2(0, 16.0 * _s)
-	var step := 8.0 * _s
+	var step := 11.0 * _s
 	var x0 := -step * float(n - 1) * 0.5
 	var filled := roundi(fill * n)
 	for i in n:
 		var pc := g + Vector2(x0 + step * i, 0)
 		if i < filled:
-			draw_circle(pc, maxf(2.5, 3.0 * _s), col)
+			draw_circle(pc, maxf(3.5, 4.0 * _s), col)
 		else:
-			draw_arc(pc, maxf(2.5, 3.0 * _s), 0.0, TAU, 8, Color(UiTheme.TEXT_FAINT, 0.7), 1.0)
+			draw_arc(pc, maxf(3.5, 4.0 * _s), 0.0, TAU, 10, Color(UiTheme.TEXT_FAINT, 0.8), 1.5)
 
 
 func _lamp_machine() -> Machine:
@@ -645,6 +647,8 @@ func _draw_scrap() -> void:
 	_spr("shadow_machine", g, false, Color(1, 1, 1, 0.6))
 	if not _spr("scrap_bin", g):
 		draw_style_box(UiTheme.box(UiTheme.SURFACE_DIM, UiTheme.LINE, 10.0), sr)
+	if factory.scrapped <= 0 and selected != "scrap":
+		return  # no permanent labels: the count only appears once something has been scrapped
 	var label := "Scrap %d" % factory.scrapped
 	var w := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, _chip_fs()).x + 14.0
 	var cr := Rect2(Vector2(sr.get_center().x - w * 0.5, sr.end.y + 2.0), Vector2(w, 22))
@@ -724,7 +728,7 @@ func _draw_chips(m: Machine) -> void:
 	if m.id == selected or kind != 0:  # no permanent labels on healthy machines
 		draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), bd)
 		_text(_badge_text(m), bd.position + Vector2(7, 16), fs, UiTheme.TEXT_DIM, bd.size.x - 10)
-	if m.type == "warehouse":
+	if m.type == "warehouse" and m.id == selected:  # the top bar already shows progress
 		_text("%d shipped" % factory.shipped, bd.position + Vector2(0, 40), fs, UiTheme.TEXT_DIM, bd.size.x)
 	elif kind == 2 and m.bot != null:
 		_text("tap to fix", bd.position + Vector2(0, 40), fs, UiTheme.CRIT_TEXT, bd.size.x)
@@ -756,6 +760,8 @@ func _draw_hatch(m: Machine) -> void:
 		r.position.y += sin(_bounce / 0.3 * PI) * 5.0
 	_spr("shadow_machine", g)
 	if _spr("desk_hatch", g):
+		if m.id != selected:
+			return  # label only on the selected hatch
 		var lr := Rect2(Vector2(r.get_center().x - 60.0 * _s, r.end.y + 4.0), Vector2(120.0 * _s, 22))
 		draw_style_box(UiTheme.box(UiTheme.SURFACE_2, UiTheme.LINE, 8.0), lr)
 		_text("UP TO QA DESK", lr.position + Vector2(6, 16), maxi(11, roundi(13.0 * _s)), UiTheme.TEXT_DIM, lr.size.x - 8)
